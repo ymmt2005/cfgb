@@ -12,7 +12,7 @@ Baseline reviewed before this work:
 
 Browsable static prototype in `design/mockup/`. Search results are labeled mock data. The owner has not accepted a visual direction yet. The production renderer does not exist, so this direction is not yet copied into Astro.
 
-The header controls are dropdowns labeled only テーマ / Theme and 配色 / Palette. The open menu follows the page colors, including a dark menu in the dark theme. Palette choices are Classic, Cyber, Dope, Forest, and Dusk. Wide articles put the table of contents on the left. It opens expanded and can be collapsed. The right column renders optional `aside/<locale>.md` from the content repository and adds no structure of its own. Palettes are mockup-only. The production theme contract remains system, light, and dark.
+The header controls are dropdowns labeled only テーマ / Theme and 配色 / Palette. The open menu follows the page colors, including a dark menu in the dark theme. Palette choices are Classic, Cyber, Dope, Forest, and Dusk. Wide articles put the table of contents on the left. It opens expanded and can be collapsed; the article uses that width while the contents are closed. The right column renders optional `aside/<locale>.md` from the content repository and adds no structure of its own. Palettes are mockup-only. The production theme contract remains system, light, and dark.
 
 ## M0-B — token handoff
 

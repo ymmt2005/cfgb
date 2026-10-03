@@ -833,10 +833,24 @@ footer.site a { color: var(--muted); }
     grid-template-columns: var(--toc) minmax(0, var(--measure));
   }
   .frame-article:has(.toc-desktop:not([open])) {
-    grid-template-columns: auto minmax(0, var(--measure)) var(--rail);
+    grid-template-columns: minmax(0, calc(var(--measure) + var(--toc) + 2.5rem)) var(--rail);
+    row-gap: 0.75rem;
   }
   .frame-article.frame-no-rail:has(.toc-desktop:not([open])) {
-    grid-template-columns: auto minmax(0, var(--measure));
+    grid-template-columns: minmax(0, calc(var(--measure) + var(--toc) + 2.5rem));
+  }
+  .frame-article:has(.toc-desktop:not([open])) .toc-desktop {
+    grid-column: 1;
+    grid-row: 1;
+    position: static;
+  }
+  .frame-article:has(.toc-desktop:not([open])) .frame-main {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .frame-article:has(.toc-desktop:not([open])) .rail {
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
 }
 
