@@ -142,8 +142,9 @@ page theme. Selectors are `[data-theme="light"]` and `[data-theme="dark"]`, so
 system mode, which has no `data-theme` attribute, keeps the library's
 `prefers-color-scheme` rules. Mermaid fences are extracted before code highlighting. Lazy-load a
 local Mermaid bundle only when a page contains diagrams; use `securityLevel:
-strict`. Keep original source in a no-JS fallback; hide it only after successful
-rendering. Invalid Mermaid keeps source with a useful error, not blank content.
+strict`. Keep the original source in that render target as the no-JS fallback;
+hide it only after successful rendering by replacing the element with the diagram.
+Do not emit a second copy of the source. Invalid Mermaid keeps source with a useful error, not blank content.
 Re-render from original source on theme change, including a system color-scheme
 change while the page remains in system mode; serialize renders to avoid races.
 

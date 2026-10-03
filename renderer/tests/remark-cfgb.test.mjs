@@ -117,6 +117,11 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
           type: "code",
           value: '<a href="../2026-09-19-protobuf-guide/en.md#field-numbers">Field numbers</a>',
         },
+        {
+          type: "code",
+          lang: "mermaid",
+          value: "graph TD\nA-->B\n",
+        },
       ],
     };
     remarkCfgb()(tree, { path: sourceFile });
@@ -139,6 +144,7 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
     );
     assert.match(tree.children[3].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
     assert.match(tree.children[4].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
+    assert.equal(tree.children[5].value, '<div class="diagram-block"><pre class="mermaid">graph TD\nA--&gt;B</pre></div>');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

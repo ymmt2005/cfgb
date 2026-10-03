@@ -55,6 +55,15 @@ func TestNodeRange(t *testing.T) {
 	if err := requireMinimumVersion("npm", "12.0.0-rc.1", minimumNpmVersion, "12.2.0"); err == nil {
 		t.Fatal("npm prerelease met the stable floor")
 	}
+	if err := requireMinimumVersion("npm", "12.1.0-rc.1", minimumNpmVersion, "12.2.0"); err == nil {
+		t.Fatal("npm prerelease above the floor was accepted")
+	}
+	if err := requireMinimumVersion("pnpm", "11.1.0-rc.1", minimumPnpmVersion, "12.8.1"); err == nil {
+		t.Fatal("pnpm prerelease above the floor was accepted")
+	}
+	if err := requireMinimumVersion("npm", "12.2.0+build.1", minimumNpmVersion, "12.2.0"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSemverPrecedence(t *testing.T) {

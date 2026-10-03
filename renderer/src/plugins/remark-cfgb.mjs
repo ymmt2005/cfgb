@@ -62,7 +62,7 @@ function escapeHtml(value) {
 
 function mermaidBlock(source) {
   const text = escapeHtml(source.replace(/\n$/, ""));
-  return `<div class="diagram-block"><pre class="mermaid">${text}</pre><pre class="mermaid-source"><code>${text}</code></pre></div>`;
+  return `<div class="diagram-block"><pre class="mermaid">${text}</pre></div>`;
 }
 
 function markAlert(node) {

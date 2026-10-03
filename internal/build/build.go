@@ -299,7 +299,10 @@ func requireMinimumVersion(tool, found, minimum, tested string) error {
 	if err != nil {
 		return err
 	}
-	if compareSemver(parsed, floor) < 0 {
+	// A stable floor does not admit any prerelease, including one whose
+	// numeric version is already above that floor.
+	bounds := []semverBound{{op: ">=", version: floor}}
+	if !stableRangeAllows(parsed, bounds) || compareSemver(parsed, floor) < 0 {
 		return fmt.Errorf("%s >= %s is required (tested %s), found %s", tool, minimum, tested, found)
 	}
 	return nil

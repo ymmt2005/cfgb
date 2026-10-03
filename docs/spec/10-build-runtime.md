@@ -112,7 +112,7 @@ require an exact npm patch, and it does not trust environment-variable values as
 proof of the installed versions. Observed Node, npm, and pnpm strings must be
 valid semantic versions. Comparison uses semantic version precedence, so a
 prerelease is lower than the same numbered release and does not satisfy a
-stable range. Malformed output, including a numeric prefix with trailing junk,
+stable range, including a prerelease whose numeric version is above the floor. Malformed output, including a numeric prefix with trailing junk,
 is rejected before the range is applied. Workers Builds uses `NODE_VERSION` to provision
 Node 24.15.0 or newer on the Node 24 line, or Node 26.0.0 or newer. Node 25 is
 outside npm 12's supported engines. Node 24 (Krypton) is the tested Active LTS

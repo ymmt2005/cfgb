@@ -163,7 +163,6 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
         const result = await mermaid.render(id, source);
         if (!current()) return;
         block.innerHTML = result.svg;
-        document.documentElement.classList.add("mermaid-ready");
       } catch (error) {
         if (!current()) return;
         block.textContent = source;

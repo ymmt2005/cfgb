@@ -36,6 +36,7 @@ const cases = [
   ["root-cookie", "/", {"cookie":"cfgb_locale=en","accept-language":"ja"}, 302, "/en/"],
   ["root-quality", "/", {"accept-language":"ja;q=0.2, en-US;q=0.9"}, 302, "/en/"],
   ["root-zero", "/", {"accept-language":"en;q=0, ja;q=0.5"}, 302, "/ja/"],
+  ["root-upper-q", "/", {"accept-language":"en;Q=0, ja;q=0.5"}, 302, "/ja/"],
   ["root-unsupported", "/", {"cookie":"cfgb_locale=fr","accept-language":"fr"}, 302, "/ja/"],
   ["locale-next", "/__locale?lang=en&next=%2Fen%2Fabout%2F", {}, 303, "/en/about/"],
   ["locale-external", "/__locale?lang=en&next=https%3A%2F%2Fevil.invalid%2F", {}, 303, "/en/"],

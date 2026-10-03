@@ -54,7 +54,7 @@ function negotiatedLocale(header) {
       let quality = 1;
       for (const param of params) {
         const [key, raw] = param.trim().split("=");
-        if (key === "q") quality = Number(raw);
+        if ((key || "").toLowerCase() === "q") quality = Number(raw);
       }
       if (!Number.isFinite(quality) || quality <= 0) return;
       ranked.push({ tag, quality, index });

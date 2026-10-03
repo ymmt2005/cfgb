@@ -199,7 +199,8 @@ if a miss reaches Worker code it delegates to `ASSETS.fetch(request)`.
 
 - `/` is a runtime route, with no generated root `index.html`. It returns a **302**
   redirect to `/<locale>/`: valid locale cookie first, then supported
-  `Accept-Language` ranges by descending quality (exclude `q=0`), then configured
+  `Accept-Language` ranges by descending quality (exclude `q=0`; the parameter
+  name is case-insensitive, so `Q=0` is the same exclusion), then configured
   default locale. Preserve deterministic tie handling. Emit `Cache-Control:
   private, no-store` and `Vary: Cookie, Accept-Language` so negotiation is not
   shared-cached. No cookie is set merely by negotiation. Locale URLs are never
