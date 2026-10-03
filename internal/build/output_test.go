@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ymmt2005/cfgb/internal/config"
+	"github.com/ymmt2005/cfgb/internal/frontmatter"
 )
 
 func TestOutputDirRejectsInputs(t *testing.T) {
@@ -40,8 +41,8 @@ func TestOutputDirRejectsInputs(t *testing.T) {
 	if err := os.Symlink("src", filepath.Join(repo, "linked-src")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := outputDir(cfg, filepath.Join(repo, "linked-src")); err == nil {
-		t.Fatal("symlink onto source was accepted")
+	if _, err := outputDir(cfg, filepath.Join(repo, "linked-src")); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -63,6 +64,9 @@ func TestDeliverPromotesCompleteArtifact(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dist, "ja", "index.html"), []byte("ja"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := resetOutput(out); err != nil {
 		t.Fatal(err)
 	}
 	if err := deliver(out, dist, []byte("worker\n"), []byte("{}\n")); err != nil {
@@ -99,7 +103,7 @@ func TestDeliverStopsWhenRemovalFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.Chmod(parent, 0o755) })
-	if err := deliver(out, t.TempDir(), []byte("worker"), []byte("{}")); err == nil {
+	if err := resetOutput(out); err == nil {
 		t.Fatal("expected removal to fail")
 	}
 	raw, err := os.ReadFile(out)
@@ -134,6 +138,19 @@ func TestSessionDirIsPrivate(t *testing.T) {
 	}
 	if info.Mode().Perm() != 0o700 {
 		t.Fatalf("mode = %o", info.Mode().Perm())
+	}
+	outside := t.TempDir()
+	if err := os.Remove(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, dir); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sessionDir(); err == nil {
+		t.Fatal("session symlink was accepted")
+	}
+	if _, err := os.Stat(filepath.Join(outside, "renderer")); !os.IsNotExist(err) {
+		t.Fatal("session symlink was followed")
 	}
 }
 
@@ -208,6 +225,205 @@ func TestRootedInputsRejectEscapes(t *testing.T) {
 	cfg.Content.Root = "../outside"
 	if _, _, _, err := stageContent(cfg, t.TempDir()); err == nil {
 		t.Fatal(".. escaped the repository")
+	}
+}
+
+func TestOutputSymlinkIsReplaced(t *testing.T) {
+	cfg, repo := testRepo(t)
+	content := filepath.Join(repo, "src", "content")
+	if err := os.WriteFile(filepath.Join(content, "keep.txt"), []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(repo, "dist")
+	if err := os.Symlink(content, link); err != nil {
+		t.Fatal(err)
+	}
+	sibling := link + ".tmp"
+	if err := os.WriteFile(sibling, []byte("sibling"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := outputDir(cfg, link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resetOutput(got); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		t.Fatalf("output mode = %s", info.Mode())
+	}
+	raw, err := os.ReadFile(filepath.Join(content, "keep.txt"))
+	if err != nil || string(raw) != "keep" {
+		t.Fatalf("target = %q, %v", raw, err)
+	}
+	if _, err := os.Stat(filepath.Join(link, ".tmp")); err != nil {
+		t.Fatal(err)
+	}
+	raw, err = os.ReadFile(sibling)
+	if err != nil || string(raw) != "sibling" {
+		t.Fatalf("sibling = %q, %v", raw, err)
+	}
+
+	dangling := filepath.Join(repo, "dangling")
+	if err := os.Symlink(filepath.Join(repo, "missing-target"), dangling); err != nil {
+		t.Fatal(err)
+	}
+	got, err = outputDir(cfg, dangling)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resetOutput(got); err != nil {
+		t.Fatal(err)
+	}
+	info, err = os.Lstat(dangling)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		t.Fatalf("dangling mode = %s", info.Mode())
+	}
+}
+
+func TestMissingLinkCardCache(t *testing.T) {
+	cfg, repo := testRepo(t)
+	cards := filepath.Join(repo, "src", "data", "linkcards")
+	if err := os.RemoveAll(cards); err != nil {
+		t.Fatal(err)
+	}
+	_, _, linkcardsDir, err := stageContent(cfg, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(linkcardsDir); !os.IsNotExist(err) {
+		t.Fatal("absent cache was created")
+	}
+}
+
+func TestReusedSessionDropsDeletedInputs(t *testing.T) {
+	cfg, repo := testRepo(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("WORKERS_CI_BUILD_UUID", "reuse-session")
+	article := filepath.Join(repo, "src", "content", "posts", "2026", "guide")
+	assets := filepath.Join(article, "assets")
+	if err := os.MkdirAll(assets, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	post := "---\ntitle: T\nslug: t\npublishedAt: '2026-01-02T03:04:05Z'\ntopics:\n- protobuf\n---\nbody\n"
+	if err := os.WriteFile(filepath.Join(article, "ja.md"), []byte(post), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(assets, "hero.svg"), []byte("<svg/>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "src", "data", "linkcards", "card.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	session, err := sessionDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareSession(session); err != nil {
+		t.Fatal(err)
+	}
+	contentRoot, _, cardsDir, err := stageContent(cfg, filepath.Join(session, "snapshot"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	media := filepath.Join(session, "renderer", "public", "media")
+	if err := stageMedia(cfg, media); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(contentRoot, "posts", "2026", "guide", "ja.md")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(media, "2026", "guide", "hero.svg")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(cardsDir, "card.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(repo, "src", "content", "posts", "2026")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(repo, "src", "data", "linkcards")); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareSession(session); err != nil {
+		t.Fatal(err)
+	}
+	contentRoot, topicsFile, cardsDir, err := stageContent(cfg, filepath.Join(session, "snapshot"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stageMedia(cfg, media); err != nil {
+		t.Fatal(err)
+	}
+	index, err := frontmatter.Collect(contentRoot, topicsFile, []string{"ja"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(index.Posts) != 0 {
+		t.Fatalf("deleted article remained in metadata: %#v", index.Posts)
+	}
+	if _, err := os.Stat(filepath.Join(contentRoot, "posts", "2026", "guide", "ja.md")); !os.IsNotExist(err) {
+		t.Fatal("deleted article survived the reused session")
+	}
+	if _, err := os.Stat(filepath.Join(media, "2026", "guide", "hero.svg")); !os.IsNotExist(err) {
+		t.Fatal("deleted media survived the reused session")
+	}
+	if _, err := os.Stat(filepath.Join(cardsDir, "card.json")); !os.IsNotExist(err) {
+		t.Fatal("removed link card survived the reused session")
+	}
+	if _, err := os.Stat(session); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDirectorySymlinksKeepMedia(t *testing.T) {
+	cfg, repo := testRepo(t)
+	posts := filepath.Join(repo, "src", "content", "posts")
+	yearData := filepath.Join(posts, "year-data", "guide", "assets")
+	if err := os.MkdirAll(yearData, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(yearData, "hero.svg"), []byte("year"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("year-data", filepath.Join(posts, "2026")); err != nil {
+		t.Fatal(err)
+	}
+	media := t.TempDir()
+	if err := stageMedia(cfg, media); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(media, "2026", "guide", "hero.svg"))
+	if err != nil || string(raw) != "year" {
+		t.Fatalf("linked year = %q, %v", raw, err)
+	}
+
+	cfg, repo = testRepo(t)
+	posts = filepath.Join(repo, "src", "content", "posts")
+	article := filepath.Join(posts, "2026", "real-article", "assets")
+	if err := os.MkdirAll(article, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(article, "hero.svg"), []byte("article"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("real-article", filepath.Join(posts, "2026", "guide")); err != nil {
+		t.Fatal(err)
+	}
+	media = t.TempDir()
+	if err := stageMedia(cfg, media); err != nil {
+		t.Fatal(err)
+	}
+	raw, err = os.ReadFile(filepath.Join(media, "2026", "guide", "hero.svg"))
+	if err != nil || string(raw) != "article" {
+		t.Fatalf("linked article = %q, %v", raw, err)
 	}
 }
 

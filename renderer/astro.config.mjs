@@ -5,6 +5,7 @@ import { unified } from "@astrojs/markdown-remark";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { fallbackHtml } from "./src/lib/fallback-html.mjs";
 import { absolute, loadSite } from "./src/lib/load-site.mjs";
 import { canonicalSitemapPath, localePageAlternates, pagePath } from "./src/lib/sitemap.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
@@ -143,31 +144,3 @@ function headers() {
 `;
 }
 
-function fallbackHtml(corpus, locale) {
-  const bilingual = locale === "both";
-  const lang = bilingual ? corpus.site.defaultLocale : locale;
-  const copy = bilingual
-    ? `<p><a href="/ja/">日本語</a> · <a href="/ja/search/">検索</a></p><p><a href="/en/">English</a> · <a href="/en/search/">Search</a></p>`
-    : `<p><a href="/${locale}/">${corpus.site.locales[locale].label}</a> · <a href="/${locale}/search/">${locale === "ja" ? "検索" : "Search"}</a></p>`;
-  const title = bilingual ? "Page not found" : locale === "ja" ? "ページが見つかりません" : "Page not found";
-  return `<!DOCTYPE html>
-<html lang="${lang}">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} · ${escapeHtml(corpus.site.title)}</title>
-<link rel="stylesheet" href="/assets/site.css">
-</head>
-<body>
-<main id="content" class="wrap page-narrow">
-<h1>${title}</h1>
-${copy}
-</main>
-</body>
-</html>
-`;
-}
-
-function escapeHtml(value) {
-  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}

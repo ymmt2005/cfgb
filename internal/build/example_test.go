@@ -149,6 +149,16 @@ func TestExampleCorpus(t *testing.T) {
 	if !bytes.Contains(article, []byte("data-footnote-ref")) || (!bytes.Contains(article, []byte("id=\"補足-1\"")) && !bytes.Contains(article, []byte("id=\"テスト-1\""))) {
 		t.Fatal("japanese showcase is missing the footnote or duplicate heading")
 	}
+	if !bytes.Contains(article, []byte(`data-pagefind-filter="year:2026"`)) || !bytes.Contains(article, []byte("data-pagefind-meta=\"published[")) {
+		t.Fatal("article is missing the site-local year or publication metadata")
+	}
+	root404, err := os.ReadFile(filepath.Join(out, "site", "404.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(root404, []byte(`href="/ja/"`)) || !bytes.Contains(root404, []byte(`href="/en/"`)) {
+		t.Fatal("bilingual root fallback is missing a configured locale")
+	}
 	raw, err = os.ReadFile(filepath.Join(out, "build-manifest.json"))
 	if err != nil {
 		t.Fatal(err)

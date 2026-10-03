@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	cfgb "github.com/ymmt2005/cfgb"
 	"github.com/ymmt2005/cfgb/internal/config"
@@ -106,9 +107,21 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}
 	}
+	if err := resetOutput(out); err != nil {
+		return &ExitError{Code: 3, Err: err}
+	}
+	built := false
+	defer func() {
+		if !built {
+			_ = os.RemoveAll(out)
+		}
+	}()
 	session, err := sessionDir()
 	if err != nil {
 		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}
+	}
+	if err := prepareSession(session); err != nil {
+		return &ExitError{Code: 3, Err: err}
 	}
 	rendererDir := filepath.Join(session, "renderer")
 	if err := extractRenderer(rendererDir); err != nil {
@@ -172,6 +185,7 @@ func Run(opts Options) error {
 	if err := deliver(out, filepath.Join(rendererDir, "dist"), source, manifest); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
+	built = true
 	fmt.Fprintf(opts.Stdout, "built %s\n", out)
 	return nil
 }
@@ -358,15 +372,53 @@ func sessionDir() (string, error) {
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return "", err
 	}
-	dir := filepath.Join(parent, id)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	parentInfo, err := os.Lstat(parent)
+	if err != nil {
 		return "", err
 	}
-	// MkdirAll leaves an existing directory's mode unchanged.
-	if err := os.Chmod(dir, 0o700); err != nil {
+	if parentInfo.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("toolchain session parent is a symlink")
+	}
+	dir := filepath.Join(parent, id)
+	info, err := os.Lstat(dir)
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+	if err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("toolchain session is a symlink")
+	}
+	if err == nil && !info.IsDir() {
+		return "", fmt.Errorf("toolchain session is not a directory")
+	}
+	if os.IsNotExist(err) {
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			return "", err
+		}
+	}
+	if err := tightenDir(dir); err != nil {
 		return "", err
 	}
 	return dir, nil
+}
+
+func tightenDir(dir string) error {
+	fd, err := syscall.Open(dir, syscall.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return err
+	}
+	defer syscall.Close(fd)
+	return syscall.Fchmod(fd, 0o700)
+}
+
+// prepareSession removes the per-build trees inside a retained session.
+// The session directory itself stays for a later deploy or preview.
+func prepareSession(session string) error {
+	for _, name := range []string{"renderer", "snapshot"} {
+		if err := os.RemoveAll(filepath.Join(session, name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func newSessionID() (string, error) {
@@ -435,7 +487,14 @@ func stageContent(cfg *config.File, snapshot string) (string, string, string, er
 	if err := copyFromRoot(root, topics, topicsDest); err != nil {
 		return "", "", "", err
 	}
-	if err := copyFromRoot(root, cards, cardsDest); err != nil {
+	info, err := root.Stat(cards)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return "", "", "", err
+		}
+	} else if !info.IsDir() {
+		return "", "", "", fmt.Errorf("link card cache is not a directory")
+	} else if err := copyFromRoot(root, cards, cardsDest); err != nil {
 		return "", "", "", err
 	}
 	return contentDest, topicsDest, cardsDest, nil
@@ -478,7 +537,14 @@ func stageMedia(cfg *config.File, dest string) error {
 		return err
 	}
 	for _, year := range years {
-		if !year.IsDir() || !isArticleYear(year.Name()) {
+		if !isArticleYear(year.Name()) {
+			continue
+		}
+		yearDir, err := rootedIsDir(posts, year.Name())
+		if err != nil {
+			return err
+		}
+		if !yearDir {
 			continue
 		}
 		keys, err := readRootDir(posts, year.Name())
@@ -486,7 +552,11 @@ func stageMedia(cfg *config.File, dest string) error {
 			return err
 		}
 		for _, key := range keys {
-			if !key.IsDir() {
+			articleDir, err := rootedIsDir(posts, joinRoot(year.Name(), key.Name()))
+			if err != nil {
+				return err
+			}
+			if !articleDir {
 				continue
 			}
 			group, err := posts.OpenRoot(joinRoot(year.Name(), key.Name()))
@@ -593,31 +663,22 @@ func outputDir(cfg *config.File, out string) (string, error) {
 		{resolveAbs(base, cfg.Content.Topics), false},
 		{cfg.Path(), false},
 	}
-	candidates := []string{out}
-	if resolved, err := resolveExisting(out); err == nil && resolved != out {
-		candidates = append(candidates, resolved)
-		if !insideRepo(repo, resolved) {
-			return "", fmt.Errorf("--out must be a directory inside the repository")
+	for _, item := range protected {
+		if overlaps(out, item.path, item.dir) {
+			return "", fmt.Errorf("--out must not contain or sit inside source content or Git and configuration inputs")
 		}
-	}
-	for _, candidate := range candidates {
-		for _, item := range protected {
-			if overlaps(candidate, item.path, item.dir) {
-				return "", fmt.Errorf("--out must not contain or sit inside source content or Git and configuration inputs")
-			}
-		}
-	}
-	info, err := os.Stat(out)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return out, nil
-		}
-		return "", err
-	}
-	if !info.IsDir() {
-		return "", fmt.Errorf("--out is not a directory")
 	}
 	return out, nil
+}
+
+// resetOutput removes the selected output entry and creates <out>/.tmp.
+// RemoveAll deletes a symlink entry without following it, so a link is not
+// used as the deletion target.
+func resetOutput(out string) error {
+	if err := os.RemoveAll(out); err != nil {
+		return err
+	}
+	return os.MkdirAll(filepath.Join(out, ".tmp"), 0o755)
 }
 
 func resolveAbs(base, value string) string {
@@ -652,55 +713,11 @@ func containsPath(parent, child string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-func resolveExisting(path string) (string, error) {
-	path = filepath.Clean(path)
-	suffix := ""
-	current := path
-	for {
-		_, err := os.Lstat(current)
-		if err == nil {
-			resolved, err := filepath.EvalSymlinks(current)
-			if err != nil {
-				return "", err
-			}
-			if suffix == "" {
-				return filepath.Clean(resolved), nil
-			}
-			return filepath.Clean(filepath.Join(resolved, suffix)), nil
-		}
-		if !os.IsNotExist(err) {
-			return "", err
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			return "", err
-		}
-		base := filepath.Base(current)
-		if suffix == "" {
-			suffix = base
-		} else {
-			suffix = filepath.Join(base, suffix)
-		}
-		current = parent
-	}
-}
-
-// deliver removes the selected output, stages the complete artifact under
-// <out>/.tmp, and promotes site/, worker/, and build-manifest.json. It does
-// not touch a sibling <out>.tmp. A failure after removal deletes the incomplete
-// output so it is not reported as a finished artifact.
+// deliver writes the complete artifact under the staging directory created by
+// resetOutput, then promotes site/, worker/, and build-manifest.json. It does
+// not remove <out> and does not touch a sibling <out>.tmp.
 func deliver(out, dist string, workerSource, manifest []byte) error {
-	if err := os.RemoveAll(out); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(out, 0o755); err != nil {
-		return err
-	}
-	if err := stageOutput(out, dist, workerSource, manifest); err != nil {
-		_ = os.RemoveAll(out)
-		return err
-	}
-	return nil
+	return stageOutput(out, dist, workerSource, manifest)
 }
 
 func stageOutput(out, dist string, workerSource, manifest []byte) error {
@@ -709,7 +726,7 @@ func stageOutput(out, dist string, workerSource, manifest []byte) error {
 		return err
 	}
 	defer root.Close()
-	if err := root.Mkdir(".tmp", 0o755); err != nil {
+	if err := root.Mkdir(".tmp", 0o755); err != nil && !os.IsExist(err) {
 		return err
 	}
 	defer root.RemoveAll(".tmp")
@@ -753,6 +770,17 @@ func writeStaged(staging *os.Root, dist string, workerSource, manifest []byte) e
 		return err
 	}
 	return nil
+}
+
+func rootedIsDir(root *os.Root, name string) (bool, error) {
+	info, err := root.Stat(name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return info.IsDir(), nil
 }
 
 func isArticleYear(name string) bool {

@@ -97,16 +97,19 @@ instead. That choice is an environment variable, not a field in
 the content repository. Its installed Wrangler survives for the same
 build's upload command, outside the content repository and deployable artifact.
 
-`--out` must resolve inside the repository. Refuse a location that contains,
-or sits inside, source content, `cfgb.yaml`, topic and link-card inputs, or
-`.git`. That includes an output directory that is an ancestor of one of those
-inputs. The selected directory is disposable: `build` removes it and stops if
-removal fails. It does not keep an earlier artifact. Staging is `<out>/.tmp`.
-The complete `site/`, `worker/index.js`, and `build-manifest.json` are written
+`--out` is a path inside the repository. The check is lexical: refuse a
+location that contains, or sits inside, source content, `cfgb.yaml`, topic and
+link-card inputs, or `.git`. That includes an output directory that is an
+ancestor of one of those inputs. Do not accept or reject the path by resolving
+its symlink target, and do not delete that target. An existing directory, file,
+symlink, or dangling symlink at the selected path is removed as that entry.
+`build` does this removal at the start and stops if it fails, then creates
+`<out>/.tmp` before rendering. It does not keep an earlier artifact. The
+complete `site/`, `worker/index.js`, and `build-manifest.json` are written
 there, then moved into `<out>`. Success is reported only after that complete
-artifact is in place. A failed publish removes the incomplete directory. This
+artifact is in place. A failed build removes the incomplete directory. This
 invocation deletes only the staging directory it created; a sibling `<out>.tmp`
-is left alone. Repository-relative inputs are read through `os.Root` on the
+is left alone. A missing link-card directory is an empty cache. Repository-relative inputs are read through `os.Root` on the
 repository. Article assets are read through a child root of that article's
 `assets` directory. Symlinks and `..` that stay inside the applicable root are
 copied. Escapes fail at the rooted open, which keeps the build inside its

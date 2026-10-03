@@ -1,4 +1,5 @@
 import path from "node:path";
+import { parseFragment, serialize } from "parse5";
 import { cardKey, loadSite } from "../lib/load-site.mjs";
 
 const alerts = {
@@ -89,13 +90,26 @@ function markAlert(node) {
 }
 
 function rewriteHtml(value, source, byFile) {
-  return value.replace(/\s(href|src)\s*=\s*("([^"]*)"|'([^']*)')/gi, (match, attr, quoted, doubleQuoted, singleQuoted) => {
-    const url = doubleQuoted !== undefined ? doubleQuoted : singleQuoted;
-    const quote = doubleQuoted !== undefined ? '"' : "'";
-    const next = attr.toLowerCase() === "src" ? rewriteImage(url, source) : rewriteLink(url, source, byFile);
-    if (next === url) return match;
-    return match.slice(0, match.indexOf(quoted)) + quote + next + quote;
+  const fragment = parseFragment(value);
+  let changed = false;
+  walkElements(fragment, (node) => {
+    for (const attr of node.attrs || []) {
+      const name = attr.name.toLowerCase();
+      if (name !== "href" && name !== "src") continue;
+      const next = name === "src" ? rewriteImage(attr.value, source) : rewriteLink(attr.value, source, byFile);
+      if (next !== attr.value) {
+        attr.value = next;
+        changed = true;
+      }
+    }
   });
+  if (!changed) return value;
+  return serialize(fragment);
+}
+
+function walkElements(node, visit) {
+  if (node.tagName) visit(node);
+  for (const child of node.childNodes || []) walkElements(child, visit);
 }
 
 function textOf(node) {

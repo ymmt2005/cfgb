@@ -455,27 +455,20 @@ func rejectBOM(br *bufio.Reader) error {
 }
 
 func readLine(br *bufio.Reader) (string, []byte, error) {
-	var raw []byte
-	for {
-		frag, err := br.ReadSlice('\n')
-		raw = append(raw, frag...)
-		if err == bufio.ErrBufferFull {
-			continue
-		}
-		if err != nil && err != io.EOF {
-			return "", nil, err
-		}
-		if err == io.EOF && len(raw) == 0 {
-			return "", nil, io.EOF
-		}
-		content := string(raw)
-		content = strings.TrimSuffix(content, "\n")
-		content = strings.TrimSuffix(content, "\r")
-		if err == io.EOF {
-			return content, raw, io.EOF
-		}
-		return content, raw, nil
+	line, err := br.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return "", nil, err
 	}
+	if err == io.EOF && line == "" {
+		return "", nil, io.EOF
+	}
+	raw := []byte(line)
+	content := strings.TrimSuffix(line, "\n")
+	content = strings.TrimSuffix(content, "\r")
+	if err == io.EOF {
+		return content, raw, io.EOF
+	}
+	return content, raw, nil
 }
 
 func readDir(root *os.Root, name string) ([]os.DirEntry, error) {

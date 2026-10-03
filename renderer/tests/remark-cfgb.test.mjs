@@ -104,6 +104,14 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
           value: '<a href="../2026-09-19-protobuf-guide/en.md#field-numbers">Field numbers</a>',
         },
         {
+          type: "html",
+          value: "<a href=../2026-09-19-protobuf-guide/en.md#field-numbers>Field numbers</a>",
+        },
+        {
+          type: "html",
+          value: '<!-- <a href="../2026-09-19-protobuf-guide/en.md#field-numbers">hidden</a> -->',
+        },
+        {
           type: "code",
           value: '<a href="../2026-09-19-protobuf-guide/en.md#field-numbers">Field numbers</a>',
         },
@@ -123,7 +131,12 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
       tree.children[1].value,
       '<a href="/en/posts/reading-protobuf-schemas/#field-numbers">Field numbers</a>',
     );
-    assert.match(tree.children[2].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
+    assert.equal(
+      tree.children[2].value,
+      '<a href="/en/posts/reading-protobuf-schemas/#field-numbers">Field numbers</a>',
+    );
+    assert.match(tree.children[3].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
+    assert.match(tree.children[4].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
