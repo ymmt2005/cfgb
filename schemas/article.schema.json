@@ -48,7 +48,7 @@
         "type": "string",
         "pattern": "^/(?:[A-Za-z0-9_-]+/)+$"
       },
-      "uniqueItems": true
+      "description": "Duplicate aliases within/across variants are rejected by semantic validation as E_ALIAS_DUPLICATE in every validation mode."
     }
   },
   "required": [

@@ -43,7 +43,8 @@ Serve `/` as a runtime locale-negotiation route; do not generate an index page.
 Generate static content for each enabled locale:
 `/<locale>/`, `/posts/`, `/posts/<slug>/`, `/archive/`,
 `/archive/<YYYY>/<MM>/`, `/topics/<topic>/`, `/search/`, `/about/`, `/feed.xml`
-(all after the locale prefix). Generate `/sitemap-index.xml` and `/robots.txt`.
+(all after the locale prefix). Generate `/sitemap-index.xml`, numbered
+`/sitemap-<n>.xml` files beginning at zero, and `/robots.txt`.
 Generate localized `/<locale>/404.html` and bilingual `/404.html` as internal
 fallback assets, not indexable articles. Static Assets chooses the nearest
 directory fallback with status 404. `/__locale` is a runtime preference route.
@@ -64,6 +65,10 @@ slash; reject queries/fragments, encoded separators, dot segments, backslashes,
 using letters/digits/hyphens/underscores. Reject alias loops, duplicate aliases,
 canonical collisions, reserved routes and cross-locale aliases. Emit direct 301s
 to current canonical routes (no chains). Hatena URLs are provenance, not aliases.
+Alias array/item structure is checked by JSON Schema. Duplicate aliases within
+one variant or across variants are semantic errors: `E_ALIAS_DUPLICATE`, exit 1,
+in default, authoring and publish validation. Do not reject duplicates as
+`E_SCHEMA`; structural alias type/path failures remain schema errors.
 
 Global language links target the same article's counterpart if available;
 otherwise target the other locale home. Only real pairs receive an article-level
@@ -132,3 +137,33 @@ required in v1. RSS dates are correctly formatted instants; sitemap includes
 canonical public pages only, excluding search/fallback/alias/preview URLs.
 Use `updatedAt` when present for modification metadata. Escape `</script>` in
 JSON-LD and validate XML. Preview robots deny crawling and emit noindex headers.
+
+## Sitemap generation
+
+Use the pinned `@astrojs/sitemap` integration embedded with CFGB's renderer;
+CFGB does not implement its own XML writer. Set Astro `site` to configured
+`site.baseUrl` even in preview builds. Use filename base `sitemap`, an explicit
+`entryLimit: 45000` and no locale-specific chunks. `/sitemap-index.xml` references
+every emitted `/sitemap-<n>.xml` by absolute production URL. The small example
+corpus emits exactly `/sitemap-0.xml`; larger sites may emit further numbered
+files. `/robots.txt` advertises the absolute sitemap-index URL in production;
+preview retains its deny-crawling behavior.
+
+Feed the integration the canonical HTML pages from the route registry and filter
+out runtime routes (including `/`), search, 404 fallbacks, aliases, feeds, robots,
+sitemap resources and asset URLs. Never include a preview hostname. The union
+of numbered sitemap entries must equal the canonical HTML route set, with each
+URL appearing once. XML order/formatting is not an acceptance contract.
+
+Use the integration's `serialize` hook to supply article `lastmod` from `updatedAt`
+when present, otherwise `publishedAt`; never use the build clock. Pages without
+source modification metadata omit `lastmod`. Supply language links from actual
+translation groups and confirmed translated page counterparts, including each
+paired page itself. Unpaired articles have no language alternates. Do not use
+automatic pathname-based i18n matching: paired locale articles may have different
+slugs. The integration still owns XML serialization and file splitting.
+
+Acceptance parses the generated index and all referenced numbered files, verifies
+that each file exists, checks canonical entries and article alternates against
+`tests/expected/sitemap.json`, and rejects duplicate/missing/unexpected URLs.
+Both the index and numbered files are included in `static-routes.json`.

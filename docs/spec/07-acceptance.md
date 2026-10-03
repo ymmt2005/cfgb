@@ -19,7 +19,7 @@ Initial preparation checks only its structural and referential integrity.
 | Local links and fragment resolution | Cross-article/HTML/reference links | Shared renderer manifest + CLI |
 | 20–30 search cases | `tests/search/queries.yaml` (24 queries) | Actual Pagefind browser search |
 | Locale isolation and filters | Each query has locale; topic/year cases | Pagefind |
-| SEO, RSS, OG and sitemap | Locale pairs + explicit/fallback OG | Renderer integration tests |
+| SEO, RSS, OG and sitemap | Locale pairs + explicit/fallback OG; sitemap index, numbered files and canonical sets in `sitemap.json` | Renderer integration tests |
 | AI lifecycle and human edit preservation | `tests/ai/lifecycle.json` | CLI with fake provider |
 | AI quality and provider selection | `tests/ai/summary-corpus.yaml` | Live evaluation + human review |
 | No runtime/build-time AI/content fetching | Network-denied build after installation | CFGB build |
@@ -29,12 +29,15 @@ Initial preparation checks only its structural and referential integrity.
 | Authoritative CI provenance | Detached HEAD and official CI-variable/checkout checks | CFGB provenance adapter |
 | Separate build/upload stages | `tests/build-delivery/cases.json`; artifact consistency/source-identity and timestamp gates | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
+| Semantic alias uniqueness | Duplicate arrays in every mode and duplicates across variants; `E_ALIAS_DUPLICATE` after Schema | CLI |
 | Required preview access | `tests/fixtures/configuration/cases.json` | Configuration loader |
 | Setup Action and immutable-release verification | [Action contract](09-github-action.md), attestation/platform/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
 | Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
 | Configured-blog import and syntax inventory | Synthetic Atom exports (two blogs in this corpus) | Importer |
+| Deterministic migration pairing without AI | Candidate repeatability, absent AI credentials, zero model calls and explicit decisions | Importer |
+| Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, explicit `previews: {}` and top-level assets | CFGB release + upload adapter |
 | Complete map before link rewriting | Migration expected map and forward link | Importer |
 | Pairing approval and asset deduplication | Migration pairing/category/asset decisions | Importer |
 | Rerun and conflicts | Hatena cases and separate expected conflict reports; unchanged last-applied hash pair | Importer |
@@ -61,6 +64,9 @@ separate security concerns.
    both themes and with JS disabled. Assert no unexpected remote requests. Check
    code-copy keyboard behavior and accessible diagrams/TOC. Validate XML and HTML
    metadata and all emitted internal URLs/anchors.
+   Parse the sitemap index and every referenced numbered file; compare canonical
+   URL sets and real article alternates with the expected sitemap fixture, and
+   check source-based lastmod values rather than the build clock.
 4. Search: serve the actual built output, open `/<locale>/search/`, run each query
    through Pagefind and materialize result data. Assert expected canonical URLs
    appear within topK, unexpected locale URLs do not appear, and filters work.

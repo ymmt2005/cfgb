@@ -28,7 +28,8 @@ prerequisites; embedding sources does not embed a JS runtime or node_modules.
 Dependency installation may use network; rendering and artifact tests must work
 offline. Renderer implementation and dependencies can change without adding files
 to article repositories. A release records its embedded renderer version and publishes/embeds Node range,
-exact pnpm/Wrangler and lockfile requirements. Retain each external toolchain
+exact pnpm/Wrangler, tested Workers compatibility date and lockfile requirements.
+Retain each external toolchain
 workspace through its upload command. Workers Builds bootstraps the exact binary
 under HOME and obtains provenance from official CI variables; see the
 [build runtime contract](10-build-runtime.md).

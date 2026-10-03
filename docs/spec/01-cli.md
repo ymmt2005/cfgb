@@ -119,6 +119,9 @@ source commit to match main. These checks supplement branch protection.
 `CFGB_CF_WORKER_NAME` supplies the target Worker; `CLOUDFLARE_ACCOUNT_ID` and
 `CLOUDFLARE_API_TOKEN` configure the Wrangler adapter. Generate Wrangler config
 in a disposable upload workspace from the artifact and trusted target settings.
+Its top-level `compatibility_date` comes from release-pinned
+`workerCompatibilityDate`, recorded in the artifact; v1 always generates
+`previews: {}` and top-level assets. See the runtime contract.
 Use the retained toolchain session's Wrangler; a temporary upload config does not
 reinstall or lose that toolchain. Workers Builds source commit/branch/build UUID
 come from `WORKERS_CI_COMMIT_SHA`, `WORKERS_CI_BRANCH`, `WORKERS_CI_BUILD_UUID`
@@ -152,6 +155,10 @@ Warnings include `W_SUMMARY_LENGTH`, `W_SUMMARY_REQUIRED`, `W_FUTURE_DATE`,
 `W_ALT_EMPTY`, `W_ASSET_UNUSED`, `W_ASSET_DUPLICATE`, `W_ASSET_LARGE`,
 `W_LINKCARD_MISSING`. Collect independent errors; don't invent cascading results
 from a file that cannot be parsed.
+
+Alias uniqueness is semantic validation after structural Schema validation.
+Duplicates within an alias array or across variants use `E_ALIAS_DUPLICATE`,
+exit 1, in every validation mode; malformed alias types/paths use `E_SCHEMA`.
 
 ## Safe writes and network
 

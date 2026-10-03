@@ -6,6 +6,10 @@ Test exports in `cfgb-example` are synthetic
 and use reserved `.invalid` origins. No live import or remote modification occurs
 when checking this corpus.
 
+All migration commands, including snapshot, plan, apply and mark-moved, make no
+model calls and neither require nor read AI credentials. Pairing candidates use
+deterministic heuristics; approved human decisions are the only pairing authority.
+
 ## Inventory and extraction
 
 Authenticate to Hatena AtomPub with credentials from `CFGB_HATENA_USER` and
@@ -35,7 +39,9 @@ without comparing rendered output. Raw snapshots are not committed by default.
 2. Propose topics from categories one-to-one, then review multilingual label
    merges. Store approved category-to-topic mappings; don't invent topics using AI.
 3. Produce translation-pair candidates from explicit links, dates, titles, shared
-   outbound links/assets and optional LLM comparison. Confidence is advisory.
+   outbound links/assets using deterministic heuristics only. Confidence is advisory.
+   Use stable source-ID ordering for ties; the same snapshot and decisions under
+   the same CFGB version must produce the same candidate report. No LLM comparison.
 4. Read explicit pair decisions. No automatic pairing, even for high confidence;
    reject a decision assigning one source to multiple groups or two same-locale
    sources to one group. Unapproved candidates remain separate groups.
@@ -46,9 +52,11 @@ without comparing rendered output. Raw snapshots are not committed by default.
 7. Build fragment mappings by comparing captured HTML anchors to the new rendered
    heading IDs. Preserve explicit IDs where feasible; unresolved/ambiguous mappings
    are blockers, never silently drop fragments.
-8. Stage all outputs, summaries, expected routes and conflict reports. Review
-   before applying. Provider calls for missing summaries happen during authoring,
-   not inside deterministic production builds.
+8. Stage proposed content, expected routes and conflict reports. Preserve any
+   explicitly supplied human summary; absent summaries remain absent/empty and
+   require authoring-mode validation at this stage. Review before applying.
+   Generate missing summaries later through the separate `cfgb summarize` command,
+   then review and validate for publication. Migration never calls a provider.
 
 URL matching resolves relative URLs against each original article URL, maps exact
 known original HTTP/HTTPS aliases, and preserves query/fragment semantics. Do not

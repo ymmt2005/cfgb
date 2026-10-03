@@ -42,7 +42,8 @@ not read from articles or PR-controlled scripts:
 Each CFGB release publishes `toolchain-requirements.json` and embeds the same
 requirements. Required fields are `schemaVersion: 1`, `nodeRange` (SemVer range),
 `testedNodeVersion` (exact version satisfying that range), `pnpmVersion`,
-`wranglerVersion`, `rendererVersion` and `lockfileHash` (SHA-256 of embedded
+`wranglerVersion`, `workerCompatibilityDate` (tested Workers runtime date in
+`YYYY-MM-DD` form), `rendererVersion` and `lockfileHash` (SHA-256 of embedded
 lockfile bytes). A compatible Node range such as `24.x` is illustrative, not an
 already selected runtime. The actual versions are verified when releasing CFGB.
 Wrangler must meet the Preview minimum of 4.135.0.
@@ -150,10 +151,45 @@ Within the original session, observed Node must also match the build observation
 a recreated upload session can use another Node version within the recorded
 supported range, while retaining a separate record of that upload runtime. The
 manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `pnpmVersion`,
-`wranglerVersion`, `rendererVersion`, `lockfileHash` and observed `nodeVersion`;
+`wranglerVersion`, `workerCompatibilityDate`, `rendererVersion`, `lockfileHash`
+and observed `nodeVersion`;
 observed pnpm/Wrangler must match their exact required versions. The selected
 CFGB release's requirements must match the artifact's recorded requirements.
 Altered/incompatible artifact metadata fails with `E_ARTIFACT`, exit 1.
+
+## Generated Wrangler runtime configuration
+
+The CFGB release pins `workerCompatibilityDate` together with its Worker source
+and Wrangler version, and records it in the artifact's toolchain requirements.
+Release testing covers that exact runtime date for production and preview.
+Build/deploy/preview must not derive it from their execution date, the source
+commit date or the current platform default. Changing it requires a reviewed,
+tested CFGB release. Missing/invalid embedded requirements fail `E_TOOLCHAIN`,
+exit 2; a mismatching artifact requirement fails `E_ARTIFACT`, exit 1.
+
+Generate temporary Wrangler configuration for both upload commands with top-level
+`compatibility_date` equal to that pinned value and an explicit `previews: {}`.
+Keep `assets` at the top level, including the `ASSETS` binding and selective
+Worker-first routing from the delivery specification. V1 has no Preview-specific
+vars, secrets or storage bindings; the empty Preview object is sufficient for
+this runtime. If such bindings are added in a future release, their Preview-safe
+configuration requires a separate reviewed contract. Access remains mandatory;
+an empty `previews` object does not provide privacy protection.
+
+Illustrative required runtime fields (not a complete deployment configuration,
+and not a claim that this date is already tested for a released CFGB Worker):
+
+```json
+{
+  "compatibility_date": "2026-10-03",
+  "previews": {}
+}
+```
+
+Use the same pinned date for retained and recreated upload toolchains. Validate
+the generated configuration with the pinned Wrangler during release acceptance,
+and assert both production and preview configurations include these fields.
+No Wrangler configuration or runtime-date override belongs in a content repository.
 
 ## Artifact verification scope
 

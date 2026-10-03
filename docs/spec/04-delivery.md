@@ -62,6 +62,11 @@ Cloudflare account, Worker target and upload token. Do not commit credentials or
 account-specific deployment configuration. CFGB generates temporary Wrangler
 configuration for the reviewed deployment target; authors do not run Astro,
 Pagefind or Wrangler directly.
+The generated config uses release-pinned `workerCompatibilityDate` as its
+top-level `compatibility_date` and always includes `previews: {}` in v1.
+Assets remain top-level. See the runtime contract for the required fields;
+the date is never derived from the build/deploy clock, and an empty Preview
+object does not replace the Access checks below.
 
 The configured production origin is canonical. For an apex deployment, redirect
 `www` at the host/zone layer while preserving path/query, and disable or redirect
