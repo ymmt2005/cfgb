@@ -90,7 +90,7 @@ rendering, Pagefind and artifact checks then run offline. No AI, metadata refres
 remote image fetch or source mutation occurs. Node.js remains required in v1.
 The [build runtime contract](10-build-runtime.md) defines bootstrap, runtime
 requirements, retained toolchain sessions and source-provenance resolution. Build
-checks the actual Node range and npm major from release requirements before
+checks the actual Node range and requires npm >= 12 before
 installing frozen dependencies. `CFGB_PACKAGE_MANAGER=pnpm` selects the optional
 exact pnpm pin instead. That choice is an environment variable, not a field in
 the content repository. Its installed Wrangler survives for the same

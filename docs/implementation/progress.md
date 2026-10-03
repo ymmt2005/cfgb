@@ -22,10 +22,10 @@ The header controls are dropdowns labeled only テーマ / Theme and 配色 / Pa
 
 - Go module `github.com/ymmt2005/cfgb`, toolchain Go 1.27.1. `cfgb version` works. Other commands exit 2.
 - Schemas, prompts, and `toolchain-requirements.json` are embedded.
-- Renderer dependency pin is Astro `6.4.8` (Astro 7.3.5 is published and is not the v1 baseline), `@astrojs/sitemap` `3.7.4`, `astro-expressive-code` `0.44.2`, Mermaid `12.1.0`, Pagefind `1.5.2`, Wrangler `4.147.0`. The default installer is npm `10.9.7`; any npm 10.x is accepted. pnpm `10.33.3` remains optional through `CFGB_PACKAGE_MANAGER=pnpm`.
+- Renderer dependency pin is Astro `6.4.8` (Astro 7.3.5 is published and is not the v1 baseline), `@astrojs/sitemap` `3.7.4`, `astro-expressive-code` `0.44.2`, Mermaid `12.1.0`, Pagefind `1.5.2`, Wrangler `4.147.0`. The default installer is npm >= 12, tested at `12.2.0`. `allowScripts` permits install scripts for esbuild, sharp, and workerd. pnpm `10.33.3` remains optional through `CFGB_PACKAGE_MANAGER=pnpm`.
 - `workerCompatibilityDate` is `2026-09-22`. It has not been deployed.
 - Corpus tests are not wired yet. The example commit above is the pin to use.
-- Node `22.14.0` is the tested runtime. `nodeRange` is `>=22.12.0 <23`, matching Astro 6.4.8.
+- Node `22.23.3` is the tested runtime. `nodeRange` is `>=22.22.2 <23`, the overlap of Astro 6.4.8 and npm 12. Node 22 does not bundle npm 12.
 
 ## Phase 1 — renderer and build, started
 

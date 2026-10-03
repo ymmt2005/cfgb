@@ -35,15 +35,15 @@ not read from articles or PR-controlled scripts:
 | --- | --- |
 | `CFGB_VERSION` | Exact reviewed release tag, e.g. `vX.Y.Z`; no latest/range |
 | `CFGB_SHA256` | Reviewed 64-character lowercase SHA-256 for that executable |
-| `NODE_VERSION` | Exact supported Node.js version selected from the release requirements. Its bundled npm is the default installer |
+| `NODE_VERSION` | Exact supported Node.js version, at least 22.22.2. Install npm >= 12 separately; Node 22, 24, and 26 do not bundle it |
 | `PNPM_VERSION` | Optional. Exact pnpm version from the release, used only when `CFGB_PACKAGE_MANAGER=pnpm` |
 | `SKIP_DEPENDENCY_INSTALL` | `1`; CFGB owns dependency installation outside the content checkout |
 
 Each CFGB release publishes `toolchain-requirements.json` and embeds the same
 requirements. Required fields are `schemaVersion: 1`, `nodeRange` (SemVer range),
 `testedNodeVersion` (exact version satisfying that range), `packageManager`
-(`npm`, the default installer), `npmVersion` (tested npm whose major `build`
-accepts), `pnpmVersion` (exact optional pnpm pin), `wranglerVersion`,
+(`npm`, the default installer), `npmVersion` (tested npm, at least 12.0.0;
+`build` accepts any npm >= 12.0.0), `pnpmVersion` (exact optional pnpm pin), `wranglerVersion`,
 `workerCompatibilityDate` (tested Workers runtime date in `YYYY-MM-DD` form),
 `rendererVersion`, `lockfileHash` (SHA-256 of embedded `package-lock.json`) and
 `pnpmLockfileHash` (SHA-256 of embedded `pnpm-lock.yaml`). A compatible Node
@@ -102,13 +102,15 @@ executable bytes from the same exact immutable CFGB release.
 
 ## Node, npm and toolchain workspace
 
-Node.js is not pinned by a JavaScript package lockfile. npm ships with Node and
-is the default installer. Before dependency install, `build` checks the actual
-Node runtime against the embedded `nodeRange` and the actual npm major against
-`npmVersion`. It does not require an exact npm patch, and it does not trust
-environment-variable values as proof of the installed versions. Workers Builds
-uses `NODE_VERSION` to provision Node; that Node's npm is enough for the default
-path. Other environments install a compatible Node independently.
+Node.js is not pinned by a JavaScript package lockfile. npm >= 12 is the default
+installer because that release makes dependency install scripts opt-in. Before
+dependency install, `build` checks the actual Node runtime against the embedded
+`nodeRange` and requires the actual npm to be >= 12.0.0. npm 11 and older still
+run those scripts by default, so they fail `E_TOOLCHAIN`. The check does not
+require an exact npm patch, and it does not trust environment-variable values as
+proof of the installed versions. Workers Builds uses `NODE_VERSION` to provision
+Node 22.22.2 or newer. That release line still bundles an older npm, so the
+environment also installs npm >= 12. Other environments do the same.
 
 `CFGB_PACKAGE_MANAGER` selects the installer. An empty value or `npm` runs
 `npm ci` and `npm exec`. `pnpm` checks the actual pnpm against exact
@@ -126,7 +128,9 @@ as a path component. Elsewhere use an opaque random session ID under CFGB's user
 cache. Reject symlink/path escapes regardless of the hashed component. The
 workspace contains extracted package and lockfile sources, `npm ci` dependencies
 by default (or the frozen pnpm install when selected), including the pinned
-Wrangler, and private session metadata. Dependency installation is allowed network access;
+Wrangler, and private session metadata. The renderer `package.json` `allowScripts`
+field permits install scripts for `esbuild`, `sharp`, and `workerd`. Every other
+dependency install script stays blocked. Dependency installation is allowed network access;
 content rendering, indexing and integration checks subsequently run offline.
 
 Retain this workspace after `build` returns and through the Deploy/Preview
@@ -166,8 +170,8 @@ manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `packageManager
 (the installer this build used), `npmVersion`, `pnpmVersion`, `wranglerVersion`,
 `workerCompatibilityDate`, `rendererVersion`, `lockfileHash`, `pnpmLockfileHash`
 and observed `nodeVersion`, `observedNpmVersion` and `observedPnpmVersion`.
-An npm build records the observed npm version and requires its major to match
-`npmVersion`. A pnpm build records the observed pnpm version and requires an
+An npm build records the observed npm version and requires npm >= 12.0.0.
+A pnpm build records the observed pnpm version and requires an
 exact `pnpmVersion` match. Observed Wrangler must match its exact required
 version. The selected
 CFGB release's requirements must match the artifact's recorded requirements.

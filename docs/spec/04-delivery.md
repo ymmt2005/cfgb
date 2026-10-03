@@ -35,10 +35,12 @@ manifest records source commit and branch, CFGB/schema/toolchain versions,
 configuration and input/output hashes, successful build checks, publication
 metadata, toolchain requirements/observations, session identity and provenance
 provider. Workers Builds supplies authoritative source commit/branch/build UUID;
-compare commit with checkout HEAD and retain the UUID for tracing. Node supplies
-the default installer, npm. `NODE_VERSION` provisions Node. `PNPM_VERSION` applies
-only when `CFGB_PACKAGE_MANAGER=pnpm`. The selected package manager is checked at
-runtime. Node itself is not pinned by the lockfile. The workspace with installed Wrangler survives through
+compare commit with checkout HEAD and retain the UUID for tracing. npm >= 12 is
+the default installer. `NODE_VERSION` must be at least 22.22.2. Current Node 22,
+24, and 26 releases do not bundle npm 12, so the build environment installs that
+npm separately. `PNPM_VERSION` applies only when `CFGB_PACKAGE_MANAGER=pnpm`.
+The selected package manager is checked at runtime. Node itself is not pinned by
+the lockfile. The workspace with installed Wrangler survives through
 the same build's upload command and is excluded from the deployable artifact.
 Uploads require a clean source checkout matching the artifact; ignored
 build output is not a source edit. Reject stale, incomplete or altered artifacts.

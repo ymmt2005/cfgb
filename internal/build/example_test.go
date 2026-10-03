@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -72,9 +73,15 @@ func TestExampleCorpus(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.Toolchain.PackageManager != "npm" || !strings.HasPrefix(manifest.Toolchain.ObservedNpmVersion, "10.") || manifest.Toolchain.ObservedPnpmVersion != "" {
+	if manifest.Toolchain.PackageManager != "npm" || !npmAtLeast12(manifest.Toolchain.ObservedNpmVersion) || manifest.Toolchain.ObservedPnpmVersion != "" {
 		t.Fatalf("toolchain = %+v", manifest.Toolchain)
 	}
+}
+
+func npmAtLeast12(version string) bool {
+	major, _, _ := strings.Cut(version, ".")
+	n, err := strconv.Atoi(major)
+	return err == nil && n >= 12
 }
 
 func exampleRoot(t *testing.T) string {

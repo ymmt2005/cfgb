@@ -21,6 +21,9 @@ import (
 	"github.com/ymmt2005/cfgb/internal/worker"
 )
 
+// minimumNpmVersion is the oldest npm whose install scripts are opt-in.
+const minimumNpmVersion = "12.0.0"
+
 // ExitError is a command failure with a CFGB exit code.
 type ExitError struct {
 	Code int
@@ -205,17 +208,13 @@ func checkToolchain(req requirements) (toolchainCheck, error) {
 	tc.PackageManager = manager
 	switch manager {
 	case "npm":
-		want := parseVersion(req.NpmVersion)[0]
-		if want == 0 {
-			return tc, fmt.Errorf("npmVersion %q is invalid", req.NpmVersion)
-		}
 		npm, err := output("npm", "-v")
 		if err != nil {
-			return tc, fmt.Errorf("npm %d.x is required (tested %s)", want, req.NpmVersion)
+			return tc, fmt.Errorf("npm >= %s is required (tested %s)", minimumNpmVersion, req.NpmVersion)
 		}
 		npm = strings.TrimPrefix(npm, "v")
-		if parseVersion(npm)[0] != want {
-			return tc, fmt.Errorf("npm %d.x is required (tested %s), found %s", want, req.NpmVersion, npm)
+		if compareVersion(npm, minimumNpmVersion) < 0 {
+			return tc, fmt.Errorf("npm >= %s is required (tested %s), found %s", minimumNpmVersion, req.NpmVersion, npm)
 		}
 		tc.NpmVersion = npm
 	case "pnpm":
