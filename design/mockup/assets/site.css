@@ -20,8 +20,11 @@
   --important: #5c3d78;
   --warning: #8a5a12;
   --caution: #8d2c2c;
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Yu Mincho", "Hiragino Mincho ProN", "YuMincho", "Noto Serif CJK JP", serif;
-  --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Segoe UI", system-ui, sans-serif;
+  /* Japanese mincho for prose, Japanese gothic for UI and headings.
+     Regional faces are named explicitly so a Chinese CJK fallback
+     (WenQuanYi, Droid Sans Fallback, Noto CJK SC/TC) is not used for 図. */
+  --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif CJK JP", "Noto Serif JP", "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", "Yu Gothic", "YuGothic", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Source Code Pro", Menlo, Consolas, monospace;
   --measure: 40rem;
   --toc: 15rem;

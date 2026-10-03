@@ -34,7 +34,7 @@ Regenerate the HTML after editing `render.py`. The script copies `bars.png` and 
 
 ## Visual direction
 
-The chrome uses a system sans (Hiragino Sans, Segoe UI, `system-ui`). Article prose uses a system serif (Iowan Old Style, Palatino, Yu Mincho) so Japanese and embedded English share one text color and line height. Code uses `ui-monospace`. No web fonts are requested.
+Article prose uses a Japanese mincho: Hiragino Mincho, Yu Mincho, then Noto Serif CJK JP. The header, navigation, and headings use a Japanese gothic: Hiragino Sans, Yu Gothic, Meiryo, then Noto Sans CJK JP. Those names come before any generic family so a Chinese face is not chosen for characters such as 図. Latin faces sit after the Japanese ones. Code uses `ui-monospace`. No web fonts are requested.
 
 The reading column is 40rem. On a desktop article the table of contents is a 15rem sticky column; below 860px it becomes a disclosure above the body. The page padding is 1.25rem. Home and list pages keep the same column rather than stretching summaries across the viewport. Vertical rhythm is about 1.15–1.8 inside prose, with section headings separated by roughly 2rem.
 
