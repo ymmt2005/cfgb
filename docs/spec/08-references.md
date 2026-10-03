@@ -16,6 +16,9 @@ when implementation begins and pinned in that repository.
 - [Static site generation routing](https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/): hierarchical `404-page` fallback and 404 status.
 - [Static Assets headers](https://developers.cloudflare.com/workers/static-assets/headers/): static `_headers`; Worker responses need their own headers.
 - [Static Assets redirects](https://developers.cloudflare.com/workers/static-assets/redirects/): `_redirects` for same-site aliases.
+- [GitHub Marketplace publication](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace): root Action metadata and an Action-specific public repository.
+- [GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax): step-level Action references and commit pins.
+- [Reusing workflow configurations](https://docs.github.com/en/actions/concepts/workflows-and-actions/reusing-workflow-configurations): Action steps versus job-level reusable workflows.
 - [GitHub token behavior](https://docs.github.com/en/actions/concepts/security/github_token): do not assume token-generated activity reruns checks without approval.
 - [AI Gateway compatibility API](https://developers.cloudflare.com/ai-gateway/usage/chat-completion/): endpoint and authentication modes; not a recommendation of any listed model.
 - [Hatena AtomPub](https://developer.hatena.ne.jp/ja/documents/blog/apis/atom/): original content types, formatted HTML, pagination and remote editing API.

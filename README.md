@@ -14,6 +14,11 @@ Astro will render internally, Workers Static Assets will serve, and Pagefind wil
 search. Git branches/PRs hold drafts; reviewed `main` content is published.
 Visitors never invoke an LLM.
 
+The [cfgb-action repository](https://github.com/ymmt2005/cfgb-action) owns one
+integrated GitHub Action for setup, preparation, validation, summaries, build and
+optional uploads. It invokes the released CLI; Action and CLI versions are
+independently pinned. The Action is also at the documentation-only stage.
+
 ## Implementation specifications
 
 | Document | Scope |
@@ -27,6 +32,7 @@ Visitors never invoke an LLM.
 | [Hatena migration](docs/spec/06-migration.md) | Inventory, pairing, links/assets, checkpoints and conflicts |
 | [Acceptance](docs/spec/07-acceptance.md) | Traceable implementation gates and fixture semantics |
 | [References](docs/spec/08-references.md) | Primary platform documentation reviewed for the design |
+| [GitHub Action](docs/spec/09-github-action.md) | Unified Action operations, inputs/outputs, versions and trust boundary |
 
 [JSON Schemas](schemas/) define machine-readable structural contracts. Semantic
 validation rules in the specifications also apply. The [example repository](https://github.com/ymmt2005/cfgb-example)

@@ -49,6 +49,23 @@ the alternate production workers.dev origin. Do not redirect previews to
 production. Check deployed source-commit metadata and retain platform rollback
 to the last good Worker version. Runtime has no AI or Hatena credentials.
 
+## Unified GitHub Action
+
+Use the single public `ymmt2005/cfgb-action` entry point for GitHub preparation
+and checks, selecting `prepare`, `summarize`, `validate` or `build` operations
+without separate function-specific Actions. Pin the Action to a full commit SHA
+and its `cfgb-version` input to the same exact CLI release used by Workers Builds.
+See the [Action contract](09-github-action.md) and [usage design](https://github.com/ymmt2005/cfgb-action/blob/main/docs/usage.md).
+The Action supports setup-only use and maps other operations to CLI commands;
+caller workflows still own checkout, job permissions, trusted configuration,
+concurrency, bot commits and latest-head merge checks. It never commits or pushes
+automatically.
+
+Workers Builds continues to deploy in the default architecture and invokes CFGB
+directly. The Action's optional `deploy`/`preview` operations support deliberately
+selected alternative pipelines, with the same artifact/publication/Access gates.
+Do not enable both deployment owners for the same target.
+
 ## Trust boundary and PR lifecycle
 
 Direct pushes to any same-repository branch are restricted to trusted maintainers
