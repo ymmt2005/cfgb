@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import yaml from "js-yaml";
 
 let cached;
 
@@ -23,30 +24,21 @@ export function resetSiteCache() {
 }
 
 function parseTopics(text) {
+  const parsed = parseYamlMapping(text);
   const topics = {};
-  let current = null;
-  for (const line of text.split(/\r?\n/)) {
-    if (!line.trim() || line.trim().startsWith("#")) continue;
-    if (!/^\s/.test(line)) {
-      current = line.replace(/:.*/, "").trim();
-      topics[current] = {};
-      continue;
-    }
-    const match = line.match(/^\s+([a-z]+):\s*(.*)$/);
-    if (current && match) topics[current][match[1]] = unquote(match[2]);
+  for (const [key, value] of Object.entries(parsed)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) topics[key] = value;
   }
   return topics;
 }
 
-function unquote(value) {
-  const text = value.trim();
-  if (
-    (text.startsWith('"') && text.endsWith('"')) ||
-    (text.startsWith("'") && text.endsWith("'"))
-  ) {
-    return text.slice(1, -1);
+function parseYamlMapping(text) {
+  const parsed = yaml.load(text, { schema: yaml.CORE_SCHEMA });
+  if (parsed == null) return {};
+  if (typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("YAML document must be a mapping");
   }
-  return text;
+  return parsed;
 }
 
 export function splitFrontmatter(text) {
@@ -58,25 +50,24 @@ export function splitFrontmatter(text) {
 }
 
 function parseFrontmatter(raw) {
+  const parsed = parseYamlMapping(raw);
   const data = {};
-  const lines = raw.split(/\r?\n/);
-  for (let i = 0; i < lines.length; i++) {
-    const match = lines[i].match(/^([A-Za-z][A-Za-z0-9]*):\s*(.*)$/);
-    if (!match) continue;
-    const key = match[1];
-    const inline = match[2].trim();
-    if (!inline) {
-      const items = [];
-      while (i + 1 < lines.length && /^\s*-\s+/.test(lines[i + 1])) {
-        i++;
-        items.push(unquote(lines[i].replace(/^\s+-\s+/, "")));
-      }
-      data[key] = items;
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key === "topics" || key === "aliases") {
+      data[key] = stringList(value);
       continue;
     }
-    data[key] = unquote(inline);
+    if (value == null) data[key] = "";
+    else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") data[key] = String(value);
+    else data[key] = value;
   }
   return data;
+}
+
+function stringList(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item));
+  if (value == null || value === "") return [];
+  return [String(value)];
 }
 
 function discoverPosts(contentRoot) {

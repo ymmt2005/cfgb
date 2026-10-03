@@ -51,8 +51,10 @@ for (const [id, path, headers, status, location] of cases) {
   if (path === "/" && response.headers.get("vary") !== "Cookie, Accept-Language") throw new Error(id + " vary");
 }
 const set = await worker.fetch(new Request("https://example.invalid/__locale?lang=en&next=%2Fen%2F"), env);
-if (!set.headers.get("set-cookie").includes("cfgb_locale=en")) throw new Error("cookie");
-if (!set.headers.get("set-cookie").includes("HttpOnly")) throw new Error("httponly");
+const cookie = set.headers.get("set-cookie") || "";
+for (const part of ["cfgb_locale=en", "Secure", "HttpOnly", "SameSite=Lax", "Path=/", "Max-Age=31536000"]) {
+  if (!cookie.includes(part)) throw new Error("cookie " + part + " in " + cookie);
+}
 const asset = await worker.fetch(new Request("https://example.invalid/ja/posts/x/"), env);
 if (asset.status !== 200 || await asset.text() !== "asset") throw new Error("asset delegate");
 console.log("ok");

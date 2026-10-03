@@ -52,14 +52,101 @@ func TestExampleCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(raw, []byte("/ja/posts/old-protobuf-guide/ /ja/posts/protobuf-schema-guide/ 301\n")) {
+	redirects := strings.TrimSuffix(string(raw), "\n")
+	if redirects == "" || !strings.HasSuffix(string(raw), "\n") {
 		t.Fatalf("redirects = %q", raw)
+	}
+	const alias = "/ja/posts/old-protobuf-guide/ /ja/posts/protobuf-schema-guide/ 301"
+	foundAlias := false
+	for _, line := range strings.Split(redirects, "\n") {
+		if strings.HasPrefix(line, "-") || strings.Contains(line, " -") {
+			t.Fatalf("redirect line keeps a YAML marker: %q", line)
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 3 || fields[2] != "301" || !strings.HasPrefix(fields[0], "/") || !strings.HasPrefix(fields[1], "/") {
+			t.Fatalf("redirect line = %q", line)
+		}
+		if line == alias {
+			foundAlias = true
+		}
+	}
+	if !foundAlias {
+		t.Fatalf("redirects = %q", raw)
+	}
+	for _, rel := range []string{
+		"site/ja/topics/protobuf/index.html",
+		"site/en/topics/protobuf/index.html",
+		"site/ja/topics/oss/index.html",
+	} {
+		if _, err := os.Stat(filepath.Join(out, rel)); err != nil {
+			t.Errorf("missing %s", rel)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(out, ".tmp")); !os.IsNotExist(err) {
+		t.Fatal("staging directory was left in the artifact")
+	}
+	sitemap, err := os.ReadFile(filepath.Join(out, "site", "sitemap-0.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, loc := range []string{
+		"/ja/posts/protobuf-schema-guide/</loc>",
+		"/en/posts/reading-protobuf-schemas/</loc>",
+		"/ja/topics/protobuf/</loc>",
+		"/en/</loc>",
+		"/ja/about/</loc>",
+		`hreflang="en"`,
+		`hreflang="ja"`,
+	} {
+		if !bytes.Contains(sitemap, []byte(loc)) {
+			t.Errorf("sitemap missing %s", loc)
+		}
+	}
+	for _, blocked := range []string{"/search/", "feed.xml", "robots.txt", "404.html"} {
+		if bytes.Contains(sitemap, []byte(blocked)) {
+			t.Errorf("sitemap contains %s", blocked)
+		}
+	}
+	headers, err := os.ReadFile(filepath.Join(out, "site", "_headers"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(headers, []byte("script-src 'self' 'wasm-unsafe-eval'")) {
+		t.Fatalf("headers = %s", headers)
+	}
+	searchPage, err := os.ReadFile(filepath.Join(out, "site", "en", "search", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(searchPage, []byte(`src="/assets/search.js"`)) || bytes.Contains(searchPage, []byte("new window.PagefindUI")) {
+		t.Fatal("search initializer is not an external script")
+	}
+	home, err := os.ReadFile(filepath.Join(out, "site", "ja", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(home, []byte("/__locale?lang=en&amp;next=")) || !bytes.Contains(home, []byte("/__locale?lang=ja&amp;next=")) {
+		t.Fatal("language links do not set the locale cookie")
+	}
+	sourceArticle, err := os.ReadFile(filepath.Join(root, "src", "content", "posts", "2026", "2026-09-20-markdown-showcase", "en.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const rawLink = `href="../2026-09-19-protobuf-guide/en.md#field-numbers"`
+	if bytes.Contains(sourceArticle, []byte(rawLink)) {
+		rendered, err := os.ReadFile(filepath.Join(out, "site", "en", "posts", "markdown-rendering-showcase", "index.html"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(rendered, []byte(rawLink)) || !bytes.Contains(rendered, []byte(`href="/en/posts/reading-protobuf-schemas/#field-numbers"`)) {
+			t.Fatal("raw HTML article link was not rewritten")
+		}
 	}
 	article, err := os.ReadFile(filepath.Join(out, "site", "ja", "posts", "markdown-showcase", "index.html"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(article, []byte("data-footnote-ref")) || !bytes.Contains(article, []byte("id=\"テスト-1\"")) {
+	if !bytes.Contains(article, []byte("data-footnote-ref")) || (!bytes.Contains(article, []byte("id=\"補足-1\"")) && !bytes.Contains(article, []byte("id=\"テスト-1\""))) {
 		t.Fatal("japanese showcase is missing the footnote or duplicate heading")
 	}
 	raw, err = os.ReadFile(filepath.Join(out, "build-manifest.json"))

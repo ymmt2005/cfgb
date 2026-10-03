@@ -50,6 +50,9 @@ function swapLocale(route: string, from: string, to: string) {
   if (route === `/${from}/` || route.startsWith(`/${from}/`)) return `/${to}/${route.slice(from.length + 2)}`;
   return `/${to}/`;
 }
+function localeChoice(lang: string, destination: string) {
+  return `/__locale?lang=${encodeURIComponent(lang)}&next=${encodeURIComponent(destination)}`;
+}
 function currentNav(href: string) {
   if (href === `/${locale}/`) return path === href;
   if (href.includes("/topics/") && path.includes("/topics/")) return true;
@@ -86,8 +89,8 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
       <a class="brand" href={`/${locale}/`}>{site.title.split(" ")[0]} <span>{site.title.split(" ").slice(1).join(" ")}</span></a>
       <div class="tools">
         <nav class="locales" aria-label={copy.language}>
-          <a href={path} aria-current="true" hreflang={locale}>{site.locales[locale].label}</a>
-          {other && <a href={alternatePath || otherPath} hreflang={other}>{site.locales[other].label}</a>}
+          <a href={localeChoice(locale, path)} aria-current="true" hreflang={locale}>{site.locales[locale].label}</a>
+          {other && <a href={localeChoice(other, alternatePath || otherPath)} hreflang={other}>{site.locales[other].label}</a>}
         </nav>
         <div class="menu">
           <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">{copy.theme}</button>
@@ -140,32 +143,38 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 <footer class="site"><div class="wrap"><span>{site.title} · {new URL(site.baseUrl).host}</span><span><a href={`/${locale}/feed.xml`}>{copy.feed}</a></span></div></footer>
 <script is:inline src="/assets/site.js"></script>
 <script>
+  import { createThemeQueue } from "../lib/theme-queue.mjs";
   const blocks = document.querySelectorAll("pre.mermaid");
-  async function draw() {
-    if (!blocks.length) return;
+  const requestDraw = createThemeQueue(async (current) => {
+    if (!blocks.length || !current()) return;
     const mermaid = (await import("mermaid")).default;
+    if (!current()) return;
     const dark = document.documentElement.getAttribute("data-theme") === "dark"
       || (!document.documentElement.hasAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
     mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "neutral" });
     for (const block of blocks) {
+      if (!current()) return;
       if (!block.dataset.source) block.dataset.source = block.textContent || "";
       const source = block.dataset.source;
+      if (block.nextElementSibling?.classList.contains("mermaid-error")) block.nextElementSibling.remove();
       const id = "m" + Math.random().toString(36).slice(2);
       try {
         const result = await mermaid.render(id, source);
+        if (!current()) return;
         block.innerHTML = result.svg;
         document.documentElement.classList.add("mermaid-ready");
       } catch (error) {
+        if (!current()) return;
         block.textContent = source;
         const note = document.createElement("p");
-        note.className = "mermaid-source";
+        note.className = "mermaid-error";
         note.textContent = error instanceof Error ? error.message : "Mermaid error";
         block.insertAdjacentElement("afterend", note);
       }
     }
-  }
-  draw();
-  document.addEventListener("cfgb-theme", () => { draw(); });
+  });
+  requestDraw();
+  document.addEventListener("cfgb-theme", () => { requestDraw(); });
 </script>
 </body>
 </html>

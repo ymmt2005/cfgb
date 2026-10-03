@@ -6,6 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { absolute, loadSite } from "./src/lib/load-site.mjs";
+import { canonicalSitemapPath, localePageAlternates, pagePath } from "./src/lib/sitemap.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
 
 const corpus = loadSite();
@@ -26,23 +27,17 @@ export default defineConfig({
     expressiveCode({
       themes: ["github-light", "github-dark"],
       themeCssSelector: (theme) =>
-        theme.type === "dark"
-          ? '[data-theme="dark"]'
-          : ':root:not([data-theme="dark"])',
+        theme.type === "dark" ? '[data-theme="dark"]' : '[data-theme="light"]',
       useStyleReset: false,
     }),
     sitemap({
       filenameBase: "sitemap",
       entryLimit: 45000,
       filter(page) {
-        const route = new URL(page).pathname.replace(/\/$/, "/") ;
-        const normalized = route.endsWith("/") || route.endsWith(".xml") || route.endsWith(".txt") ? route : `${route}/`;
-        if (normalized.includes("/search/")) return false;
-        if (normalized.includes("feed.xml")) return false;
-        if (normalized.includes("robots.txt")) return false;
-        if (normalized.includes("sitemap")) return false;
-        if (normalized.includes("404")) return false;
-        return routes.has(normalized) || routes.has(route);
+        const pathname = new URL(page).pathname;
+        if (!canonicalSitemapPath(pathname)) return false;
+        const directory = pathname.endsWith("/") ? pathname : `${pathname}/`;
+        return routes.has(pathname) || routes.has(directory);
       },
       serialize(item) {
         const route = new URL(item.url).pathname;
@@ -75,7 +70,7 @@ export default defineConfig({
   },
 });
 
-function sitemapManifest({ site, posts, prose }) {
+function sitemapManifest({ site, posts }) {
   const map = new Map();
   const locales = Object.keys(site.locales);
   const groups = new Map();
@@ -95,18 +90,13 @@ function sitemapManifest({ site, posts, prose }) {
       });
     }
   }
-  for (const kind of ["home", "about"]) {
-    const present = locales.filter((locale) => prose[kind][locale] != null);
-    if (present.length < 2) continue;
-    const alternates = Object.fromEntries(present.map((locale) => [locale, pageUrl(kind, locale)]));
-    for (const locale of present) map.set(pageUrl(kind, locale), { alternates });
+  if (locales.length > 1) {
+    const pages = localePageAlternates(locales);
+    for (const kind of ["home", "about"]) {
+      for (const locale of locales) map.set(pagePath(kind, locale), { alternates: pages[kind] });
+    }
   }
   return map;
-}
-
-function pageUrl(kind, locale) {
-  if (kind === "home") return `/${locale}/`;
-  return `/${locale}/about/`;
 }
 
 function fallbackPages(corpus) {
@@ -140,12 +130,16 @@ function redirectFile(posts) {
 }
 
 function headers() {
+  // Pagefind 1.5.2 instantiates WebAssembly and starts the same-origin
+  // pagefind/pagefind-worker.js. script-src therefore includes
+  // 'wasm-unsafe-eval'. That release does not create a blob worker, so the
+  // script-src fallback covers the worker and blob: is not required.
   return `/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'
 `;
 }
 

@@ -20,9 +20,11 @@ export function remarkCfgb() {
         return;
       }
       if (node.type === "blockquote" && parent) {
-        const alert = alertBlock(node);
-        if (alert) parent.children[index] = html(alert);
+        markAlert(node);
         return;
+      }
+      if (node.type === "html" && typeof node.value === "string") {
+        node.value = rewriteHtml(node.value, source, byFile);
       }
       if (node.type === "paragraph" && parent) {
         const card = cardBlock(node, corpus.linkcards);
@@ -62,23 +64,38 @@ function mermaidBlock(source) {
   return `<div class="diagram-block"><pre class="mermaid">${text}</pre><pre class="mermaid-source"><code>${text}</code></pre></div>`;
 }
 
-function alertBlock(node) {
+function markAlert(node) {
   const first = node.children?.[0];
-  if (!first || first.type !== "paragraph") return "";
-  const raw = textOf(first).replace(/^\s+/, "");
-  const match = raw.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/);
-  if (!match) return "";
+  if (!first || first.type !== "paragraph" || !first.children?.length) return;
+  const lead = first.children[0];
+  if (lead.type !== "text") return;
+  const match = lead.value.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\n?/);
+  if (!match) return;
+  lead.value = lead.value.slice(match[0].length);
+  if (!lead.value) first.children.shift();
+  if (first.children.length === 0) node.children.shift();
   const kind = alerts[match[1]];
   const label = match[1][0] + match[1].slice(1).toLowerCase();
-  const rest = raw.slice(match[0].length).trim();
-  const more = node.children.slice(1).map(paragraphText).filter(Boolean);
-  const body = [rest, ...more].filter(Boolean).map((line) => `<p>${escapeHtml(line)}</p>`).join("");
-  return `<div class="alert alert-${kind}"><p class="alert-label">${label}</p>${body}</div>`;
+  node.children.unshift({
+    type: "paragraph",
+    children: [{ type: "text", value: label }],
+    data: { hProperties: { className: ["alert-label"] } },
+  });
+  node.data = {
+    ...(node.data || {}),
+    hName: "div",
+    hProperties: { className: ["alert", `alert-${kind}`] },
+  };
 }
 
-function paragraphText(node) {
-  if (node.type !== "paragraph") return "";
-  return textOf(node).trim();
+function rewriteHtml(value, source, byFile) {
+  return value.replace(/\s(href|src)\s*=\s*("([^"]*)"|'([^']*)')/gi, (match, attr, quoted, doubleQuoted, singleQuoted) => {
+    const url = doubleQuoted !== undefined ? doubleQuoted : singleQuoted;
+    const quote = doubleQuoted !== undefined ? '"' : "'";
+    const next = attr.toLowerCase() === "src" ? rewriteImage(url, source) : rewriteLink(url, source, byFile);
+    if (next === url) return match;
+    return match.slice(0, match.indexOf(quoted)) + quote + next + quote;
+  });
 }
 
 function textOf(node) {

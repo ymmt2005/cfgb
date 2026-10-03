@@ -117,7 +117,7 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	if err := stageMedia(contentRoot, filepath.Join(rendererDir, "public", "media")); err != nil {
+	if err := stageMedia(cfg, filepath.Join(rendererDir, "public", "media")); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
 	sitePath := filepath.Join(session, "site.json")
@@ -138,9 +138,6 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 1, Err: err}
 	}
-	if err := publish(out, filepath.Join(rendererDir, "dist")); err != nil {
-		return &ExitError{Code: 3, Err: err}
-	}
 	locales := make([]string, 0, len(cfg.Locales))
 	for locale := range cfg.Locales {
 		locales = append(locales, locale)
@@ -154,17 +151,11 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	if err := os.MkdirAll(filepath.Join(out, "worker"), 0o755); err != nil {
-		return &ExitError{Code: 3, Err: err}
-	}
-	if err := os.WriteFile(filepath.Join(out, "worker", "index.js"), source, 0o644); err != nil {
-		return &ExitError{Code: 3, Err: err}
-	}
 	manifest, err := manifestJSON(cfg, req, tc, sessionID(session), routes)
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	if err := os.WriteFile(filepath.Join(out, "build-manifest.json"), manifest, 0o644); err != nil {
+	if err := deliver(out, filepath.Join(rendererDir, "dist"), source, manifest); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
 	fmt.Fprintf(opts.Stdout, "built %s\n", out)
@@ -349,8 +340,16 @@ func sessionDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(cache, "cfgb", "builds", id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	parent := filepath.Join(cache, "cfgb", "builds")
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return "", err
+	}
+	dir := filepath.Join(parent, id)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	// MkdirAll leaves an existing directory's mode unchanged.
+	if err := os.Chmod(dir, 0o700); err != nil {
 		return "", err
 	}
 	return dir, nil
@@ -395,56 +394,127 @@ func extractRenderer(dest string) error {
 }
 
 func stageContent(cfg *config.File, snapshot string) (string, string, string, error) {
+	root, err := os.OpenRoot(cfg.Root())
+	if err != nil {
+		return "", "", "", err
+	}
+	defer root.Close()
 	base := filepath.Dir(cfg.Path())
-	content := resolveInRepo(cfg.Root(), base, cfg.Content.Root)
-	topics := resolveInRepo(cfg.Root(), base, cfg.Content.Topics)
-	cards := resolveInRepo(cfg.Root(), base, cfg.Content.Linkcards)
+	content, err := repoRelative(cfg.Root(), base, cfg.Content.Root)
+	if err != nil {
+		return "", "", "", err
+	}
+	topics, err := repoRelative(cfg.Root(), base, cfg.Content.Topics)
+	if err != nil {
+		return "", "", "", err
+	}
+	cards, err := repoRelative(cfg.Root(), base, cfg.Content.Linkcards)
+	if err != nil {
+		return "", "", "", err
+	}
 	contentDest := filepath.Join(snapshot, "content")
 	topicsDest := filepath.Join(snapshot, "topics.yaml")
 	cardsDest := filepath.Join(snapshot, "linkcards")
-	if err := copyPath(content, contentDest); err != nil {
+	if err := copyFromRoot(root, content, contentDest); err != nil {
 		return "", "", "", err
 	}
-	if err := copyPath(topics, topicsDest); err != nil {
+	if err := copyFromRoot(root, topics, topicsDest); err != nil {
 		return "", "", "", err
 	}
-	if err := copyPath(cards, cardsDest); err != nil {
+	if err := copyFromRoot(root, cards, cardsDest); err != nil {
 		return "", "", "", err
 	}
 	return contentDest, topicsDest, cardsDest, nil
 }
 
-func resolveInRepo(repo, base, value string) string {
-	if filepath.IsAbs(value) {
-		return value
+// repoRelative converts a config path into a name for os.Root. Absolute paths
+// are expressed relative to the repository. Escapes are left for Root to reject.
+func repoRelative(repo, base, value string) (string, error) {
+	abs := value
+	if !filepath.IsAbs(value) {
+		abs = filepath.Join(base, value)
 	}
-	return filepath.Join(base, value)
+	rel, err := filepath.Rel(filepath.Clean(repo), filepath.Clean(abs))
+	if err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(rel), nil
 }
 
-func stageMedia(contentRoot, dest string) error {
-	posts := filepath.Join(contentRoot, "posts")
-	return filepath.WalkDir(posts, func(name string, entry fs.DirEntry, err error) error {
+func stageMedia(cfg *config.File, dest string) error {
+	root, err := os.OpenRoot(cfg.Root())
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	content, err := repoRelative(cfg.Root(), filepath.Dir(cfg.Path()), cfg.Content.Root)
+	if err != nil {
+		return err
+	}
+	posts, err := root.OpenRoot(joinRoot(content, "posts"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer posts.Close()
+	years, err := readRootDir(posts, ".")
+	if err != nil {
+		return err
+	}
+	for _, year := range years {
+		if !year.IsDir() || !isArticleYear(year.Name()) {
+			continue
+		}
+		keys, err := readRootDir(posts, year.Name())
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || !strings.Contains(name, string(filepath.Separator)+"assets"+string(filepath.Separator)) {
+		for _, key := range keys {
+			if !key.IsDir() {
+				continue
+			}
+			group, err := posts.OpenRoot(joinRoot(year.Name(), key.Name()))
+			if err != nil {
+				return err
+			}
+			err = copyArticleAssets(group, filepath.Join(dest, year.Name(), key.Name()))
+			group.Close()
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func copyArticleAssets(group *os.Root, dest string) error {
+	info, err := group.Stat("assets")
+	if err != nil {
+		if os.IsNotExist(err) {
 			return nil
 		}
-		rel, err := filepath.Rel(posts, name)
-		if err != nil {
-			return err
-		}
-		// YEAR/KEY/assets/file -> YEAR/KEY/file
-		parts := strings.Split(rel, string(filepath.Separator))
-		if len(parts) < 4 || parts[2] != "assets" {
-			return nil
-		}
-		target := filepath.Join(append([]string{dest}, append(parts[:2], parts[3:]...)...)...)
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		return copyPath(name, target)
-	})
+		return err
+	}
+	if !info.IsDir() {
+		return nil
+	}
+	assets, err := group.OpenRoot("assets")
+	if err != nil {
+		return err
+	}
+	defer assets.Close()
+	return copyFromRoot(assets, ".", dest)
+}
+
+func readRootDir(root *os.Root, name string) ([]fs.DirEntry, error) {
+	file, err := root.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return file.ReadDir(-1)
 }
 
 func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkcardsDir string) error {
@@ -493,53 +563,193 @@ func outputDir(cfg *config.File, out string) (string, error) {
 		out = filepath.Join(filepath.Dir(cfg.Path()), out)
 	}
 	out = filepath.Clean(out)
-	rel, err := filepath.Rel(cfg.Root(), out)
-	if err != nil || strings.HasPrefix(rel, "..") || rel == "." {
+	repo := filepath.Clean(cfg.Root())
+	if !insideRepo(repo, out) {
 		return "", fmt.Errorf("--out must be a directory inside the repository")
 	}
-	contentRel, _ := filepath.Rel(cfg.Root(), filepath.Join(filepath.Dir(cfg.Path()), cfg.Content.Root))
-	if rel == contentRel || strings.HasPrefix(rel, contentRel+string(filepath.Separator)) {
-		return "", fmt.Errorf("--out must be outside the content root")
+	base := filepath.Dir(cfg.Path())
+	protected := []struct {
+		path string
+		dir  bool
+	}{
+		{resolveAbs(base, cfg.Content.Root), true},
+		{resolveAbs(base, cfg.Content.Linkcards), true},
+		{filepath.Join(repo, ".git"), true},
+		{resolveAbs(base, cfg.Content.Topics), false},
+		{cfg.Path(), false},
 	}
-	if rel == ".git" || strings.HasPrefix(rel, ".git"+string(filepath.Separator)) {
-		return "", fmt.Errorf("--out must not be inside .git")
+	candidates := []string{out}
+	if resolved, err := resolveExisting(out); err == nil && resolved != out {
+		candidates = append(candidates, resolved)
+		if !insideRepo(repo, resolved) {
+			return "", fmt.Errorf("--out must be a directory inside the repository")
+		}
+	}
+	for _, candidate := range candidates {
+		for _, item := range protected {
+			if overlaps(candidate, item.path, item.dir) {
+				return "", fmt.Errorf("--out must not contain or sit inside source content or Git and configuration inputs")
+			}
+		}
 	}
 	info, err := os.Stat(out)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return out, os.MkdirAll(out, 0o755)
+			return out, nil
 		}
 		return "", err
 	}
 	if !info.IsDir() {
 		return "", fmt.Errorf("--out is not a directory")
 	}
-	entries, err := os.ReadDir(out)
-	if err != nil {
-		return "", err
-	}
-	if len(entries) == 0 {
-		return out, nil
-	}
-	if _, err := os.Stat(filepath.Join(out, "build-manifest.json")); err != nil {
-		return "", fmt.Errorf("--out is not empty and is not a previous CFGB artifact")
-	}
 	return out, nil
 }
 
-func publish(out, dist string) error {
-	staging := out + ".tmp"
-	_ = os.RemoveAll(staging)
-	if err := os.MkdirAll(filepath.Join(staging, "site"), 0o755); err != nil {
-		return err
+func resolveAbs(base, value string) string {
+	if filepath.IsAbs(value) {
+		return filepath.Clean(value)
 	}
-	if err := copyPath(dist, filepath.Join(staging, "site")); err != nil {
-		return err
+	return filepath.Clean(filepath.Join(base, value))
+}
+
+func insideRepo(repo, path string) bool {
+	rel, err := filepath.Rel(repo, filepath.Clean(path))
+	if err != nil {
+		return false
 	}
+	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func overlaps(out, target string, targetIsDir bool) bool {
+	out = filepath.Clean(out)
+	target = filepath.Clean(target)
+	if containsPath(out, target) {
+		return true
+	}
+	return targetIsDir && containsPath(target, out)
+}
+
+func containsPath(parent, child string) bool {
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func resolveExisting(path string) (string, error) {
+	path = filepath.Clean(path)
+	suffix := ""
+	current := path
+	for {
+		_, err := os.Lstat(current)
+		if err == nil {
+			resolved, err := filepath.EvalSymlinks(current)
+			if err != nil {
+				return "", err
+			}
+			if suffix == "" {
+				return filepath.Clean(resolved), nil
+			}
+			return filepath.Clean(filepath.Join(resolved, suffix)), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", err
+		}
+		base := filepath.Base(current)
+		if suffix == "" {
+			suffix = base
+		} else {
+			suffix = filepath.Join(base, suffix)
+		}
+		current = parent
+	}
+}
+
+// deliver removes the selected output, stages the complete artifact under
+// <out>/.tmp, and promotes site/, worker/, and build-manifest.json. It does
+// not touch a sibling <out>.tmp. A failure after removal deletes the incomplete
+// output so it is not reported as a finished artifact.
+func deliver(out, dist string, workerSource, manifest []byte) error {
 	if err := os.RemoveAll(out); err != nil {
 		return err
 	}
-	return os.Rename(staging, out)
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		return err
+	}
+	if err := stageOutput(out, dist, workerSource, manifest); err != nil {
+		_ = os.RemoveAll(out)
+		return err
+	}
+	return nil
+}
+
+func stageOutput(out, dist string, workerSource, manifest []byte) error {
+	root, err := os.OpenRoot(out)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	if err := root.Mkdir(".tmp", 0o755); err != nil {
+		return err
+	}
+	defer root.RemoveAll(".tmp")
+	staging, err := root.OpenRoot(".tmp")
+	if err != nil {
+		return err
+	}
+	writeErr := writeStaged(staging, dist, workerSource, manifest)
+	staging.Close()
+	if writeErr != nil {
+		return writeErr
+	}
+	if err := root.Rename(".tmp/site", "site"); err != nil {
+		return err
+	}
+	if err := root.Rename(".tmp/worker", "worker"); err != nil {
+		return err
+	}
+	if err := root.Rename(".tmp/build-manifest.json", "build-manifest.json"); err != nil {
+		return err
+	}
+	return root.RemoveAll(".tmp")
+}
+
+func writeStaged(staging *os.Root, dist string, workerSource, manifest []byte) error {
+	site, err := os.OpenRoot(dist)
+	if err != nil {
+		return err
+	}
+	defer site.Close()
+	if err := copyRootToRoot(site, ".", staging, "site"); err != nil {
+		return err
+	}
+	if err := staging.Mkdir("worker", 0o755); err != nil {
+		return err
+	}
+	if err := staging.WriteFile("worker/index.js", workerSource, 0o644); err != nil {
+		return err
+	}
+	if err := staging.WriteFile("build-manifest.json", manifest, 0o644); err != nil {
+		return err
+	}
+	return nil
+}
+
+func isArticleYear(name string) bool {
+	if len(name) != 4 {
+		return false
+	}
+	for _, r := range name {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, session string, routes []string) ([]byte, error) {
@@ -606,44 +816,99 @@ func output(name string, args ...string) (string, error) {
 	return strings.TrimSpace(string(raw)), nil
 }
 
-func copyPath(src, dest string) error {
-	info, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-	if info.IsDir() {
-		return copyDir(src, dest)
-	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		return err
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
+func copyFromRoot(root *os.Root, name, dest string) error {
+	return copyRootPath(root, name, dest, 0)
 }
 
-func copyDir(src, dest string) error {
-	return filepath.WalkDir(src, func(name string, entry fs.DirEntry, err error) error {
+func copyRootPath(root *os.Root, name, dest string, depth int) error {
+	if depth > 64 {
+		return fmt.Errorf("directory is too deep or cyclic: %s", name)
+	}
+	file, err := root.Open(name)
+	if err != nil {
+		return err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return err
+	}
+	if !info.IsDir() {
+		defer file.Close()
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return err
+		}
+		out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 		if err != nil {
 			return err
 		}
-		rel, err := filepath.Rel(src, name)
+		defer out.Close()
+		_, err = io.Copy(out, file)
+		return err
+	}
+	entries, err := file.ReadDir(-1)
+	file.Close()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		child := joinRoot(name, entry.Name())
+		if err := copyRootPath(root, child, filepath.Join(dest, entry.Name()), depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyRootToRoot(src *os.Root, name string, dest *os.Root, to string) error {
+	return copyRootToRootDepth(src, name, dest, to, 0)
+}
+
+func copyRootToRootDepth(src *os.Root, name string, dest *os.Root, to string, depth int) error {
+	if depth > 64 {
+		return fmt.Errorf("directory is too deep or cyclic: %s", name)
+	}
+	file, err := src.Open(name)
+	if err != nil {
+		return err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return err
+	}
+	if !info.IsDir() {
+		defer file.Close()
+		data, err := io.ReadAll(file)
 		if err != nil {
 			return err
 		}
-		target := filepath.Join(dest, rel)
-		if entry.IsDir() {
-			return os.MkdirAll(target, 0o755)
+		return dest.WriteFile(to, data, 0o644)
+	}
+	entries, err := file.ReadDir(-1)
+	file.Close()
+	if err != nil {
+		return err
+	}
+	if err := dest.MkdirAll(to, 0o755); err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if err := copyRootToRootDepth(src, joinRoot(name, entry.Name()), dest, joinRoot(to, entry.Name()), depth+1); err != nil {
+			return err
 		}
-		return copyPath(name, target)
-	})
+	}
+	return nil
+}
+
+func joinRoot(parent, name string) string {
+	parent = strings.TrimSuffix(filepath.ToSlash(parent), "/")
+	name = filepath.ToSlash(name)
+	if parent == "" || parent == "." {
+		return name
+	}
+	return parent + "/" + name
 }

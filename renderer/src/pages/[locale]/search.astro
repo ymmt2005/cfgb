@@ -18,13 +18,5 @@ const aside = await renderedProse("aside", locale);
   <link rel="stylesheet" href="/pagefind/pagefind-ui.css">
   <div id="search"></div>
   <script is:inline src="/pagefind/pagefind-ui.js"></script>
-  <script is:inline>
-    if (window.PagefindUI) {
-      new window.PagefindUI({
-        element: "#search",
-        showSubResults: true,
-        bundlePath: "/pagefind/",
-      });
-    }
-  </script>
+  <script is:inline src="/assets/search.js"></script>
 </Base>

@@ -53,7 +53,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ymmt2005/cfgb-example
+          ref: 7f9f3553f259e86e1417d24f625eb97bbaefa025
           path: cfgb-example
+      - name: Renderer unit tests
+        working-directory: renderer
+        run: |
+          if [ "${{ matrix.package-manager }}" = "pnpm" ]; then
+            COREPACK_ENABLE_AUTO_PIN=0 pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
+          node --test tests/*.test.mjs
       - name: Test
         env:
           CFGB_EXAMPLE: ${{ github.workspace }}/cfgb-example

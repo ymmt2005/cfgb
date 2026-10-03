@@ -128,7 +128,9 @@ An escaping path is `E_LOCAL_PATH`, exit 1, even if the target does not exist.
 
 Expressive Code + Shiki handles syntax, `title="main.go"`, line/text marks, copy
 buttons and accessible filename frames. One light/dark representation follows
-page theme. Mermaid fences are extracted before code highlighting. Lazy-load a
+page theme. Selectors are `[data-theme="light"]` and `[data-theme="dark"]`, so
+system mode, which has no `data-theme` attribute, keeps the library's
+`prefers-color-scheme` rules. Mermaid fences are extracted before code highlighting. Lazy-load a
 local Mermaid bundle only when a page contains diagrams; use `securityLevel:
 strict`. Keep original source in a no-JS fallback; hide it only after successful
 rendering. Invalid Mermaid keeps source with a useful error, not blank content.
@@ -182,7 +184,9 @@ Use the integration's `serialize` hook to supply article `lastmod` from `updated
 when present, otherwise `publishedAt`; never use the build clock. Pages without
 source modification metadata omit `lastmod`. Supply language links from actual
 translation groups and confirmed translated page counterparts, including each
-paired page itself. Unpaired articles have no language alternates. Do not use
+paired page itself. Home and about routes are generated for every configured
+locale, so their alternates come from that locale list rather than from
+optional prose files. Unpaired articles have no language alternates. Do not use
 automatic pathname-based i18n matching: paired locale articles may have different
 slugs. The integration still owns XML serialization and file splitting.
 

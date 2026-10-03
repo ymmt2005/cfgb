@@ -1,0 +1,94 @@
+import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { resetSiteCache } from "../src/lib/load-site.mjs";
+import { remarkCfgb } from "../src/plugins/remark-cfgb.mjs";
+
+test("alerts keep markdown children and raw HTML links use the route", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "cfgb-remark-"));
+  try {
+    const target = path.join(dir, "content", "posts", "2026", "2026-09-19-protobuf-guide");
+    const source = path.join(dir, "content", "posts", "2026", "2026-09-20-markdown-showcase");
+    mkdirSync(target, { recursive: true });
+    mkdirSync(source, { recursive: true });
+    writeFileSync(
+      path.join(target, "en.md"),
+      '---\ntitle: Reading\nslug: reading-protobuf-schemas\npublishedAt: "2026-09-20T09:00:00+09:00"\n---\n\nBody\n',
+    );
+    writeFileSync(
+      path.join(source, "en.md"),
+      '---\ntitle: Showcase\nslug: markdown-rendering-showcase\npublishedAt: "2026-09-21T10:00:00+09:00"\n---\n\nBody\n',
+    );
+    writeFileSync(path.join(dir, "topics.yaml"), "protobuf:\n  en: Protocol Buffers\n");
+    mkdirSync(path.join(dir, "linkcards"));
+    const sitePath = path.join(dir, "site.json");
+    writeFileSync(
+      sitePath,
+      JSON.stringify({
+        title: "Example",
+        baseUrl: "https://example.invalid",
+        defaultLocale: "en",
+        timezone: "UTC",
+        locales: { en: { label: "English" } },
+        contentRoot: path.join(dir, "content"),
+        topicsFile: path.join(dir, "topics.yaml"),
+        linkcardsDir: path.join(dir, "linkcards"),
+        latestPosts: 5,
+      }),
+    );
+    process.env.CFGB_SITE_JSON = sitePath;
+    resetSiteCache();
+    const tree = {
+      type: "root",
+      children: [
+        {
+          type: "blockquote",
+          children: [
+            {
+              type: "paragraph",
+              children: [
+                { type: "text", value: "[!NOTE]\nSee " },
+                { type: "emphasis", children: [{ type: "text", value: "this" }] },
+                { type: "link", url: "https://example.invalid/docs", children: [{ type: "text", value: "docs" }] },
+              ],
+            },
+            {
+              type: "list",
+              children: [
+                { type: "listItem", children: [{ type: "paragraph", children: [{ type: "text", value: "item" }] }] },
+              ],
+            },
+            { type: "code", lang: "js", value: "const n = 1;\n" },
+          ],
+        },
+        {
+          type: "html",
+          value: '<a href="../2026-09-19-protobuf-guide/en.md#field-numbers">Field numbers</a>',
+        },
+        {
+          type: "code",
+          value: '<a href="../2026-09-19-protobuf-guide/en.md#field-numbers">Field numbers</a>',
+        },
+      ],
+    };
+    remarkCfgb()(tree, { path: path.join(source, "en.md") });
+    const alert = tree.children[0];
+    assert.equal(alert.data.hName, "div");
+    assert.deepEqual(alert.data.hProperties.className, ["alert", "alert-note"]);
+    assert.equal(alert.children[0].children[0].value, "Note");
+    assert.equal(alert.children[1].children[1].type, "emphasis");
+    assert.equal(alert.children[1].children[2].url, "https://example.invalid/docs");
+    assert.equal(alert.children[2].type, "list");
+    assert.equal(alert.children[3].lang, "js");
+    assert.equal(alert.children[3].value, "const n = 1;\n");
+    assert.equal(
+      tree.children[1].value,
+      '<a href="/en/posts/reading-protobuf-schemas/#field-numbers">Field numbers</a>',
+    );
+    assert.match(tree.children[2].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

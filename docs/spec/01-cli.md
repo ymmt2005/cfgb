@@ -96,10 +96,20 @@ instead. That choice is an environment variable, not a field in
 the content repository. Its installed Wrangler survives for the same
 build's upload command, outside the content repository and deployable artifact.
 
-`--out` must resolve inside the repository, outside input content and protected
-Git/configuration paths. Refuse a nonempty directory unless recognized as a prior
-CFGB artifact; never recursively delete an unowned directory. Stage a complete
-replacement before publishing new output. Default build validation allows future
+`--out` must resolve inside the repository. Refuse a location that contains,
+or sits inside, source content, `cfgb.yaml`, topic and link-card inputs, or
+`.git`. That includes an output directory that is an ancestor of one of those
+inputs. The selected directory is disposable: `build` removes it and stops if
+removal fails. It does not keep an earlier artifact. Staging is `<out>/.tmp`.
+The complete `site/`, `worker/index.js`, and `build-manifest.json` are written
+there, then moved into `<out>`. Success is reported only after that complete
+artifact is in place. A failed publish removes the incomplete directory. This
+invocation deletes only the staging directory it created; a sibling `<out>.tmp`
+is left alone. Repository-relative inputs are read through `os.Root` on the
+repository. Article assets are read through a child root of that article's
+`assets` directory. Symlinks and `..` that stay inside the applicable root are
+copied. Escapes fail at the rooted open, which keeps the build inside its
+inputs. Default build validation allows future
 publication dates for previews but requires existing valid summaries.
 
 Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and

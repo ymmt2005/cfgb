@@ -790,7 +790,7 @@ th { color: var(--muted); font-weight: 600; }
 .footnotes li { margin: 0.35rem 0; }
 .footnotes p { display: inline; margin: 0; }
 .footnote-back { margin-left: 0.35rem; text-decoration: none; }
-.mermaid-source { margin-top: 0.4rem; color: var(--muted); font-size: 0.85rem; }
+.mermaid-source, .mermaid-error { margin-top: 0.4rem; color: var(--muted); font-size: 0.85rem; }
 html.mermaid-ready .mermaid-source { display: none; }
 
 .page-narrow { max-width: var(--measure); }

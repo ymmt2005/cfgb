@@ -20,6 +20,9 @@ importers:
       astro-expressive-code:
         specifier: 0.44.2
         version: 0.44.2(astro@7.3.5(@astrojs/markdown-remark@7.3.1(supports-color@10.2.2))(@types/node@24.19.1))
+      js-yaml:
+        specifier: 4.3.2
+        version: 4.3.2
       mermaid:
         specifier: 12.1.0
         version: 12.1.0
