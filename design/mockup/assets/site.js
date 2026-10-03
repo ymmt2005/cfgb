@@ -27,40 +27,120 @@
     return palettes[saved] ? saved : "classic";
   }
 
+  function mark(list, value) {
+    if (!list) return;
+    list.querySelectorAll("[role=option]").forEach(function (option) {
+      option.setAttribute("aria-selected", option.getAttribute("data-value") === value ? "true" : "false");
+    });
+  }
+
   function applyMode(mode) {
     if (mode === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", mode);
-    var select = document.getElementById("theme");
-    if (select) select.value = mode;
+    mark(document.getElementById("theme-list"), mode);
   }
 
   function applyPalette(name) {
+    if (!palettes[name]) name = "classic";
     if (named[name]) root.setAttribute("data-palette", name);
     else root.removeAttribute("data-palette");
-    var select = document.getElementById("palette");
-    if (select) select.value = palettes[name] ? name : "classic";
+    mark(document.getElementById("palette-list"), name);
+  }
+
+  function closeMenus(except) {
+    document.querySelectorAll(".menu-list").forEach(function (list) {
+      if (list === except) return;
+      list.hidden = true;
+      var button = document.querySelector('[aria-controls="' + list.id + '"]');
+      if (button) button.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function bindMenu(buttonId, choose) {
+    var button = document.getElementById(buttonId);
+    if (!button) return;
+    var list = document.getElementById(button.getAttribute("aria-controls"));
+    if (!list) return;
+
+    function open() {
+      closeMenus(list);
+      list.hidden = false;
+      button.setAttribute("aria-expanded", "true");
+      var current = list.querySelector('[aria-selected="true"]') || list.querySelector("[role=option]");
+      if (current) current.focus();
+    }
+
+    function close(focusButton) {
+      list.hidden = true;
+      button.setAttribute("aria-expanded", "false");
+      if (focusButton) button.focus();
+    }
+
+    button.addEventListener("click", function () {
+      if (list.hidden) open();
+      else close(false);
+    });
+
+    button.addEventListener("keydown", function (event) {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      open();
+    });
+
+    list.addEventListener("click", function (event) {
+      var option = event.target.closest("[role=option]");
+      if (!option) return;
+      choose(option.getAttribute("data-value"));
+      close(true);
+    });
+
+    list.addEventListener("keydown", function (event) {
+      var options = Array.prototype.slice.call(list.querySelectorAll("[role=option]"));
+      var index = options.indexOf(document.activeElement);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        var step = event.key === "ArrowDown" ? 1 : -1;
+        options[(index + step + options.length) % options.length].focus();
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        options[0].focus();
+      } else if (event.key === "End") {
+        event.preventDefault();
+        options[options.length - 1].focus();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        close(true);
+      } else if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (index >= 0) {
+          choose(options[index].getAttribute("data-value"));
+          close(true);
+        }
+      }
+    });
   }
 
   applyMode(currentMode());
   applyPalette(currentPalette());
 
-  var themeSelect = document.getElementById("theme");
-  if (themeSelect) {
-    themeSelect.addEventListener("change", function () {
-      var next = modes[themeSelect.value] ? themeSelect.value : "system";
-      try { localStorage.setItem(themeKey, next); } catch (e) {}
-      applyMode(next);
-    });
-  }
+  bindMenu("theme", function (value) {
+    var next = modes[value] ? value : "system";
+    try { localStorage.setItem(themeKey, next); } catch (e) {}
+    applyMode(next);
+  });
+  bindMenu("palette", function (value) {
+    var next = palettes[value] ? value : "classic";
+    try { localStorage.setItem(paletteKey, next); } catch (e) {}
+    applyPalette(next);
+  });
 
-  var paletteSelect = document.getElementById("palette");
-  if (paletteSelect) {
-    paletteSelect.addEventListener("change", function () {
-      var next = palettes[paletteSelect.value] ? paletteSelect.value : "classic";
-      try { localStorage.setItem(paletteKey, next); } catch (e) {}
-      applyPalette(next);
-    });
-  }
+  document.addEventListener("click", function (event) {
+    if (event.target.closest(".menu")) return;
+    closeMenus(null);
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") closeMenus(null);
+  });
 
   document.querySelectorAll(".copy").forEach(function (el) {
     el.textContent = copyLabel;

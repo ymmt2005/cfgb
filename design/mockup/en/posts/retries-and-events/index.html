@@ -21,8 +21,24 @@
           <a href="/ja/"  hreflang="ja">日本語</a>
           <a href="/en/posts/retries-and-events/" aria-current="true" hreflang="en">English</a>
         </nav>
-        <label class="theme"><span>Theme</span><select id="theme" autocomplete="off"><option value="system">Match system</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-        <label class="theme"><span>Palette</span><select id="palette" autocomplete="off"><option value="classic">Classic</option><option value="cyber">Cyber</option><option value="dope">Dope</option><option value="forest">Forest</option><option value="dusk">Dusk</option></select></label>
+        <div class="menu">
+          <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">Theme</button>
+          <ul class="menu-list" id="theme-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="system">Match system</li>
+            <li role="option" tabindex="-1" data-value="light">Light</li>
+            <li role="option" tabindex="-1" data-value="dark">Dark</li>
+          </ul>
+        </div>
+        <div class="menu">
+          <button class="menu-button" id="palette" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="palette-list">Palette</button>
+          <ul class="menu-list" id="palette-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="classic">Classic</li>
+            <li role="option" tabindex="-1" data-value="cyber">Cyber</li>
+            <li role="option" tabindex="-1" data-value="dope">Dope</li>
+            <li role="option" tabindex="-1" data-value="forest">Forest</li>
+            <li role="option" tabindex="-1" data-value="dusk">Dusk</li>
+          </ul>
+        </div>
       </div>
     </div>
     <nav class="sections" aria-label="Site"><a href="/en/">Home</a><a href="/en/posts/" aria-current="page">Posts</a><a href="/en/archive/2026/09/">Archive</a><a href="/en/topics/protobuf/">Topics</a><a href="/en/search/">Search</a><a href="/en/about/">About</a></nav>

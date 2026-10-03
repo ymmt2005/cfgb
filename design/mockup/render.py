@@ -208,8 +208,24 @@ def layout(locale, title, body, current, alt_href, description, self_href=None):
           <a href="{ja_href}" {'aria-current="true"' if locale == 'ja' else ''} hreflang="ja">日本語</a>
           <a href="{en_href}" {'aria-current="true"' if locale == 'en' else ''} hreflang="en">English</a>
         </nav>
-        <label class="theme"><span>{theme_name}</span><select id="theme" autocomplete="off"><option value="system">{mode_system}</option><option value="light">{mode_light}</option><option value="dark">{mode_dark}</option></select></label>
-        <label class="theme"><span>{palette_name}</span><select id="palette" autocomplete="off"><option value="classic">Classic</option><option value="cyber">Cyber</option><option value="dope">Dope</option><option value="forest">Forest</option><option value="dusk">Dusk</option></select></label>
+        <div class="menu">
+          <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">{theme_name}</button>
+          <ul class="menu-list" id="theme-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="system">{mode_system}</li>
+            <li role="option" tabindex="-1" data-value="light">{mode_light}</li>
+            <li role="option" tabindex="-1" data-value="dark">{mode_dark}</li>
+          </ul>
+        </div>
+        <div class="menu">
+          <button class="menu-button" id="palette" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="palette-list">{palette_name}</button>
+          <ul class="menu-list" id="palette-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="classic">Classic</li>
+            <li role="option" tabindex="-1" data-value="cyber">Cyber</li>
+            <li role="option" tabindex="-1" data-value="dope">Dope</li>
+            <li role="option" tabindex="-1" data-value="forest">Forest</li>
+            <li role="option" tabindex="-1" data-value="dusk">Dusk</li>
+          </ul>
+        </div>
       </div>
     </div>
     <nav class="sections" aria-label="{'サイト' if locale == 'ja' else 'Site'}">{''.join(nav)}</nav>

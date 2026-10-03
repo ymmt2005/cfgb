@@ -414,54 +414,62 @@ a:hover { color: var(--accent); }
   color: var(--bg);
 }
 
-.theme {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+.menu { position: relative; }
+
+.menu-button {
+  appearance: none;
   border: 1px solid var(--line);
-  background: var(--bg-raised);
+  background-color: var(--bg-raised);
   color: var(--ink);
   border-radius: 999px;
-  padding: 0.12rem 0.45rem 0.12rem 0.7rem;
-  white-space: nowrap;
-}
-.theme span {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-.theme select {
-  appearance: none;
-  -webkit-appearance: none;
-  border: 0;
-  margin: 0;
-  background-color: transparent;
-  color: var(--ink);
-  /* The closed control uses --ink. The native popup on this platform stays
-     light, so it must not inherit that dark-theme ink. */
-  color-scheme: light;
   font: inherit;
   font-size: 0.82rem;
   line-height: 1.4;
-  padding: 0.22rem 1.05rem 0.22rem 0.05rem;
+  padding: 0.28rem 1.35rem 0.28rem 0.75rem;
   cursor: pointer;
+  white-space: nowrap;
   background-image:
     linear-gradient(45deg, transparent 50%, currentColor 50%),
     linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: right 0.32rem center, right 0.12rem center;
+  background-position: right 0.55rem center, right 0.35rem center;
   background-size: 0.28rem 0.28rem, 0.28rem 0.28rem;
   background-repeat: no-repeat;
 }
-select option {
-  background-color: #ffffff;
-  color: #1c1915;
+
+.menu-list {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: max-content;
+  min-width: 10.5rem;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  background: var(--bg-raised);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
-select option:checked,
-select option:hover {
-  background-color: #d6e6f8;
-  color: #1c1915;
+.menu-list[hidden] { display: none; }
+.menu-list [role="option"] {
+  display: block;
+  padding: 0.42rem 0.75rem;
+  border-radius: 0.45rem;
+  cursor: pointer;
+  white-space: nowrap;
 }
-#theme { min-width: 9.2rem; }
-#palette { min-width: 5.6rem; }
+.menu-list [role="option"]:hover,
+.menu-list [role="option"]:focus {
+  outline: none;
+  background: var(--soft);
+  color: var(--ink);
+}
+.menu-list [role="option"][aria-selected="true"] {
+  background: var(--ink);
+  color: var(--bg);
+}
 
 .sections {
   gap: 0.35rem 1rem;
@@ -776,6 +784,7 @@ footer.site a { color: var(--muted); }
   .toc-mobile { display: block; }
   .mast { position: static; }
   .mast-row, .tools { justify-content: flex-start; }
+  .menu-list { right: auto; left: 0; }
   main { padding-top: 1.4rem; }
   .home-title { font-size: 1.85rem; }
 }

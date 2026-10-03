@@ -21,8 +21,24 @@
           <a href="/ja/posts/archive-timezone-boundary/" aria-current="true" hreflang="ja">日本語</a>
           <a href="/en/"  hreflang="en">English</a>
         </nav>
-        <label class="theme"><span>テーマ</span><select id="theme" autocomplete="off"><option value="system">システムに合わせる</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
-        <label class="theme"><span>配色</span><select id="palette" autocomplete="off"><option value="classic">Classic</option><option value="cyber">Cyber</option><option value="dope">Dope</option><option value="forest">Forest</option><option value="dusk">Dusk</option></select></label>
+        <div class="menu">
+          <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">テーマ</button>
+          <ul class="menu-list" id="theme-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="system">システムに合わせる</li>
+            <li role="option" tabindex="-1" data-value="light">ライト</li>
+            <li role="option" tabindex="-1" data-value="dark">ダーク</li>
+          </ul>
+        </div>
+        <div class="menu">
+          <button class="menu-button" id="palette" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="palette-list">配色</button>
+          <ul class="menu-list" id="palette-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="classic">Classic</li>
+            <li role="option" tabindex="-1" data-value="cyber">Cyber</li>
+            <li role="option" tabindex="-1" data-value="dope">Dope</li>
+            <li role="option" tabindex="-1" data-value="forest">Forest</li>
+            <li role="option" tabindex="-1" data-value="dusk">Dusk</li>
+          </ul>
+        </div>
       </div>
     </div>
     <nav class="sections" aria-label="サイト"><a href="/ja/">ホーム</a><a href="/ja/posts/" aria-current="page">記事</a><a href="/ja/archive/2026/09/">アーカイブ</a><a href="/ja/topics/protobuf/">トピック</a><a href="/ja/search/">検索</a><a href="/ja/about/">About</a></nav>
