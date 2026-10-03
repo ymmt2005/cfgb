@@ -24,12 +24,15 @@ Initial preparation checks only its structural and referential integrity.
 | AI quality and provider selection | `tests/ai/summary-corpus.yaml` | Live evaluation + human review |
 | No runtime/build-time AI/content fetching | Network-denied build after installation | CFGB build |
 | Framework-free content repositories | No Astro/Worker/package files added; embedded toolchain extraction | CFGB build |
+| Pinned Workers Builds bootstrap | Runtime contract; release/digest verification in separate command shells | Build integration |
+| Retained toolchain and runtime validation | Delivery cases; Node/pnpm/Wrangler and session/UUID mismatch failures | CFGB build/deploy/preview |
+| Authoritative CI provenance | Detached HEAD and official CI-variable/checkout checks | CFGB provenance adapter |
 | Separate build/upload stages | `tests/build-delivery/cases.json`; artifact integrity and timestamp gates | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
 | Required preview access | `tests/fixtures/configuration/cases.json` | Configuration loader |
 | Setup Action and independent version pins | [Action contract](09-github-action.md), install/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
-| Private preview on every exposed host | Anonymous denied / authorized successful | Cloudflare integration |
+| Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
 | Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
 | Configured-blog import and syntax inventory | Synthetic Atom exports (two blogs in this corpus) | Importer |
 | Complete map before link rewriting | Migration expected map and forward link | Importer |

@@ -49,7 +49,10 @@ clearly for an unsupported runner. Download only the selected version's artifact
 from `ymmt2005/cfgb` releases and verify the published SHA-256 before execution.
 Do not compile from the caller checkout or accept a caller-controlled download
 URL. Validate safe extraction and the installed binary's reported version.
-Treat input values literally; never interpolate them into executable shell code.
+Release asset naming/checksums and published/embedded toolchain requirements
+follow the [build runtime contract](10-build-runtime.md). Setup only installs the
+CLI; subsequent CLI build/upload commands manage their own retained toolchain
+sessions. Treat input values literally; never interpolate them into executable shell code.
 
 Cache by exact version, OS, architecture and checksum; verify bytes on every
 reuse. Repeated invocations can reuse a verified installation. Installation lives

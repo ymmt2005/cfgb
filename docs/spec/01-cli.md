@@ -85,6 +85,11 @@ custom executable build scripts. `build` extracts implementation files to a
 disposable workspace, stages configured content and installs pinned dependencies;
 rendering, Pagefind and artifact checks then run offline. No AI, metadata refresh,
 remote image fetch or source mutation occurs. Node.js remains required in v1.
+The [build runtime contract](10-build-runtime.md) defines bootstrap, runtime
+requirements, retained toolchain sessions and source-provenance resolution. Build
+checks the actual Node range and exact pnpm from release requirements before
+installing frozen dependencies. Its installed Wrangler survives for the same
+build's upload command, outside the content repository and deployable artifact.
 
 `--out` must resolve inside the repository, outside input content and protected
 Git/configuration paths. Refuse a nonempty directory unless recognized as a prior
@@ -94,8 +99,9 @@ publication dates for previews but requires existing valid summaries.
 
 Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and
 `build-manifest.json` (source commit, CFGB/renderer versions, config/input/output
-hashes, publication metadata snapshot and completed checks). Publication metadata
-includes article key, locale, slug, summary and timestamps for each variant. Local
+hashes, publication metadata snapshot, completed checks, provenance provider,
+optional build UUID, toolchain session ID and required/observed runtime versions).
+Publication metadata includes article key, locale, slug, summary and timestamps for each variant. Local
 builds may record dirty worktrees; remote uploads require a clean checkout matching
 the recorded commit and input hashes. Generated/ignored output does not count as
 a source edit. Never include credentials or raw private source exports.
@@ -109,14 +115,20 @@ the recorded source commit to match main. These checks supplement branch protect
 `CFGB_CF_WORKER_NAME` supplies the target Worker; `CLOUDFLARE_ACCOUNT_ID` and
 `CLOUDFLARE_API_TOKEN` configure the Wrangler adapter. Generate Wrangler config
 in a disposable upload workspace from the artifact and trusted target settings.
+Use the retained toolchain session's Wrangler; a temporary upload config does not
+reinstall or lose that toolchain. Workers Builds source commit/branch/build UUID
+come from `WORKERS_CI_COMMIT_SHA`, `WORKERS_CI_BRANCH`, `WORKERS_CI_BUILD_UUID`
+and must match the original checkout and artifact as defined in the runtime
+contract. Read-only Access verification uses `CFGB_CF_ACCESS_API_TOKEN`.
 Preserve the original branch when creating a Preview; the temporary workspace
 must not change its identity. Use CFGB's pinned Wrangler dependency, never an
 unpinned npx download. None of these credentials becomes a visitor-runtime secret.
 
 Diagnostic codes: `E_ARTIFACT` for missing checks/corrupt or unsupported artifacts,
 `E_BUILD_SOURCE` for stale/dirty source, `E_DEPLOY_TARGET` for branch/target errors,
-and `E_PREVIEW_ACCESS` for absent Access coverage. Publication content failures
-retain the same `E_*` codes as `validate --publish`. Missing build/upload prerequisites
+and `E_PREVIEW_ACCESS` for absent/unverifiable Access coverage. `E_TOOLCHAIN`
+(exit 2) identifies missing/incompatible Node/pnpm/Wrangler or toolchain sessions.
+Publication content failures retain the same `E_*` codes as `validate --publish`. Missing build/upload prerequisites
 are configuration failures (exit 2); remote upload failures use exit 3. Gate
 violations use exit 1. Do not promote/upload a failed artifact.
 

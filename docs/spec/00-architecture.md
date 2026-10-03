@@ -27,7 +27,11 @@ its repository. Node.js and the supported pinned package manager remain build
 prerequisites; embedding sources does not embed a JS runtime or node_modules.
 Dependency installation may use network; rendering and artifact tests must work
 offline. Renderer implementation and dependencies can change without adding files
-to article repositories. A release records its embedded renderer version.
+to article repositories. A release records its embedded renderer version and publishes/embeds Node range,
+exact pnpm/Wrangler and lockfile requirements. Retain each external toolchain
+workspace through its upload command. Workers Builds bootstraps the exact binary
+under HOME and obtains provenance from official CI variables; see the
+[build runtime contract](10-build-runtime.md).
 
 The public interface is `cfgb build`, `cfgb deploy` and `cfgb preview`. Builds
 create artifacts, never deploy them. Upload commands consume the same verified
@@ -97,7 +101,9 @@ parsing, migration planning and validation do not require a Cloudflare account.
 9. Direct pushes to a content repository connected to Workers Builds are limited
    to trusted maintainers and scoped generation bots. External changes arrive as
    fork PRs; they do not automatically receive credentialed builds or previews.
-10. Migration manifests record successful applications only. Source/target hash
+10. Preview protection defaults to Worker-level `preview_worker` Access, verified
+    before upload even before any Preview URL exists; hostname policies are advanced.
+11. Migration manifests record successful applications only. Source/target hash
     pairs stay unchanged on conflict; separate reports contain observations.
 
 ## Implementation sequence

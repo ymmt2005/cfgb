@@ -36,12 +36,20 @@ and optional provider credentials as described in the AI contract. Never pass
 secrets on the CLI or embed them in diagnostics. Hatena credentials are covered
 by the migration contract. `CFGB_CF_WORKER_NAME`, `CLOUDFLARE_ACCOUNT_ID` and
 `CLOUDFLARE_API_TOKEN` configure uploads; they are not visitor-runtime secrets.
-`.env.example` contains names only.
+`CFGB_CF_ACCESS_API_TOKEN` is the separate read-only Access inspection token for
+preview preflight. `CFGB_VERSION`, `CFGB_SHA256`, `NODE_VERSION`, `PNPM_VERSION`
+and `SKIP_DEPENDENCY_INSTALL` are trusted Workers Builds bootstrap settings;
+`WORKERS_CI_*` provenance variables remain platform-managed. These settings
+belong to the build environment, not site YAML or runtime Worker variables.
+See the [build runtime contract](10-build-runtime.md). `.env.example` contains
+names only.
 
 CFGB applies defaults in its parser; JSON Schema default annotations do not
 populate missing configuration. In v1, `security.previewAccess: false` is an
 error. Omission of the field or parent section still requires private previews.
-The setting is an assertion, not automatic creation of Access policies.
+The setting is an assertion, not automatic creation of Access policies. Default
+protection uses Worker-level previews-only `preview_worker` Access with verified
+Worker identity and policy; hostname-specific coverage is an advanced option.
 
 Relative paths must stay inside the repository after symlink resolution. Topic
 IDs match `[a-z0-9]+(-[a-z0-9]+)*`. Every topic must have exactly the configured

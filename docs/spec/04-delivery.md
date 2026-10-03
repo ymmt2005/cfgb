@@ -9,16 +9,20 @@ content repository. Node.js is a documented build prerequisite.
 
 ## Workers Builds command boundaries
 
-Install a reviewed, pinned CFGB release in the trusted build environment. CFGB
+The Build command bootstraps a reviewed, pinned CFGB binary under
+`$HOME/.local/bin/cfgb` before running the build. Deploy/Preview use the same
+verified executable by absolute path; PATH exports need not survive command
+shells. The [build runtime contract](10-build-runtime.md) defines the exact release
+asset, independent SHA-256 pin, install sequence and retained toolchain session. CFGB
 pins its renderer dependencies and Wrangler in its embedded lockfile; Worker
 Previews require Wrangler **4.135.0 or newer**. Verify platform compatibility when
 implementation starts and when upgrading the pinned toolchain.
 
 | Workers Builds setting | Command | Responsibility |
 | --- | --- | --- |
-| Build command | `cfgb build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, seal artifact |
-| Deploy command | `cfgb deploy --from dist` | Verify artifact and publication gate; upload production Worker/assets |
-| Preview command | `cfgb preview --from dist` | Verify artifact and private-preview gate; upload branch preview |
+| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, seal artifact |
+| Deploy command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" deploy --from dist` | Verify artifact and publication gate; upload production Worker/assets |
+| Preview command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" preview --from dist` | Verify artifact and private-preview gate; upload branch preview |
 
 The build command never uploads or invokes a deployment command. Deploy and
 preview consume the same verified build artifact without rebuilding. Neither
@@ -28,8 +32,14 @@ access denied. Assets, content and link metadata all come from Git.
 
 The artifact contains `site/`, `worker/index.js` and `build-manifest.json`. The
 manifest records source commit and branch, CFGB/schema/toolchain versions,
-configuration and input/output hashes, successful build checks and publication
-metadata. Uploads require a clean source checkout matching the artifact; ignored
+configuration and input/output hashes, successful build checks, publication
+metadata, toolchain requirements/observations, session identity and provenance
+provider. Workers Builds supplies authoritative source commit/branch/build UUID;
+compare commit with checkout HEAD and retain the UUID for tracing. Node and pnpm
+are configured through `NODE_VERSION`/`PNPM_VERSION` and checked at runtime, not
+pinned by the lockfile. The workspace with installed Wrangler survives through
+the same build's upload command and is excluded from the deployable artifact.
+Uploads require a clean source checkout matching the artifact; ignored
 build output is not a source edit. Reject stale, incomplete or altered artifacts.
 
 Build uses default validation, which permits future publication timestamps; it
@@ -116,11 +126,26 @@ provider endpoints or deployment targets outside the trusted allowlist.
 configuration error, not an option for a public preview. The setting asserts a
 requirement; it does not automatically provision Cloudflare Access policies.
 
-Before uploading, verify that the reviewed Access configuration covers every
-preview hostname the operation can expose, including branch, deployment and
-alternate Worker preview URLs. An Access policy on the production domain alone
-is insufficient. Missing coverage or inability to verify it fails the preview
-command before upload. Do not print an unprotected URL as a ready preview.
+The standard configuration is Worker-level previews-only Access: a self-hosted
+Access application with destination `type: preview_worker` and the actual target
+`worker_id`. Provision the Worker identity and reviewed Access policy before the
+first draft upload. This covers its Preview/deployment URLs across workers.dev
+and custom Preview hosts, including future URLs; a Preview URL need not already
+exist for the preflight to verify the Worker-level policy. Keep production public.
+
+Before upload, resolve the target Worker in the trusted account and verify the
+Access application's destination and effective reviewed policies, including the
+absence of a public bypass. `CFGB_CF_ACCESS_API_TOKEN` supplies read-only Access
+application/policy inspection; it is separate from the upload token and never a
+runtime secret. Missing coverage, wrong Worker identity, unsafe policy or inability
+to inspect it fails with `E_PREVIEW_ACCESS` before upload. An Access policy on the
+production hostname alone is insufficient. CFGB verifies but does not provision
+or modify Access policies.
+
+Hostname-specific policies remain advanced configurations, requiring proof that
+all prospective Preview/deployment/alternate hosts and all paths are protected
+before upload. If future URL coverage cannot be established, refuse preview and
+use Worker-level protection. Do not print an unprotected URL as a ready preview.
 
 After upload, check that anonymous requests are denied and authorized requests
 succeed for HTML, images, feeds and Pagefind assets on every exposed hostname.
