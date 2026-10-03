@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "goVersion": "1.27.1",
-  "nodeRange": ">=24.15.0 <25",
+  "nodeRange": ">=24.15.0 <25 || >=26.0.0",
   "testedNodeVersion": "24.21.0",
   "packageManager": "npm",
   "npmVersion": "12.2.0",
@@ -10,6 +10,6 @@
   "workerCompatibilityDate": "2026-09-22",
   "rendererVersion": "0.0.0",
   "astroVersion": "6.4.8",
-  "lockfileHash": "d9a4a518ffb441fd900db19bff914d3ae43100f2abd4c0f1f137e74ae6d00220",
+  "lockfileHash": "36007d87d2f9862cde851c91365176d67d74e930abea23f34f3b79417cd6bbce",
   "pnpmLockfileHash": "087f272079a526135b0c6cb5f994b2d414f08763e2d1657ea8294073528477f6"
 }

@@ -27,6 +27,27 @@ func TestPackageManager(t *testing.T) {
 	}
 }
 
+func TestNodeRange(t *testing.T) {
+	req, err := loadRequirements()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const constraint = ">=24.15.0 <25 || >=26.0.0"
+	if req.NodeRange != constraint {
+		t.Fatalf("nodeRange = %s", req.NodeRange)
+	}
+	for _, version := range []string{"24.15.0", "24.21.0", "26.0.0", "26.10.0", "27.1.0"} {
+		if !nodeInRange(version, constraint) {
+			t.Errorf("%s should be allowed", version)
+		}
+	}
+	for _, version := range []string{"24.14.9", "25.0.0", "25.9.0", "22.23.3", "20.19.0"} {
+		if nodeInRange(version, constraint) {
+			t.Errorf("%s should be rejected", version)
+		}
+	}
+}
+
 func TestLockfileHashes(t *testing.T) {
 	req, err := loadRequirements()
 	if err != nil {

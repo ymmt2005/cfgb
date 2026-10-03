@@ -35,7 +35,7 @@ not read from articles or PR-controlled scripts:
 | --- | --- |
 | `CFGB_VERSION` | Exact reviewed release tag, e.g. `vX.Y.Z`; no latest/range |
 | `CFGB_SHA256` | Reviewed 64-character lowercase SHA-256 for that executable |
-| `NODE_VERSION` | Exact Node 24 release, at least 24.15.0. Node 24 is Active LTS. Install npm >= 12 separately; Node 24 bundles npm 11 |
+| `NODE_VERSION` | Exact Node release inside `>=24.15.0 <25` or `>=26.0.0`. Node 24.21.0 is the tested Active LTS. Install npm >= 12 separately; these lines bundle npm 11 |
 | `PNPM_VERSION` | Optional. Exact pnpm version from the release, used only when `CFGB_PACKAGE_MANAGER=pnpm` |
 | `SKIP_DEPENDENCY_INSTALL` | `1`; CFGB owns dependency installation outside the content checkout |
 
@@ -109,10 +109,10 @@ dependency install, `build` checks the actual Node runtime against the embedded
 run those scripts by default, so they fail `E_TOOLCHAIN`. The check does not
 require an exact npm patch, and it does not trust environment-variable values as
 proof of the installed versions. Workers Builds uses `NODE_VERSION` to provision
-Node 24.15.0 or newer, and earlier than Node 25. Node 24 (Krypton) is the Active
-LTS line. Node 26 is still Current, and Node 22 is an older LTS line; neither is
-a CFGB build runtime. Node 24 bundles npm 11, so the environment also installs
-npm >= 12. Other environments do the same.
+Node 24.15.0 or newer on the Node 24 line, or Node 26.0.0 or newer. Node 25 is
+outside npm 12's supported engines. Node 24 (Krypton) is the tested Active LTS
+release. Node 26 and newer are accepted. These releases bundle npm 11, so the
+environment also installs npm >= 12. Other environments do the same.
 
 `CFGB_PACKAGE_MANAGER` selects the installer. An empty value or `npm` runs
 `npm ci` and `npm exec`. `pnpm` checks the actual pnpm against exact

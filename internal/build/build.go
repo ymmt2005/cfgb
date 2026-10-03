@@ -274,12 +274,42 @@ func renderSite(dir string, stdout, stderr io.Writer, extra []string, tc toolcha
 }
 
 func nodeInRange(version, constraint string) bool {
-	parts := strings.Fields(constraint)
-	if len(parts) != 2 {
+	for _, clause := range strings.Split(constraint, "||") {
+		if nodeMatchesClause(version, strings.TrimSpace(clause)) {
+			return true
+		}
+	}
+	return false
+}
+
+func nodeMatchesClause(version, clause string) bool {
+	parts := strings.Fields(clause)
+	if len(parts) == 0 {
 		return false
 	}
-	return compareVersion(version, strings.TrimPrefix(parts[0], ">=")) >= 0 &&
-		compareVersion(version, strings.TrimPrefix(parts[1], "<")) < 0
+	for _, part := range parts {
+		switch {
+		case strings.HasPrefix(part, ">="):
+			if compareVersion(version, strings.TrimPrefix(part, ">=")) < 0 {
+				return false
+			}
+		case strings.HasPrefix(part, "<="):
+			if compareVersion(version, strings.TrimPrefix(part, "<=")) > 0 {
+				return false
+			}
+		case strings.HasPrefix(part, ">"):
+			if compareVersion(version, strings.TrimPrefix(part, ">")) <= 0 {
+				return false
+			}
+		case strings.HasPrefix(part, "<"):
+			if compareVersion(version, strings.TrimPrefix(part, "<")) >= 0 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func compareVersion(left, right string) int {

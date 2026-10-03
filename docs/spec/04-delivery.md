@@ -36,9 +36,9 @@ configuration and input/output hashes, successful build checks, publication
 metadata, toolchain requirements/observations, session identity and provenance
 provider. Workers Builds supplies authoritative source commit/branch/build UUID;
 compare commit with checkout HEAD and retain the UUID for tracing. npm >= 12 is
-the default installer. `NODE_VERSION` must be a Node 24 release, at least 24.15.0.
-Node 24 is the Active LTS line and bundles npm 11, so the build environment
-installs npm >= 12 separately. `PNPM_VERSION` applies only when `CFGB_PACKAGE_MANAGER=pnpm`.
+the default installer. `NODE_VERSION` must be Node 24.15.0 or newer on the Node
+24 line, or Node 26.0.0 or newer. Node 25 is outside that set. These releases
+bundle npm 11, so the build environment installs npm >= 12 separately. `PNPM_VERSION` applies only when `CFGB_PACKAGE_MANAGER=pnpm`.
 The selected package manager is checked at runtime. Node itself is not pinned by
 the lockfile. The workspace with installed Wrangler survives through
 the same build's upload command and is excluded from the deployable artifact.
