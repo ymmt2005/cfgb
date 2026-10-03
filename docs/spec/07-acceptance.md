@@ -37,7 +37,7 @@ Initial preparation checks only its structural and referential integrity.
 | Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
 | Configured-blog import and syntax inventory | Synthetic Atom exports (two blogs in this corpus) | Importer |
 | Deterministic migration pairing without AI | Candidate repeatability, absent AI credentials, zero model calls and explicit decisions | Importer |
-| Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, explicit `previews: {}` and top-level assets | CFGB release + upload adapter |
+| Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, `workers_dev: false`, `preview_urls: true`, `previews: {}` and top-level assets | CFGB release + upload adapter |
 | Complete map before link rewriting | Migration expected map and forward link | Importer |
 | Pairing approval and asset deduplication | Migration pairing/category/asset decisions | Importer |
 | Rerun and conflicts | Hatena cases and separate expected conflict reports; unchanged last-applied hash pair | Importer |

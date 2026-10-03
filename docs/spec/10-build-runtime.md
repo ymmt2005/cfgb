@@ -168,7 +168,14 @@ tested CFGB release. Missing/invalid embedded requirements fail `E_TOOLCHAIN`,
 exit 2; a mismatching artifact requirement fails `E_ARTIFACT`, exit 1.
 
 Generate temporary Wrangler configuration for both upload commands with top-level
-`compatibility_date` equal to that pinned value and an explicit `previews: {}`.
+`compatibility_date` equal to that pinned value, `workers_dev: false`,
+`preview_urls: true` and an explicit `previews: {}`. Emit these values for both
+production and preview configuration; do not rely on dashboard state or defaults.
+The production workers.dev route is disabled while workers.dev Preview URLs
+remain enabled. The canonical custom domain remains the public production origin.
+Cloudflare also enables Version URLs through `preview_urls`; include them in
+the Access protection/coverage checks together with Preview/deployment URLs.
+Enabling URLs is separate from authorizing access to them.
 Keep `assets` at the top level, including the `ASSETS` binding and selective
 Worker-first routing from the delivery specification. V1 has no Preview-specific
 vars, secrets or storage bindings; the empty Preview object is sufficient for
@@ -182,6 +189,8 @@ and not a claim that this date is already tested for a released CFGB Worker):
 ```json
 {
   "compatibility_date": "2026-10-03",
+  "workers_dev": false,
+  "preview_urls": true,
   "previews": {}
 }
 ```
@@ -189,6 +198,10 @@ and not a claim that this date is already tested for a released CFGB Worker):
 Use the same pinned date for retained and recreated upload toolchains. Validate
 the generated configuration with the pinned Wrangler during release acceptance,
 and assert both production and preview configurations include these fields.
+Verify the canonical custom domain remains public, the ordinary production
+workers.dev route is disabled, and Preview/Version URLs remain enabled with
+anonymous access denied by the reviewed Access policy. Test a fresh Worker and
+an existing Worker whose URL settings were previously different.
 No Wrangler configuration or runtime-date override belongs in a content repository.
 
 ## Artifact verification scope

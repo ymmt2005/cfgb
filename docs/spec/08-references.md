@@ -15,7 +15,8 @@ when implementation begins and pinned in that repository.
 - [Workers Builds image](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/): `NODE_VERSION`, `PNPM_VERSION`, dependency-install override and runner platform.
 - [Workers Builds branches](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/): production versus Preview builds and current preview command.
 - [Worker Previews](https://developers.cloudflare.com/workers/previews/): Wrangler 4.135.0+ minimum; branch/deployment URLs are public unless Access protects them.
-- [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/): required top-level Worker compatibility date.
+- [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/): required top-level Worker compatibility date; independent `workers_dev` and `preview_urls`, including omitted-setting behavior.
+- [Worker Version URLs](https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/): `preview_urls` also enables Version URLs; include these in Access coverage.
 - [Worker Preview configuration](https://developers.cloudflare.com/workers/previews/configuration/): top-level assets/runtime settings and explicit empty `previews` for Workers without Preview-specific bindings.
 - [Workers Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/): Worker-level previews-only `preview_worker` destinations and hostname-specific alternatives.
 - [Wrangler Worker commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/): explicit Preview `--name` rather than temporary-checkout branch inference.

@@ -63,15 +63,18 @@ account-specific deployment configuration. CFGB generates temporary Wrangler
 configuration for the reviewed deployment target; authors do not run Astro,
 Pagefind or Wrangler directly.
 The generated config uses release-pinned `workerCompatibilityDate` as its
-top-level `compatibility_date` and always includes `previews: {}` in v1.
+top-level `compatibility_date` and always includes `workers_dev: false`,
+`preview_urls: true` and `previews: {}` in v1, for both upload commands.
 Assets remain top-level. See the runtime contract for the required fields;
 the date is never derived from the build/deploy clock, and an empty Preview
 object does not replace the Access checks below.
 
 The configured production origin is canonical. For an apex deployment, redirect
-`www` at the host/zone layer while preserving path/query, and disable or redirect
-the alternate production workers.dev origin. Do not redirect previews to
-production. Check deployed source-commit metadata and retain platform rollback
+`www` at the host/zone layer while preserving path/query, and disable
+the alternate production workers.dev origin through the explicit config setting.
+Preview URLs remain enabled independently and are protected by Access; Version
+URLs enabled by the same `preview_urls` setting are included in that coverage.
+Do not redirect previews to production. Check deployed source-commit metadata and retain platform rollback
 to the last good Worker version. Runtime has no AI or Hatena credentials.
 
 ## GitHub Action setup
