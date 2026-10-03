@@ -73,6 +73,8 @@ parsing, migration planning and validation do not require a Cloudflare account.
 - Canonical personal origin: `https://ymmt2005.dev`, with a trailing slash on
   content routes. `www.ymmt2005.dev` redirects to the apex at the zone/host layer.
 - Go CLI: `cfgb`; configuration: `cfgb.yaml`; generated provenance: `.cfgb.json`.
+- Node.js 24 (Krypton, Active LTS) is the build runtime. The range is
+  `>=24.15.0 <25`, which is what npm >= 12 can run. Node 26 is still Current.
 - Astro 6 is the selected major baseline; select compatible maintained patch
   versions at implementation time, pin packages and commit `package-lock.json` in CFGB.
   `pnpm-lock.yaml` stays in CFGB for `CFGB_PACKAGE_MANAGER=pnpm`.
