@@ -1,0 +1,4 @@
+/cfgb
+/dist/
+node_modules/
+.pnpm-store/

@@ -4,7 +4,9 @@ A Git-native publishing system for multilingual technical blogs on Cloudflare.
 CFGB is an independent open-source project and is not affiliated with Cloudflare,
 Inc.
 
-**Status: design and specifications only. The CLI and site are not implemented.**
+**Status: design, plus an early visual mockup and a `cfgb version` executable. Rendering and delivery are not implemented.**
+
+The [visual mockup](design/mockup/README.md) is a browsable HTML prototype of the example blog. It is the appearance to review before the Astro renderer is built. Search results there are labeled mock data.
 
 The Go tool will manage Markdown, validation, migration, optional authoring-time
 AI, and build/delivery. CFGB owns the renderer and Worker implementation and embeds
