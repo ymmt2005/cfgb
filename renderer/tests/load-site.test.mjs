@@ -1,24 +1,70 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
-import { splitFrontmatter } from "../src/lib/load-site.mjs";
+import { loadSite, resetSiteCache } from "../src/lib/load-site.mjs";
 
-test("frontmatter keeps inline arrays, block arrays, folded scalars, and quoted text", () => {
-  const inline = splitFrontmatter('---\ntopics: [protobuf, oss]\naliases: ["/ja/posts/old/"]\n---\nbody\n');
-  assert.deepEqual(inline.data.topics, ["protobuf", "oss"]);
-  assert.deepEqual(inline.data.aliases, ["/ja/posts/old/"]);
-  assert.equal(inline.body, "body\n");
-
-  const block = splitFrontmatter("---\ntopics:\n- protobuf\n- oss\naliases:\n- /ja/posts/old-protobuf-guide/\n---\n");
-  assert.deepEqual(block.data.topics, ["protobuf", "oss"]);
-  assert.deepEqual(block.data.aliases, ["/ja/posts/old-protobuf-guide/"]);
-
-  const folded = splitFrontmatter("---\nsummary: >\n  hello\n  world\n---\n");
-  assert.equal(folded.data.summary, "hello world\n");
-
-  const quoted = splitFrontmatter('---\ntitle: "say \\"hi\\""\n---\n');
-  assert.equal(quoted.data.title, 'say "hi"');
-
-  const dated = splitFrontmatter("---\npublishedAt: '2026-09-19T13:12:40+09:00'\n---\n");
-  assert.equal(typeof dated.data.publishedAt, "string");
-  assert.equal(dated.data.publishedAt, "2026-09-19T13:12:40+09:00");
+test("routes and aliases come from the Go metadata index", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "cfgb-index-"));
+  try {
+    const metadataPath = path.join(dir, "metadata.json");
+    writeFileSync(
+      metadataPath,
+      JSON.stringify({
+        topics: { protobuf: { en: "Protocol Buffers", ja: "Protocol Buffers" } },
+        posts: [
+          {
+            id: "posts/2026/guide/ja",
+            file: path.join(dir, "ja.md"),
+            body: "本文\n\n---\n",
+            group: "2026/guide",
+            year: "2026",
+            articleKey: "guide",
+            locale: "ja",
+            data: {
+              title: "ガイド",
+              slug: "protobuf-schema-guide",
+              publishedAt: "2026-09-19T13:12:40+09:00",
+              topics: ["protobuf"],
+              aliases: ["/ja/posts/old-protobuf-guide/"],
+            },
+          },
+        ],
+        prose: [],
+      }),
+    );
+    const sitePath = path.join(dir, "site.json");
+    writeFileSync(
+      sitePath,
+      JSON.stringify({
+        title: "Example",
+        baseUrl: "https://example.invalid",
+        defaultLocale: "ja",
+        timezone: "Asia/Tokyo",
+        locales: { ja: { label: "日本語" }, en: { label: "English" } },
+        contentRoot: dir,
+        topicsFile: path.join(dir, "topics.yaml"),
+        linkcardsDir: dir,
+        metadataFile: metadataPath,
+        latestPosts: 5,
+      }),
+    );
+    process.env.CFGB_SITE_JSON = sitePath;
+    resetSiteCache();
+    const site = loadSite();
+    const post = site.posts[0];
+    assert.equal(post.slug, "protobuf-schema-guide");
+    assert.equal(post.body, "本文\n\n---\n");
+    assert.deepEqual(post.topics, ["protobuf"]);
+    assert.deepEqual(post.aliases, ["/ja/posts/old-protobuf-guide/"]);
+    assert.equal(post.url, "/ja/posts/protobuf-schema-guide/");
+    assert.equal(site.topics.protobuf.ja, "Protocol Buffers");
+    assert.equal(site.routes.has("/ja/posts/protobuf-schema-guide/"), true);
+    assert.equal(site.routes.has("/ja/topics/protobuf/"), true);
+    assert.equal(site.routes.has("/en/topics/protobuf/"), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    resetSiteCache();
+  }
 });

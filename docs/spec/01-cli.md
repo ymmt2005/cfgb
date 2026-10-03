@@ -85,7 +85,8 @@ are specified in the [Action contract](09-github-action.md).
 CFGB owns the embedded renderer, Worker, lockfile and artifact integration checks.
 Content repositories require no package.json, Astro files, Wrangler files or
 custom executable build scripts. `build` extracts implementation files to a
-disposable workspace, stages configured content and installs pinned dependencies;
+disposable workspace, stages configured content, parses article front matter and
+`topics.yaml` with `goccy/go-yaml`, and installs pinned dependencies;
 rendering, Pagefind and artifact checks then run offline. No AI, metadata refresh,
 remote image fetch or source mutation occurs. Node.js remains required in v1.
 The [build runtime contract](10-build-runtime.md) defines bootstrap, runtime

@@ -10,6 +10,12 @@ The filename supplies locale. An article group has one or both enabled locales
 and shared `assets/`; `.cfgb.json` is optional. A stray `fr.md`, nested variant,
 or duplicate locale is an error. Discovery excludes `tests`, docs and examples.
 
+`build` isolates each article's front matter with a line reader and decodes only
+that block with `goccy/go-yaml`. The Markdown body, including a later `---` or
+fenced code, is unchanged. Home, about, and aside files have no front matter, so
+their entire contents stay the body. `topics.yaml` uses the same decoder. The
+renderer consumes those normalized records and does not parse YAML itself.
+
 Frontmatter structure requires `title`, `slug`, `publishedAt`, `topics`.
 `summary` is structurally optional and may be empty during authoring. Default
 validation and publication require a nonempty summary as a semantic rule.

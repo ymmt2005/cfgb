@@ -13,16 +13,51 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
     const source = path.join(dir, "content", "posts", "2026", "2026-09-20-markdown-showcase");
     mkdirSync(target, { recursive: true });
     mkdirSync(source, { recursive: true });
-    writeFileSync(
-      path.join(target, "en.md"),
-      '---\ntitle: Reading\nslug: reading-protobuf-schemas\npublishedAt: "2026-09-20T09:00:00+09:00"\n---\n\nBody\n',
-    );
-    writeFileSync(
-      path.join(source, "en.md"),
-      '---\ntitle: Showcase\nslug: markdown-rendering-showcase\npublishedAt: "2026-09-21T10:00:00+09:00"\n---\n\nBody\n',
-    );
-    writeFileSync(path.join(dir, "topics.yaml"), "protobuf:\n  en: Protocol Buffers\n");
+    const targetFile = path.join(target, "en.md");
+    const sourceFile = path.join(source, "en.md");
+    writeFileSync(targetFile, "Body\n");
+    writeFileSync(sourceFile, "Body\n");
     mkdirSync(path.join(dir, "linkcards"));
+    const metadataPath = path.join(dir, "metadata.json");
+    writeFileSync(
+      metadataPath,
+      JSON.stringify({
+        topics: { protobuf: { en: "Protocol Buffers" } },
+        posts: [
+          {
+            id: "posts/2026/2026-09-19-protobuf-guide/en",
+            file: targetFile,
+            body: "Body\n",
+            group: "2026/2026-09-19-protobuf-guide",
+            year: "2026",
+            articleKey: "2026-09-19-protobuf-guide",
+            locale: "en",
+            data: {
+              title: "Reading",
+              slug: "reading-protobuf-schemas",
+              publishedAt: "2026-09-20T09:00:00+09:00",
+              topics: ["protobuf"],
+            },
+          },
+          {
+            id: "posts/2026/2026-09-20-markdown-showcase/en",
+            file: sourceFile,
+            body: "Body\n",
+            group: "2026/2026-09-20-markdown-showcase",
+            year: "2026",
+            articleKey: "2026-09-20-markdown-showcase",
+            locale: "en",
+            data: {
+              title: "Showcase",
+              slug: "markdown-rendering-showcase",
+              publishedAt: "2026-09-21T10:00:00+09:00",
+              topics: ["protobuf"],
+            },
+          },
+        ],
+        prose: [],
+      }),
+    );
     const sitePath = path.join(dir, "site.json");
     writeFileSync(
       sitePath,
@@ -35,6 +70,7 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
         contentRoot: path.join(dir, "content"),
         topicsFile: path.join(dir, "topics.yaml"),
         linkcardsDir: path.join(dir, "linkcards"),
+        metadataFile: metadataPath,
         latestPosts: 5,
       }),
     );
@@ -73,7 +109,7 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
         },
       ],
     };
-    remarkCfgb()(tree, { path: path.join(source, "en.md") });
+    remarkCfgb()(tree, { path: sourceFile });
     const alert = tree.children[0];
     assert.equal(alert.data.hName, "div");
     assert.deepEqual(alert.data.hProperties.className, ["alert", "alert-note"]);

@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
 
 let cached;
 
@@ -10,9 +9,18 @@ export function loadSite() {
   const configPath = process.env.CFGB_SITE_JSON;
   if (!configPath) throw new Error("CFGB_SITE_JSON is required");
   const site = JSON.parse(readFileSync(configPath, "utf8"));
-  const topics = parseTopics(readFileSync(site.topicsFile, "utf8"));
-  const posts = discoverPosts(site.contentRoot);
-  const prose = discoverProse(site.contentRoot);
+  if (!site.metadataFile) throw new Error("metadataFile is required");
+  const index = JSON.parse(readFileSync(site.metadataFile, "utf8"));
+  const topics = index.topics || {};
+  const posts = (index.posts || []).map(normalizePost);
+  const seen = new Set();
+  for (const post of posts) {
+    const id = `${post.locale}:${post.slug}`;
+    if (seen.has(id)) throw new Error(`duplicate slug ${post.slug} in ${post.locale}`);
+    seen.add(id);
+  }
+  posts.sort(comparePosts);
+  const prose = index.prose || [];
   const linkcards = loadLinkcards(site.linkcardsDir);
   const routes = buildRoutes(site, posts, topics);
   cached = { site, topics, posts, prose, linkcards, routes };
@@ -23,99 +31,34 @@ export function resetSiteCache() {
   cached = undefined;
 }
 
-function parseTopics(text) {
-  const parsed = parseYamlMapping(text);
-  const topics = {};
-  for (const [key, value] of Object.entries(parsed)) {
-    if (value && typeof value === "object" && !Array.isArray(value)) topics[key] = value;
+function normalizePost(post) {
+  const data = post.data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error(`article metadata must be a mapping in ${post.file || post.id}`);
   }
-  return topics;
-}
-
-function parseYamlMapping(text) {
-  const parsed = yaml.load(text, { schema: yaml.CORE_SCHEMA });
-  if (parsed == null) return {};
-  if (typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("YAML document must be a mapping");
-  }
-  return parsed;
-}
-
-export function splitFrontmatter(text) {
-  const normalized = text.replace(/^\uFEFF/, "");
-  if (!normalized.startsWith("---")) return { data: {}, body: normalized };
-  const match = normalized.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
-  if (!match) return { data: {}, body: normalized };
-  return { data: parseFrontmatter(match[1]), body: normalized.slice(match[0].length) };
-}
-
-function parseFrontmatter(raw) {
-  const parsed = parseYamlMapping(raw);
-  const data = {};
-  for (const [key, value] of Object.entries(parsed)) {
-    if (key === "topics" || key === "aliases") {
-      data[key] = stringList(value);
-      continue;
-    }
-    if (value == null) data[key] = "";
-    else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") data[key] = String(value);
-    else data[key] = value;
-  }
-  return data;
-}
-
-function stringList(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item));
-  if (value == null || value === "") return [];
-  return [String(value)];
-}
-
-function discoverPosts(contentRoot) {
-  const postsRoot = path.join(contentRoot, "posts");
-  if (!existsSync(postsRoot)) return [];
-  const posts = [];
-  for (const year of readdirSync(postsRoot)) {
-    if (!/^\d{4}$/.test(year)) continue;
-    const yearDir = path.join(postsRoot, year);
-    if (!statSync(yearDir).isDirectory()) continue;
-    for (const articleKey of readdirSync(yearDir)) {
-      const groupDir = path.join(yearDir, articleKey);
-      if (!statSync(groupDir).isDirectory()) continue;
-      for (const locale of ["ja", "en"]) {
-        const file = path.join(groupDir, `${locale}.md`);
-        if (!existsSync(file)) continue;
-        const parsed = splitFrontmatter(readFileSync(file, "utf8"));
-        const data = parsed.data;
-        if (!data.slug || !data.title || !data.publishedAt) {
-          throw new Error(`missing required frontmatter in ${file}`);
-        }
-        posts.push({
-          group: `${year}/${articleKey}`,
-          year,
-          articleKey,
-          locale,
-          file,
-          title: data.title,
-          slug: data.slug,
-          publishedAt: data.publishedAt,
-          updatedAt: data.updatedAt || "",
-          topics: Array.isArray(data.topics) ? data.topics : [],
-          summary: data.summary || "",
-          ogImage: data.ogImage || "",
-          aliases: Array.isArray(data.aliases) ? data.aliases : [],
-          url: `/${locale}/posts/${data.slug}/`,
-        });
-      }
+  for (const key of ["title", "slug", "publishedAt"]) {
+    if (typeof data[key] !== "string" || !data[key]) {
+      throw new Error(`${key} is required in ${post.file || post.id}`);
     }
   }
-  const seen = new Set();
-  for (const post of posts) {
-    const id = `${post.locale}:${post.slug}`;
-    if (seen.has(id)) throw new Error(`duplicate slug ${post.slug} in ${post.locale}`);
-    seen.add(id);
+  if (!Array.isArray(data.topics) || data.topics.some((topic) => typeof topic !== "string")) {
+    throw new Error(`topics must be an array of strings in ${post.file || post.id}`);
   }
-  posts.sort(comparePosts);
-  return posts;
+  if (data.aliases !== undefined && (!Array.isArray(data.aliases) || data.aliases.some((alias) => typeof alias !== "string"))) {
+    throw new Error(`aliases must be an array of strings in ${post.file || post.id}`);
+  }
+  return {
+    ...post,
+    title: data.title,
+    slug: data.slug,
+    publishedAt: data.publishedAt,
+    updatedAt: data.updatedAt || "",
+    topics: data.topics,
+    summary: data.summary || "",
+    ogImage: data.ogImage || "",
+    aliases: data.aliases || [],
+    url: `/${post.locale}/posts/${data.slug}/`,
+  };
 }
 
 export function comparePosts(a, b) {
@@ -123,24 +66,6 @@ export function comparePosts(a, b) {
   const right = Date.parse(b.publishedAt);
   if (left !== right) return right - left;
   return a.articleKey < b.articleKey ? -1 : a.articleKey > b.articleKey ? 1 : 0;
-}
-
-function discoverProse(contentRoot) {
-  const specs = [
-    ["home", "home"],
-    ["about", path.join("pages", "about")],
-    ["aside", "aside"],
-  ];
-  const prose = {};
-  for (const [kind, dir] of specs) {
-    prose[kind] = {};
-    for (const locale of ["ja", "en"]) {
-      const file = path.join(contentRoot, dir, `${locale}.md`);
-      if (!existsSync(file)) continue;
-      prose[kind][locale] = splitFrontmatter(readFileSync(file, "utf8")).body;
-    }
-  }
-  return prose;
 }
 
 function loadLinkcards(dir) {

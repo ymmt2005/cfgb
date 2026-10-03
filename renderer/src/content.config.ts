@@ -1,8 +1,8 @@
 import { defineCollection, z } from "astro:content";
-import { glob } from "astro/loaders";
+import { cfgbLoader } from "./lib/content-loader.mjs";
 import { loadSite } from "./lib/load-site.mjs";
 
-const { site } = loadSite();
+const { posts, prose } = loadSite();
 
 const article = z.object({
   title: z.string().min(1),
@@ -17,18 +17,26 @@ const article = z.object({
 
 export const collections = {
   posts: defineCollection({
-    loader: glob({
-      pattern: "posts/*/*/{ja,en}.md",
-      base: site.contentRoot,
-      generateId: ({ entry }) => entry.replace(/\.md$/, ""),
-    }),
+    loader: cfgbLoader(
+      "cfgb-posts",
+      posts.map((post) => ({
+        id: post.id,
+        file: post.file,
+        body: post.body,
+        data: post.data,
+      })),
+    ),
     schema: article,
   }),
   prose: defineCollection({
-    loader: glob({
-      pattern: ["home/{ja,en}.md", "pages/about/{ja,en}.md", "aside/{ja,en}.md"],
-      base: site.contentRoot,
-      generateId: ({ entry }) => entry.replace(/\.md$/, ""),
-    }),
+    loader: cfgbLoader(
+      "cfgb-prose",
+      prose.map((entry) => ({
+        id: entry.id,
+        file: entry.file,
+        body: entry.body,
+        data: {},
+      })),
+    ),
   }),
 };

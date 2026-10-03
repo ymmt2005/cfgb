@@ -17,6 +17,7 @@ import (
 
 	cfgb "github.com/ymmt2005/cfgb"
 	"github.com/ymmt2005/cfgb/internal/config"
+	"github.com/ymmt2005/cfgb/internal/frontmatter"
 	"github.com/ymmt2005/cfgb/internal/version"
 	"github.com/ymmt2005/cfgb/internal/worker"
 )
@@ -77,6 +78,7 @@ type siteJSON struct {
 	ContentRoot  string `json:"contentRoot"`
 	TopicsFile   string `json:"topicsFile"`
 	LinkcardsDir string `json:"linkcardsDir"`
+	MetadataFile string `json:"metadataFile"`
 	LatestPosts  int    `json:"latestPosts"`
 }
 
@@ -120,8 +122,25 @@ func Run(opts Options) error {
 	if err := stageMedia(cfg, filepath.Join(rendererDir, "public", "media")); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
+	locales := make([]string, 0, len(cfg.Locales))
+	for locale := range cfg.Locales {
+		locales = append(locales, locale)
+	}
+	sort.Strings(locales)
+	index, err := frontmatter.Collect(contentRoot, topicsFile, locales)
+	if err != nil {
+		return &ExitError{Code: 3, Err: err}
+	}
+	metadataPath := filepath.Join(session, "metadata.json")
+	metadata, err := json.Marshal(index)
+	if err != nil {
+		return &ExitError{Code: 3, Err: err}
+	}
+	if err := os.WriteFile(metadataPath, metadata, 0o644); err != nil {
+		return &ExitError{Code: 3, Err: err}
+	}
 	sitePath := filepath.Join(session, "site.json")
-	if err := writeSiteJSON(sitePath, cfg, contentRoot, topicsFile, linkcardsDir); err != nil {
+	if err := writeSiteJSON(sitePath, cfg, contentRoot, topicsFile, linkcardsDir, metadataPath); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
 	routesPath := filepath.Join(session, "routes.json")
@@ -138,11 +157,6 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 1, Err: err}
 	}
-	locales := make([]string, 0, len(cfg.Locales))
-	for locale := range cfg.Locales {
-		locales = append(locales, locale)
-	}
-	sort.Strings(locales)
 	source, err := worker.Source(worker.Options{
 		DefaultLocale: cfg.Site.DefaultLocale,
 		Locales:       locales,
@@ -517,7 +531,7 @@ func readRootDir(root *os.Root, name string) ([]fs.DirEntry, error) {
 	return file.ReadDir(-1)
 }
 
-func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkcardsDir string) error {
+func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkcardsDir, metadataFile string) error {
 	locales := map[string]struct {
 		Label string `json:"label"`
 	}{}
@@ -535,6 +549,7 @@ func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkc
 		ContentRoot:   contentRoot,
 		TopicsFile:    topicsFile,
 		LinkcardsDir:  linkcardsDir,
+		MetadataFile:  metadataFile,
 		LatestPosts:   cfg.Home.LatestPosts,
 	})
 	if err != nil {
