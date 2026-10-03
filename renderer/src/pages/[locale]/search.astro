@@ -1,14 +1,14 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { renderedProse } from "../../lib/content";
-import { loadSite, ui } from "../../lib/load-site.mjs";
+import { copyFor, loadSite } from "../../lib/load-site.mjs";
 
 export function getStaticPaths() {
   const { site } = loadSite();
   return Object.keys(site.locales).map((locale) => ({ params: { locale } }));
 }
 const { locale } = Astro.params;
-const copy = ui[locale] || ui.en;
+const copy = copyFor(locale);
 const aside = await renderedProse("aside", locale);
 ---
 <Base locale={locale} title={copy.searchTitle} path={`/${locale}/search/`} showAside={!!aside}>

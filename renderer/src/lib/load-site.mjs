@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import catalog from "./locales.json" with { type: "json" };
+
+const localeIdentifier = new RegExp(catalog.identifier);
 
 let cached;
 
@@ -9,6 +12,7 @@ export function loadSite() {
   const configPath = process.env.CFGB_SITE_JSON;
   if (!configPath) throw new Error("CFGB_SITE_JSON is required");
   const site = JSON.parse(readFileSync(configPath, "utf8"));
+  assertConfiguredLocales(site);
   if (!site.metadataFile) throw new Error("metadataFile is required");
   const index = JSON.parse(readFileSync(site.metadataFile, "utf8"));
   const topics = index.topics || {};
@@ -126,9 +130,10 @@ export function archiveParts(iso, timeZone) {
 }
 
 export function formatDate(iso, locale, timeZone) {
+  const entry = localeEntry(locale);
   const date = new Date(iso);
-  if (locale === "ja") {
-    const parts = new Intl.DateTimeFormat("ja-JP", {
+  if (entry.date.form === "ymd-kanji") {
+    const parts = new Intl.DateTimeFormat(entry.date.intl, {
       timeZone,
       year: "numeric",
       month: "numeric",
@@ -137,71 +142,57 @@ export function formatDate(iso, locale, timeZone) {
     const value = (type) => parts.find((part) => part.type === type).value;
     return `${value("year")}年${value("month")}月${value("day")}日`;
   }
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  if (entry.date.form === "intl-medium") {
+    return new Intl.DateTimeFormat(entry.date.intl, {
+      timeZone,
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  }
+  throw new Error(`locale ${locale} has no date form`);
+}
+
+export function archiveTitle(year, month, locale) {
+  const entry = localeEntry(locale);
+  if (entry.date.archive === "ymd-kanji") return `${year}年${Number(month)}月`;
+  if (entry.date.archive === "iso-month") return `${year}-${month}`;
+  throw new Error(`locale ${locale} has no archive title`);
+}
+
+export function copyFor(locale) {
+  return localeEntry(locale).ui;
+}
+
+export function openGraphLocale(locale) {
+  return localeEntry(locale).ogLocale;
+}
+
+export function rootNotFoundTitle() {
+  return catalog.rootNotFound;
+}
+
+function localeEntry(locale) {
+  const entry = catalog.locales[locale];
+  if (!entry) throw new Error(`locale ${locale} is not supported`);
+  return entry;
+}
+
+function assertConfiguredLocales(site) {
+  const locales = site.locales;
+  if (!locales || typeof locales !== "object" || Array.isArray(locales) || Object.keys(locales).length === 0) {
+    throw new Error("locales must be a nonempty map");
+  }
+  for (const [locale, item] of Object.entries(locales)) {
+    if (!localeIdentifier.test(locale)) throw new Error(`locale ${locale} is not a path-safe language tag`);
+    if (!catalog.locales[locale]) throw new Error(`locale ${locale} is not supported`);
+    if (typeof item?.label !== "string" || !item.label.trim()) throw new Error(`locale ${locale} requires a nonempty label`);
+  }
+  if (!Object.hasOwn(locales, site.defaultLocale)) {
+    throw new Error(`defaultLocale ${site.defaultLocale} is not one of the configured locales`);
+  }
 }
 
 export function absolute(site, route) {
   return site.baseUrl.replace(/\/$/, "") + route;
 }
-
-export const ui = {
-  ja: {
-    skip: "本文へ",
-    home: "ホーム",
-    posts: "記事",
-    archive: "アーカイブ",
-    topics: "トピック",
-    search: "検索",
-    about: "About",
-    theme: "テーマ",
-    system: "システムに合わせる",
-    light: "ライト",
-    dark: "ダーク",
-    toc: "目次",
-    language: "言語",
-    sections: "サイト",
-    hasTranslation: "対訳があります。",
-    openTranslation: "対訳を開く",
-    noTranslation: "このページの対訳はありません。",
-    latest: "最近の記事",
-    postsTitle: "記事",
-    archiveTitle: "アーカイブ",
-    searchTitle: "検索",
-    searchHint: "このサイトの記事を検索します。",
-    notFound: "ページが見つかりません",
-    notFoundBody: "アドレスを確認するか、ホームまたは検索へ戻ってください。",
-    feed: "RSS",
-  },
-  en: {
-    skip: "Skip to content",
-    home: "Home",
-    posts: "Posts",
-    archive: "Archive",
-    topics: "Topics",
-    search: "Search",
-    about: "About",
-    theme: "Theme",
-    system: "Match system",
-    light: "Light",
-    dark: "Dark",
-    toc: "Contents",
-    language: "Language",
-    sections: "Site",
-    hasTranslation: "A translation exists.",
-    openTranslation: "Open translation",
-    noTranslation: "This page has no translation.",
-    latest: "Latest posts",
-    postsTitle: "Posts",
-    archiveTitle: "Archive",
-    searchTitle: "Search",
-    searchHint: "Search articles on this site.",
-    notFound: "Page not found",
-    notFoundBody: "Check the address, or return home or to search.",
-    feed: "RSS",
-  },
-};

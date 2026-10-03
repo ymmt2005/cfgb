@@ -2,7 +2,8 @@
 import Base from "../../layouts/Base.astro";
 import PostList from "../../components/PostList.astro";
 import { posts, renderedProse } from "../../lib/content";
-import { loadSite, ui } from "../../lib/load-site.mjs";
+import { pageCounterparts } from "../../lib/locale-link.mjs";
+import { copyFor, loadSite } from "../../lib/load-site.mjs";
 
 export function getStaticPaths() {
   const { site } = loadSite();
@@ -10,14 +11,14 @@ export function getStaticPaths() {
 }
 const { locale } = Astro.params;
 const { site } = loadSite();
-const copy = ui[locale] || ui.en;
+const copy = copyFor(locale);
 const all = await posts();
 const latest = all.filter((post) => post.locale === locale).slice(0, site.latestPosts || 5);
 const home = await renderedProse("home", locale);
 const aside = await renderedProse("aside", locale);
-const other = Object.keys(site.locales).find((item) => item !== locale);
+const counterparts = pageCounterparts(Object.keys(site.locales), (item) => `/${item}/`);
 ---
-<Base locale={locale} title={site.title} path={`/${locale}/`} alternatePath={other ? `/${other}/` : ""} showAside={!!aside}>
+<Base locale={locale} title={site.title} path={`/${locale}/`} counterparts={counterparts} showAside={!!aside}>
   {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
   <h1 class="home-title">{site.title}</h1>
   {home && <div class="home-intro prose"><home.Content /></div>}

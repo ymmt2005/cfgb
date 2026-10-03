@@ -1,0 +1,76 @@
+{
+  "identifier": "^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?$",
+  "rootNotFound": "Page not found",
+  "locales": {
+    "ja": {
+      "ogLocale": "ja_JP",
+      "date": {
+        "intl": "ja-JP",
+        "form": "ymd-kanji",
+        "archive": "ymd-kanji"
+      },
+      "ui": {
+        "skip": "本文へ",
+        "home": "ホーム",
+        "posts": "記事",
+        "archive": "アーカイブ",
+        "topics": "トピック",
+        "search": "検索",
+        "about": "About",
+        "theme": "テーマ",
+        "system": "システムに合わせる",
+        "light": "ライト",
+        "dark": "ダーク",
+        "toc": "目次",
+        "language": "言語",
+        "sections": "サイト",
+        "hasTranslation": "対訳があります。",
+        "openTranslation": "対訳を開く",
+        "noTranslation": "このページの対訳はありません。",
+        "latest": "最近の記事",
+        "postsTitle": "記事",
+        "archiveTitle": "アーカイブ",
+        "searchTitle": "検索",
+        "searchHint": "このサイトの記事を検索します。",
+        "notFound": "ページが見つかりません",
+        "notFoundBody": "アドレスを確認するか、ホームまたは検索へ戻ってください。",
+        "feed": "RSS"
+      }
+    },
+    "en": {
+      "ogLocale": "en_US",
+      "date": {
+        "intl": "en-GB",
+        "form": "intl-medium",
+        "archive": "iso-month"
+      },
+      "ui": {
+        "skip": "Skip to content",
+        "home": "Home",
+        "posts": "Posts",
+        "archive": "Archive",
+        "topics": "Topics",
+        "search": "Search",
+        "about": "About",
+        "theme": "Theme",
+        "system": "Match system",
+        "light": "Light",
+        "dark": "Dark",
+        "toc": "Contents",
+        "language": "Language",
+        "sections": "Site",
+        "hasTranslation": "A translation exists.",
+        "openTranslation": "Open translation",
+        "noTranslation": "This page has no translation.",
+        "latest": "Latest posts",
+        "postsTitle": "Posts",
+        "archiveTitle": "Archive",
+        "searchTitle": "Search",
+        "searchHint": "Search articles on this site.",
+        "notFound": "Page not found",
+        "notFoundBody": "Check the address, or return home or to search.",
+        "feed": "RSS"
+      }
+    }
+  }
+}

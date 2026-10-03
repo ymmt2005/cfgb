@@ -12,7 +12,7 @@ open topic/locale maps. Require format assertion for `date-time` and `uri`.
 | `site.baseUrl` | Required HTTPS origin, no path/query/fragment/trailing slash/userinfo |
 | `site.defaultLocale` | Required key in `locales` |
 | `site.timezone` | Required IANA timezone; archives/dates use it |
-| `locales` | Nonempty map; v1 supports `ja` and `en`, each with a `label` |
+| `locales` | Nonempty map of path-safe language tags. This release supports `ja` and `en`, each with a nonempty `label` |
 | `content.root` | Default `src/content` |
 | `content.topics` | Default `src/data/topics.yaml` |
 | `content.linkcards` | Default `src/data/linkcards` |
@@ -23,7 +23,7 @@ open topic/locale maps. Require format assertion for `date-time` and `uri`.
 | `ai.gateway` | Default/only v1 integration `cloudflare` |
 | `ai.summary` | Map from enabled locales to `{provider,model}`; required when AI enabled |
 | `security.previewAccess` | Only allowed value true; omission means true; preview release gate, not policy provisioning |
-| `hatena.blogs` | Optional array `{url,locale}`; normalized unique origins |
+| `hatena.blogs` | Optional array `{url,locale}`; `locale` is a locale identifier; normalized unique origins |
 
 AI disabled with `summary: {}` is a usable offline configuration. Do not insert
 `TBD` as if it were a real provider/model. Missing model configuration is an
@@ -57,10 +57,27 @@ Worker identity and policy; hostname-specific coverage is an advanced option.
 
 `cfgb.yaml` is read through an `os.Root` opened at the repository. A symlink that
 stays inside the repository is followed. A symlink that leaves the repository is
-rejected. Relative paths must stay inside the repository after symlink resolution. Topic
-IDs match `[a-z0-9]+(-[a-z0-9]+)*`. Every topic must have exactly the configured
+rejected. Relative paths must stay inside the repository after symlink resolution.
+
+A locale identifier and a release-supported locale are separate. An identifier
+matches `^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?$`. That
+contract accepts tags such as `pt-BR` and `zh-Hant` and rejects path separators,
+dot segments, percent escapes, and any other character outside it. A match is
+not support. UI copy, date presentation, and OpenGraph locale metadata live in
+one catalog, `renderer/src/lib/locales.json`, read by the CLI and the renderer.
+This release's catalog is `ja` and `en`. The loader rejects an empty locale
+map, a blank or whitespace-only label, a default locale that is not one of the
+configured keys, an unsafe identifier, and a safe tag that the catalog does not
+define. Those checks happen while `cfgb.yaml` is loaded, before the output
+directory is removed or the renderer runs. The renderer does not treat an
+unknown locale as English. Adding a language means extending that catalog; it
+does not mean another language already works. The shipped pages still present
+the current two-language header.
+
+Topic IDs match `[a-z0-9]+(-[a-z0-9]+)*`. Every topic must have exactly the configured
 locale labels, even when it currently has articles in only one locale. JSON Schema
-allows partial/empty topic label maps; semantic validation compares each map
+allows locale-label keys that match the identifier pattern, including a partial
+or empty map; semantic validation compares each map
 with the configured locales. An empty map or missing configured label is
 `E_TOPIC`, exit 1, in every validation mode.
 All article topics must be registered. AI may suggest existing topics, never

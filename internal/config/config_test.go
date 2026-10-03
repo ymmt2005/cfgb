@@ -105,7 +105,90 @@ site:
   baseUrl: https://example.invalid
   defaultLocale: ja
   timezone: Asia/Tokyo
+locales:
+  ja:
+    label: 日本語
 `
+
+func TestLoadRejectsLocaleProblems(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "unsafe identifier",
+			body: localeConfig("ja", "  \"../../escape\":\n    label: Bad\n"),
+			want: "path-safe",
+		},
+		{
+			name: "percent escape",
+			body: localeConfig("ja", "  \"%2e%2e\":\n    label: Bad\n"),
+			want: "path-safe",
+		},
+		{
+			name: "dot segment",
+			body: localeConfig("ja", "  \"..\":\n    label: Bad\n"),
+			want: "path-safe",
+		},
+		{
+			name: "unsupported",
+			body: localeConfig("ja", "  pt-BR:\n    label: Português\n"),
+			want: "not supported",
+		},
+		{
+			name: "script tag",
+			body: localeConfig("ja", "  zh-Hant:\n    label: 中文\n"),
+			want: "not supported",
+		},
+		{
+			name: "empty map",
+			body: strings.Replace(minimalConfig, "locales:\n  ja:\n    label: 日本語\n", "locales: {}\n", 1),
+			want: "nonempty",
+		},
+		{
+			name: "missing map",
+			body: strings.Replace(minimalConfig, "locales:\n  ja:\n    label: 日本語\n", "", 1),
+			want: "nonempty",
+		},
+		{
+			name: "blank label",
+			body: strings.Replace(minimalConfig, "label: 日本語", "label: \" \"", 1),
+			want: "label",
+		},
+		{
+			name: "default absent",
+			body: strings.Replace(minimalConfig, "defaultLocale: ja", "defaultLocale: en", 1),
+			want: "defaultLocale",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			writeConfig(t, dir, tc.body)
+			_, err := Load(dir)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func localeConfig(defaultLocale, extra string) string {
+	return `
+schemaVersion: 1
+site:
+  title: CFGB Example
+  baseUrl: https://example.invalid
+  defaultLocale: ` + defaultLocale + `
+  timezone: Asia/Tokyo
+locales:
+  ja:
+    label: 日本語
+` + extra
+}
 
 func writeConfig(t *testing.T, dir, body string) {
 	t.Helper()

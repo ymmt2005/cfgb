@@ -37,10 +37,7 @@
             "pattern": "^https?://"
           },
           "locale": {
-            "enum": [
-              "ja",
-              "en"
-            ]
+            "$ref": "locale-id.schema.json"
           },
           "articleKey": {
             "type": "string",

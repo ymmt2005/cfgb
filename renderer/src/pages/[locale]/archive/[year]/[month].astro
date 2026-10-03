@@ -2,7 +2,7 @@
 import Base from "../../../../layouts/Base.astro";
 import PostList from "../../../../components/PostList.astro";
 import { monthOf, posts, renderedProse } from "../../../../lib/content";
-import { ui } from "../../../../lib/load-site.mjs";
+import { archiveTitle, copyFor } from "../../../../lib/load-site.mjs";
 
 export async function getStaticPaths() {
   const seen = new Set<string>();
@@ -17,14 +17,14 @@ export async function getStaticPaths() {
   return paths;
 }
 const { locale, year, month } = Astro.params;
-const copy = ui[locale] || ui.en;
+const copy = copyFor(locale);
 const list = (await posts()).filter((post) => {
   if (post.locale !== locale) return false;
   const parts = monthOf(post.data.publishedAt);
   return parts.year === year && parts.month === month;
 });
 const aside = await renderedProse("aside", locale);
-const title = locale === "ja" ? `${year}年${Number(month)}月` : `${year}-${month}`;
+const title = archiveTitle(year, month, locale);
 ---
 <Base locale={locale} title={title} path={`/${locale}/archive/${year}/${month}/`} showAside={!!aside}>
   {aside && <Fragment slot="aside"><aside.Content /></Fragment>}

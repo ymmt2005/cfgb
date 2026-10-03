@@ -209,8 +209,8 @@ if a miss reaches Worker code it delegates to `ASSETS.fetch(request)`.
   private, no-store` and `Vary: Cookie, Accept-Language` so negotiation is not
   shared-cached. No cookie is set merely by negotiation. Locale URLs are never
   redirected according to browser preference.
-- `GET /__locale?lang=ja|en&next=<local-path>` validates a supported locale, sets
-  the `cfgb_locale` cookie and returns **303**. Cookie attributes are `Secure`,
+- `GET /__locale?lang=<configured-locale>&next=<local-path>` validates a configured locale, sets
+  the `cfgb_locale` cookie and returns **303**. This release configures `ja` and `en` only. Cookie attributes are `Secure`,
   `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age=31536000`. Reject unsupported
   methods/locales; invalid or absent `next` falls back to the selected locale
   home. Accept only a same-site absolute path beginning with a single `/`;

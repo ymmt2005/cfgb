@@ -6,8 +6,8 @@ Discover only `content.root/posts/<YYYY>/<article-key>/<locale>.md`.
 The pair `<YYYY>/<article-key>` is the logical article identity. Article keys
 match `[a-z0-9]+(-[a-z0-9]+)*`; the initial `YYYY-MM-DD-` prefix is a creation
 convention, not a source of publication dates. Do not rename published groups.
-The filename supplies locale. An article group has one or both enabled locales
-and shared `assets/`; `.cfgb.json` is optional. A stray `fr.md`, nested variant,
+The filename supplies locale. An article group has each enabled locale that was
+authored, and shared `assets/`; `.cfgb.json` is optional. A stray `fr.md`, nested variant,
 or duplicate locale is an error. Discovery excludes `tests`, docs and examples.
 
 `build` isolates each article's front matter with a line reader and decodes only
@@ -85,14 +85,17 @@ A schema-valid alias must begin with its owning variant's `/<locale>/` prefix.
 A cross-locale alias is `E_URL_COLLISION`, exit 1, in every validation mode,
 even when its path does not otherwise exist in the route registry.
 
-Global language links target the same article's counterpart if available;
-otherwise target the other locale home. The switch uses that translation group.
-An untranslated article still links to the other locale home when a different
-group uses the same slug. Only real pairs receive an article-level
-translation notice and reciprocal `hreflang`. Each pair member uses its own
-canonical and its own summary/dates. Do not pretend untranslated content has an
-alternate. Other translated page pairs have reciprocal locale links. Root may
-use `x-default`; unpaired articles must not invent a language alternate.
+Global language links use the article group's locale-to-URL map. The requested
+locale resolves to that group's counterpart, or to that locale's home when the
+group has no translation. A different group that publishes the same slug is not
+a counterpart. Alternate-language metadata is the collection of actual group
+members and is omitted when the group has only one. The shipped header still
+shows the other configured language; a selector for more than two languages is
+separate work. Only a real counterpart receives the article-level translation
+notice and reciprocal `hreflang`. Each member uses its own canonical and its
+own summary/dates. Do not pretend untranslated content has an alternate. Home
+and about use the same map over the configured locales. Root may use
+`x-default`; unpaired articles must not invent a language alternate.
 
 ## Markdown and images
 

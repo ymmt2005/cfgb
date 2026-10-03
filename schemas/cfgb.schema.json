@@ -21,10 +21,7 @@
           "pattern": "^https://[^/?#@]+$"
         },
         "defaultLocale": {
-          "enum": [
-            "ja",
-            "en"
-          ]
+          "$ref": "locale-id.schema.json"
         },
         "timezone": {
           "type": "string",
@@ -42,21 +39,8 @@
       "type": "object",
       "minProperties": 1,
       "additionalProperties": false,
-      "properties": {
-        "ja": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "label": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "required": [
-            "label"
-          ]
-        },
-        "en": {
+      "patternProperties": {
+        "^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?$": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
@@ -130,26 +114,8 @@
         "summary": {
           "type": "object",
           "additionalProperties": false,
-          "properties": {
-            "ja": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "provider": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "model": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "required": [
-                "provider",
-                "model"
-              ]
-            },
-            "en": {
+          "patternProperties": {
+            "^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?$": {
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -200,10 +166,7 @@
                 "pattern": "^https?://"
               },
               "locale": {
-                "enum": [
-                  "ja",
-                  "en"
-                ]
+                "$ref": "locale-id.schema.json"
               }
             },
             "required": [

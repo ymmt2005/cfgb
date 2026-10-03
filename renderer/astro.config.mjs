@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fallbackHtml } from "./src/lib/fallback-html.mjs";
 import { absolute, loadSite } from "./src/lib/load-site.mjs";
+import { alternateMembers, groupCounterparts } from "./src/lib/locale-link.mjs";
 import { canonicalSitemapPath, localePageAlternates, pagePath } from "./src/lib/sitemap.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
 
@@ -76,18 +77,19 @@ function sitemapManifest({ site, posts }) {
   const locales = Object.keys(site.locales);
   const groups = new Map();
   for (const post of posts) {
-    if (!groups.has(post.group)) groups.set(post.group, {});
-    groups.get(post.group)[post.locale] = post;
+    if (!groups.has(post.group)) groups.set(post.group, []);
+    groups.get(post.group).push(post);
   }
-  for (const group of groups.values()) {
-    const localesInGroup = Object.keys(group);
-    const alternates = localesInGroup.length > 1
-      ? Object.fromEntries(localesInGroup.map((locale) => [locale, group[locale].url]))
+  for (const [group, members] of groups) {
+    const counterparts = groupCounterparts(members, group);
+    const alternates = alternateMembers(counterparts);
+    const links = alternates.length
+      ? Object.fromEntries(alternates.map((item) => [item.locale, item.href]))
       : null;
-    for (const post of Object.values(group)) {
+    for (const post of members) {
       map.set(post.url, {
         lastmod: post.updatedAt || post.publishedAt,
-        alternates,
+        alternates: links,
       });
     }
   }

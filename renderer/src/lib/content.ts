@@ -48,7 +48,3 @@ export function monthOf(iso: string) {
   const { site } = loadSite();
   return archiveParts(iso, site.timezone);
 }
-
-export function alternateFor(all: PostEntry[], post: PostEntry) {
-  return all.find((item) => item.group === post.group && item.locale !== post.locale) ?? null;
-}

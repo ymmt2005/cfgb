@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { loadSite, resetSiteCache } from "../src/lib/load-site.mjs";
+import { copyFor, loadSite, resetSiteCache } from "../src/lib/load-site.mjs";
 
 test("routes and aliases come from the Go metadata index", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "cfgb-index-"));
@@ -63,6 +63,33 @@ test("routes and aliases come from the Go metadata index", () => {
     assert.equal(site.routes.has("/ja/posts/protobuf-schema-guide/"), true);
     assert.equal(site.routes.has("/ja/topics/protobuf/"), true);
     assert.equal(site.routes.has("/en/topics/protobuf/"), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    resetSiteCache();
+  }
+});
+
+test("a path-safe unsupported locale is rejected", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "cfgb-locale-"));
+  try {
+    const metadataPath = path.join(dir, "metadata.json");
+    writeFileSync(metadataPath, JSON.stringify({ topics: {}, posts: [], prose: [] }));
+    const sitePath = path.join(dir, "site.json");
+    writeFileSync(
+      sitePath,
+      JSON.stringify({
+        title: "Example",
+        baseUrl: "https://example.invalid",
+        defaultLocale: "pt-BR",
+        timezone: "UTC",
+        locales: { "pt-BR": { label: "Português" } },
+        metadataFile: metadataPath,
+      }),
+    );
+    process.env.CFGB_SITE_JSON = sitePath;
+    resetSiteCache();
+    assert.throws(() => loadSite(), /not supported/);
+    assert.throws(() => copyFor("pt-BR"), /not supported/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
     resetSiteCache();

@@ -1,13 +1,13 @@
 ---
-import { languageDestination } from "../lib/locale-link.mjs";
-import { absolute, loadSite, ui } from "../lib/load-site.mjs";
+import { alternateMembers, languageDestination } from "../lib/locale-link.mjs";
+import { absolute, copyFor, loadSite, openGraphLocale } from "../lib/load-site.mjs";
 
 interface Props {
   locale: string;
   title: string;
   description?: string;
   path: string;
-  alternatePath?: string;
+  counterparts?: Record<string, string>;
   untranslated?: boolean;
   headings?: { depth: number; slug: string; text: string }[];
   showAside?: boolean;
@@ -19,7 +19,7 @@ const {
   title,
   description = "",
   path,
-  alternatePath = "",
+  counterparts,
   untranslated = false,
   headings = [],
   showAside = false,
@@ -27,9 +27,11 @@ const {
   jsonLd = null,
 } = Astro.props;
 const { site, routes } = loadSite();
-const copy = ui[locale] || ui.en;
+const copy = copyFor(locale);
 const other = Object.keys(site.locales).find((item) => item !== locale) || "";
-const otherDestination = languageDestination({ path, locale, other, alternatePath, untranslated, routes });
+const members = alternateMembers(counterparts);
+const otherMember = members.find((item) => item.locale === other);
+const otherDestination = languageDestination({ path, locale, destination: other, counterparts, routes });
 const canonical = absolute(site, path);
 const pageTitle = path === `/${locale}/` ? site.title : `${title} · ${site.title}`;
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
@@ -66,10 +68,12 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 {description && <meta property="og:description" content={description} />}
 <meta property="og:url" content={canonical}>
 <meta property="og:type" content={pagefind ? "article" : "website"}>
-<meta property="og:locale" content={locale === "ja" ? "ja_JP" : "en_US"}>
+<meta property="og:locale" content={openGraphLocale(locale)}>
 <meta property="og:site_name" content={site.title}>
-{alternatePath && <link rel="alternate" hreflang={other} href={absolute(site, alternatePath)} />}
-{alternatePath && <link rel="alternate" hreflang={locale} href={canonical} />}
+{members.filter((item) => item.locale !== locale).map((item) => (
+  <link rel="alternate" hreflang={item.locale} href={absolute(site, item.href)} />
+))}
+{members.some((item) => item.locale === locale) && <link rel="alternate" hreflang={locale} href={canonical} />}
 <link rel="stylesheet" href="/assets/site.css">
 <script is:inline src="/assets/theme-boot.js"></script>
 {json && <script type="application/ld+json" is:inline set:html={json} />}
@@ -116,7 +120,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     )}
     <div class="frame-main">
       <slot name="before" />
-      {alternatePath && <p class="translation">{copy.hasTranslation} <a href={alternatePath}>{copy.openTranslation}</a></p>}
+      {otherMember && <p class="translation">{copy.hasTranslation} <a href={otherMember.href}>{copy.openTranslation}</a></p>}
       {untranslated && <p class="translation">{copy.noTranslation}</p>}
       {hasToc && (
         <details class="toc-mobile" open>

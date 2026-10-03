@@ -1,7 +1,8 @@
 ---
 import { render } from "astro:content";
 import Base from "../../../layouts/Base.astro";
-import { alternateFor, monthOf, posts, renderedProse } from "../../../lib/content";
+import { groupCounterparts } from "../../../lib/locale-link.mjs";
+import { monthOf, posts, renderedProse } from "../../../lib/content";
 import { formatDate, loadSite } from "../../../lib/load-site.mjs";
 
 export async function getStaticPaths() {
@@ -15,9 +16,11 @@ const all = await posts();
 const post = all.find((item) => item.id === Astro.props.id);
 if (!post) throw new Error("missing post");
 const { Content, headings } = await render(post);
-const pair = alternateFor(all, post);
+const counterparts = groupCounterparts(all, post.group);
 const aside = await renderedProse("aside", locale);
 const { site, topics } = loadSite();
+const other = Object.keys(site.locales).find((item) => item !== locale) || "";
+const untranslated = Boolean(other) && !Object.hasOwn(counterparts, other);
 const month = monthOf(post.data.publishedAt);
 const jsonLd = {
   "@context": "https://schema.org",
@@ -35,8 +38,8 @@ const jsonLd = {
   title={post.data.title}
   description={post.data.summary || ""}
   path={post.url}
-  alternatePath={pair?.url || ""}
-  untranslated={!pair}
+  counterparts={counterparts}
+  untranslated={untranslated}
   headings={headings}
   showAside={!!aside}
   pagefind={true}

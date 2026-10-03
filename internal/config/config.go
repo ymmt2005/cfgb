@@ -9,6 +9,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
+	"github.com/ymmt2005/cfgb/internal/locale"
 )
 
 // File is the subset of cfgb.yaml the renderer needs.
@@ -100,6 +101,13 @@ func Load(start string) (*File, error) {
 	}
 	if cfg.Site.Title == "" || cfg.Site.BaseURL == "" || cfg.Site.DefaultLocale == "" || cfg.Site.Timezone == "" {
 		return nil, fmt.Errorf("cfgb.yaml site title, baseUrl, defaultLocale and timezone are required")
+	}
+	configured := make(map[string]locale.Entry, len(cfg.Locales))
+	for key, item := range cfg.Locales {
+		configured[key] = locale.Entry{Label: item.Label}
+	}
+	if err := locale.Validate(configured, cfg.Site.DefaultLocale); err != nil {
+		return nil, err
 	}
 	if cfg.Content.Root == "" {
 		cfg.Content.Root = "src/content"

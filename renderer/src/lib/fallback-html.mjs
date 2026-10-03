@@ -1,3 +1,5 @@
+import { copyFor, rootNotFoundTitle } from "./load-site.mjs";
+
 export function fallbackHtml(corpus, locale) {
   const locales = Object.keys(corpus.site.locales);
   const bilingual = locale === "both";
@@ -6,11 +8,11 @@ export function fallbackHtml(corpus, locale) {
   const copy = shown
     .map((item) => {
       const label = escapeHtml(corpus.site.locales[item].label);
-      const search = item === "ja" ? "検索" : "Search";
+      const search = escapeHtml(copyFor(item).search);
       return `<p><a href="/${item}/">${label}</a> · <a href="/${item}/search/">${search}</a></p>`;
     })
     .join("");
-  const title = bilingual ? "Page not found" : locale === "ja" ? "ページが見つかりません" : "Page not found";
+  const title = bilingual ? rootNotFoundTitle() : copyFor(locale).notFound;
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
