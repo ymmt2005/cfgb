@@ -126,7 +126,8 @@ strict`. Keep original source in a no-JS fallback; hide it only after successful
 rendering. Invalid Mermaid keeps source with a useful error, not blank content.
 Re-render from original source on theme change; serialize renders to avoid races.
 
-Theme states are system/light/dark. Store explicit choice locally, handle storage
+Theme states are system/light/dark. The color palette is specified only in
+`cfgb.yaml`, not by a visitor control and not by a content file. Store explicit choice locally, handle storage
 failure, listen for system changes only in system mode, and set the initial theme
 before paint. TOC is an anchor list the reader can collapse and expand. An article
 opens with the list expanded. Without JavaScript it remains that expanded
