@@ -100,7 +100,7 @@ publication dates for previews but requires existing valid summaries.
 Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and
 `build-manifest.json` (source commit, CFGB/renderer versions, config/input/output
 hashes, publication metadata snapshot, completed checks, provenance provider,
-optional build UUID, toolchain session ID and required/observed runtime versions).
+optional opaque build identifier (`buildUUID`), toolchain session ID and required/observed runtime versions).
 Publication metadata includes article key, locale, slug, summary and timestamps for each variant. Local
 builds may record dirty worktrees; remote uploads require a clean checkout matching
 the recorded commit and input hashes. Generated/ignored output does not count as

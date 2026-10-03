@@ -12,6 +12,9 @@ release checksums and toolchain requirements. For Workers Builds the v1 asset
 contract is `cfgb-linux-amd64` under the exact release tag in `ymmt2005/cfgb`.
 The checksum is SHA-256 over executable bytes, not an archive. Other targets have
 separate assets/checksums; never substitute a different architecture or version.
+`ymmt2005/cfgb` will use immutable releases: published release artifacts cannot
+be replaced. Independently reviewed caller digest pins remain mandatory for
+both Workers Builds and the setup Action, including downloads and cache reuse.
 
 A trusted maintainer configures the following Workers Builds variables; they are
 not read from articles or PR-controlled scripts:
@@ -74,6 +77,10 @@ version against `CFGB_VERSION` before build/upload and rejects a mismatch with
 `E_TOOLCHAIN`, exit 2. These are command-setting examples, not files to add to content
 repositories. The GitHub setup Action has its own installer implementation and
 uses the same release asset/checksum/requirements contract.
+For GitHub jobs on the same Linux/amd64 target, configure Action `cfgb-version`
+and `cfgb-sha256` to equal `CFGB_VERSION` and `CFGB_SHA256` respectively; this
+verifies the same executable bytes in both environments. Other targets have
+different executable bytes and require their own reviewed digest.
 
 ## Node, pnpm and toolchain workspace
 
@@ -86,10 +93,12 @@ and the same pinned pnpm independently. Unsupported/missing runtimes fail with
 `E_TOOLCHAIN`, exit 2, before rendering or upload.
 
 `build` creates a toolchain session outside the content repository. In Workers
-Builds `toolchainSessionId` equals `buildUUID` and its root is
-`$HOME/.cache/cfgb/builds/<buildUUID>/`; elsewhere use an opaque
-random session ID under CFGB's user cache. Validate identifiers and reject
-symlink/path escapes. The workspace contains extracted package/lockfile sources,
+Builds `toolchainSessionId` is the 64-character lowercase hexadecimal SHA-256
+of the exact UTF-8 bytes of `buildUUID`, and its root is
+`$HOME/.cache/cfgb/builds/<sha256(buildUUID)>/`. Never use the raw build identifier
+as a path component. Elsewhere use an opaque random session ID under CFGB's user
+cache. Reject symlink/path escapes regardless of the hashed component. The
+workspace contains extracted package/lockfile sources,
 `pnpm install --frozen-lockfile` dependencies, including the pinned Wrangler, and
 private session metadata. Dependency installation is allowed network access;
 content rendering, indexing and integration checks subsequently run offline.
@@ -102,11 +111,15 @@ artifact transfer or visitor runtime. No credentials are stored in session state
 
 `build-manifest.json` records `toolchainSessionId` and toolchain requirements plus
 observed versions; it contains no absolute workspace paths or node_modules.
-Session metadata binds its ID, source identity, embedded lockfile digest, verified
+Session metadata binds its ID, original raw build identifier when present,
+source identity, embedded lockfile digest, verified
 artifact-manifest digest and installed tool versions. Upload resolves that session
 through CFGB's cache registry/deterministic Workers Build path, verifies these
 bindings and invokes Wrangler by its workspace path. Never use a global Wrangler
 or unpinned npx resolution.
+For Workers Builds, recompute the session ID from the manifest's raw `buildUUID`
+and require it to match the recorded `toolchainSessionId` before resolving the
+workspace. A hash-derived path does not replace exact raw provenance comparison.
 
 Same-build uploads require the original matching session. Missing/corrupt session
 state fails with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. For
@@ -145,6 +158,13 @@ Detached HEAD is normal; it does not replace the CI branch with `HEAD`. Treat th
 branch as a literal ref name, never executable input. `buildUUID` is optional in
 the general artifact contract but required for Workers Builds artifacts.
 
+Treat `WORKERS_CI_BUILD_UUID` as a non-empty opaque UTF-8 build identifier,
+not an RFC UUID. Store its exact value as `buildUUID`, without trimming,
+case-folding, parsing UUID syntax or normalizing path separators. Compare the
+original values exactly during same-build upload. Cloudflare's
+[event examples](https://developers.cloudflare.com/workers/ci-cd/builds/event-subscriptions/)
+also use prefixed build identifiers; their format is not a CFGB validation rule.
+
 These platform variables can be overridden. Trusted build settings must leave
 them platform-managed, and repository scripts may not replace them. Environment
 provenance alone does not prove a checkout is trustworthy; retain clean-source,
@@ -175,7 +195,11 @@ not impersonate the new environment's build UUID.
 Before relying on this integration, test the bootstrap and separate command shells
 in a disposable Workers Build: exact binary/hash reuse, retained session/Wrangler,
 Node/pnpm version checks, no toolchain files in the artifact, CI detached HEAD,
-partial/overridden/mismatched provenance, UUID/session isolation and clean-source
+partial/overridden/mismatched provenance, opaque build-ID/session isolation and clean-source
 checks. Test transferred-artifact upload toolchain recreation separately, asserting
 zero renderer calls and identical artifact bytes. Data fixtures are future test
 inputs, not evidence of executed Cloudflare deployment.
+Include non-RFC identifiers and identifiers containing path separators/traversal
+text: preserve the raw manifest value, derive only the lowercase SHA-256 workspace
+component, and never create paths from raw values. Empty identifiers fail source
+validation; different identifiers must not reuse a sealed artifact/session.

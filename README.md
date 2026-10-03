@@ -17,7 +17,7 @@ Visitors never invoke an LLM.
 The [cfgb-action repository](https://github.com/ymmt2005/cfgb-action) owns the
 setup Action: install a verified CFGB release and register it on PATH. Workflows
 run CLI commands directly after setup. Action and CLI versions are independently
-pinned. The Action is also at the documentation-only stage.
+pinned, and callers independently pin the CLI executable SHA-256. The Action is also at the documentation-only stage.
 
 ## Implementation specifications
 

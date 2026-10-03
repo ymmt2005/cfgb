@@ -25,12 +25,12 @@ Initial preparation checks only its structural and referential integrity.
 | No runtime/build-time AI/content fetching | Network-denied build after installation | CFGB build |
 | Framework-free content repositories | No Astro/Worker/package files added; embedded toolchain extraction | CFGB build |
 | Pinned Workers Builds bootstrap | Runtime contract; release/digest verification in separate command shells | Build integration |
-| Retained toolchain and runtime validation | Delivery cases; Node/pnpm/Wrangler and session/UUID mismatch failures | CFGB build/deploy/preview |
+| Retained toolchain and runtime validation | Delivery cases; Node/pnpm/Wrangler and session/opaque build-ID mismatch failures and hash-derived path safety | CFGB build/deploy/preview |
 | Authoritative CI provenance | Detached HEAD and official CI-variable/checkout checks | CFGB provenance adapter |
 | Separate build/upload stages | `tests/build-delivery/cases.json`; artifact integrity and timestamp gates | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
 | Required preview access | `tests/fixtures/configuration/cases.json` | Configuration loader |
-| Setup Action and independent version pins | [Action contract](09-github-action.md), install/cache failures and subsequent direct CLI execution | `cfgb-action` |
+| Setup Action and independent version/digest pins | [Action contract](09-github-action.md), install/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
 | Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
@@ -62,7 +62,8 @@ Initial preparation checks only its structural and referential integrity.
    with controlled HTTP/fake-provider responses. Never use actual old-site writes
    to test idempotence.
 
-Action acceptance covers checksum/corrupt-cache/version failures, safe extraction,
+Action acceptance covers required caller-digest validation, checksum/corrupt-cache/
+version failures, release-checksum agreement with a mismatching caller pin, safe extraction,
 PATH registration and setup without a checkout. A smoke workflow installs CFGB
 and invokes it in a subsequent `run` step. Domain diagnostics and exit-code tests
 remain CLI tests; setup adds no framework files to article repositories. These
