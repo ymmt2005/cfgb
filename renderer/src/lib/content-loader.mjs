@@ -10,7 +10,7 @@ export function cfgbLoader(name, entries) {
     name,
     load: async (context) => {
       context.store.clear();
-      const render = await rendererFor(context);
+      const renderer = await rendererFor(context);
       for (const entry of entries) {
         const data = await context.parseData({
           id: entry.id,
@@ -18,7 +18,7 @@ export function cfgbLoader(name, entries) {
           filePath: entry.file,
         });
         const fileURL = pathToFileURL(entry.file);
-        const result = await render(entry.body ?? "", {
+        const result = await renderer.render(entry.body ?? "", {
           frontmatter: {},
           fileURL,
         });
