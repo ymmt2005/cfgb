@@ -123,17 +123,38 @@ not a field in the content repository's `cfgb.yaml`. Workers Builds sets
 `PNPM_VERSION` only for that optional path. Unsupported or missing runtimes fail
 with `E_TOOLCHAIN`, exit 2, before rendering or upload.
 
-`build` creates a toolchain session outside the content repository. In Workers
-Builds `toolchainSessionId` is the 64-character lowercase hexadecimal SHA-256
-of the exact UTF-8 bytes of `buildUUID`, and its root is
-`$HOME/.cache/cfgb/builds/<sha256(buildUUID)>/`. Never use the raw build identifier
-as a path component. Elsewhere use an opaque random session ID under CFGB's user
-cache. Open that cache directory as an `os.Root` and create, refresh, and remove
-the session only through it. A symlink that leaves the cache is rejected. A symlink
-that stays inside the cache is followed; the caller-configured cache location is
-the root. The session directory is mode `0700`, including when that deterministic
-directory already exists, and a symlink at the session directory itself is rejected.
-The workspace contains extracted package and lockfile sources, `npm ci` dependencies
+`build` creates a fresh toolchain workspace outside the content repository:
+
+```go
+workspace, err := os.MkdirTemp("", "cfgb-build-*")
+```
+
+`MkdirTemp` creates that directory with mode `0700` before umask. The returned
+directory is this invocation's workspace. Open it as an `os.Root` when an operation
+must stay inside it. Every build gets a new directory, including two builds that
+carry the same `buildUUID`. Do not reuse a user-cache path, and do not derive the
+directory name from `sha256(buildUUID)` or from the raw build identifier.
+
+`build-manifest.json` records `toolchainSessionId` as `filepath.Base(workspace)`.
+A workspace `/tmp/cfgb-build-1234567890` records `cfgb-build-1234567890`. That
+field is the generated basename, not an absolute path and not a caller-supplied
+relative path. The manifest also records toolchain requirements and observed
+versions. It contains no absolute workspace path, `node_modules`, or source
+snapshot. `buildUUID` remains the original opaque `WORKERS_CI_BUILD_UUID` when
+that variable is present. It is provenance, not the workspace name.
+
+In the same build environment, deploy and preview resolve the workspace as
+`filepath.Join(os.TempDir(), toolchainSessionId)`. Those commands must share the
+temporary-directory setting and filesystem with the build that created it. Reject
+an ID that is absolute, contains a path separator, or is `.` or `..` before
+joining it. Do not recompute the ID from `buildUUID`.
+
+A failed build removes the workspace that invocation created and does not remove
+another build's workspace. A successful build retains the workspace for the
+subsequent deploy or preview command. Do not remove it when build returns
+successfully. After upload completion or failure, remove that workspace. Disposal
+of the build environment also ends its lifetime. Deploy and preview themselves
+are later work. The workspace contains extracted package and lockfile sources, `npm ci` dependencies
 by default (or the frozen pnpm install when selected), including the pinned
 Wrangler, and private session metadata. The renderer `package.json` `allowScripts`
 field permits install scripts for `esbuild` and `workerd`. The pnpm
@@ -143,27 +164,19 @@ install script. Every other dependency install script stays blocked.
 Dependency installation is allowed network access;
 content rendering, indexing and integration checks subsequently run offline.
 
-Retain this workspace after `build` returns and through the Deploy/Preview
-command in the same Workers Build. Cleanup is after upload completion/failure or
-build-environment disposal, never at successful build return. The workspace is
-not part of the deployable artifact and does not belong in Git, static assets,
-artifact transfer or visitor runtime. No credentials are stored in session state.
+The workspace is not part of the deployable artifact and does not belong in Git,
+static assets, artifact transfer or visitor runtime. No credentials are stored in
+workspace state.
 
-`build-manifest.json` records `toolchainSessionId` and toolchain requirements plus
-observed versions; it contains no absolute workspace paths or node_modules.
-Session metadata binds its ID, original raw build identifier when present,
-source identity, embedded lockfile digest, verified
-artifact-manifest digest and installed tool versions. Upload resolves that session
-through CFGB's cache registry/deterministic Workers Build path, verifies these
-bindings and invokes Wrangler by its workspace path. Never use a global Wrangler
-or unpinned npx resolution.
-For Workers Builds, recompute the session ID from the manifest's raw `buildUUID`
-and require it to match the recorded `toolchainSessionId` before resolving the
-workspace. A hash-derived path does not replace exact raw provenance comparison.
+Session metadata binds the basename, the original raw build identifier when
+present, source identity, the embedded lockfile, the verified artifact manifest
+and installed tool versions. Upload resolves the recorded basename under the
+shared temp directory, verifies these bindings and invokes Wrangler by its
+workspace path. Never use a global Wrangler or unpinned npx resolution.
 
-Same-build uploads require the original matching session. Missing/corrupt session
-state fails with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. The
-session binding prevents accidental cross-build/session reuse and preserves
+Same-build uploads require that workspace. Missing or corrupt workspace state fails
+with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. The
+recorded basename selects that invocation's workspace and preserves
 toolchain consistency; it does not provide cryptographic authentication of site
 artifacts. For an artifact intentionally moved outside the original build environment, the CLI
 may recreate only the identical embedded upload toolchain using the same CFGB
@@ -325,7 +338,8 @@ partial/overridden/mismatched provenance, opaque build-ID/session isolation and 
 checks. Test transferred-artifact upload toolchain recreation separately, asserting
 zero renderer calls and identical artifact bytes. Data fixtures are future test
 inputs, not evidence of executed Cloudflare deployment.
-Include non-RFC identifiers and identifiers containing path separators/traversal
-text: preserve the raw manifest value, derive only the lowercase SHA-256 workspace
-component, and never create paths from raw values. Empty identifiers fail source
-validation; different identifiers must not reuse an artifact/session from another build identity.
+Include non-RFC build identifiers and identifiers containing path separators.
+Preserve the raw `buildUUID`. Never use it as a path component.
+`toolchainSessionId` is only the generated workspace basename. Empty build
+identifiers fail source validation where Workers Builds requires them. Two builds
+do not share a workspace, even when their build identifiers are equal.

@@ -40,8 +40,11 @@ the default installer. `NODE_VERSION` must be Node 24.15.0 or newer on the Node
 24 line, or Node 26.0.0 or newer. Node 25 is outside that set. These releases
 bundle npm 11, so the build environment installs npm >= 12 separately. `PNPM_VERSION` applies only when `CFGB_PACKAGE_MANAGER=pnpm`, and that pnpm must be >= 11.
 The selected package manager is checked at runtime. Node itself is not pinned by
-the lockfile. The workspace with installed Wrangler survives through
-the same build's upload command and is excluded from the deployable artifact.
+the lockfile. The workspace is a fresh `cfgb-build-*` directory. Its basename is
+`toolchainSessionId`. The installed Wrangler survives through the same build's
+upload command, which finds the directory by joining `os.TempDir()` with that
+basename, and the workspace is excluded from the deployable artifact. Upload
+removes the workspace when it finishes or fails.
 Uploads require a clean source checkout matching the artifact; ignored
 build output is not a source edit. Reject stale, incomplete or altered artifacts.
 

@@ -2,9 +2,6 @@
 package build
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,7 +11,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 
 	cfgb "github.com/ymmt2005/cfgb"
 	"github.com/ymmt2005/cfgb/internal/config"
@@ -110,24 +106,18 @@ func Run(opts Options) error {
 	if err := resetOutput(out); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	built := false
-	defer func() {
-		if !built {
-			_ = os.RemoveAll(out)
-		}
-	}()
-	session, err := sessionDir()
+	workspace, err := newWorkspace()
 	if err != nil {
+		_ = os.RemoveAll(out)
 		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}
 	}
-	if err := prepareSession(session); err != nil {
-		return &ExitError{Code: 3, Err: err}
-	}
-	rendererDir := filepath.Join(session, "renderer")
+	built := false
+	defer discardFailedBuild(out, workspace, &built)
+	rendererDir := filepath.Join(workspace, "renderer")
 	if err := extractRenderer(rendererDir); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	snapshot := filepath.Join(session, "snapshot")
+	snapshot := filepath.Join(workspace, "snapshot")
 	contentRoot, topicsFile, linkcardsDir, err := stageContent(cfg, snapshot)
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
@@ -144,7 +134,7 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	metadataPath := filepath.Join(session, "metadata.json")
+	metadataPath := filepath.Join(workspace, "metadata.json")
 	metadata, err := json.Marshal(index)
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
@@ -152,11 +142,11 @@ func Run(opts Options) error {
 	if err := os.WriteFile(metadataPath, metadata, 0o644); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	sitePath := filepath.Join(session, "site.json")
+	sitePath := filepath.Join(workspace, "site.json")
 	if err := writeSiteJSON(sitePath, cfg, contentRoot, topicsFile, linkcardsDir, metadataPath); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	routesPath := filepath.Join(session, "routes.json")
+	routesPath := filepath.Join(workspace, "routes.json")
 	fmt.Fprintf(opts.Stdout, "installing renderer dependencies with %s\n", tc.PackageManager)
 	if err := installRenderer(rendererDir, opts.Stdout, opts.Stderr, tc); err != nil {
 		return &ExitError{Code: 3, Err: err}
@@ -178,7 +168,7 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	manifest, err := manifestJSON(cfg, req, tc, sessionID(session), routes, out)
+	manifest, err := manifestJSON(cfg, req, tc, workspace, routes, out)
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
@@ -359,103 +349,20 @@ func parseVersion(value string) [3]int {
 	return out
 }
 
-func sessionDir() (string, error) {
-	id, err := newSessionID()
-	if err != nil {
-		return "", err
-	}
-	root, cache, err := openCache()
-	if err != nil {
-		return "", err
-	}
-	defer root.Close()
-	const parent = "cfgb/builds"
-	if err := root.MkdirAll(parent, 0o755); err != nil {
-		return "", err
-	}
-	rel := parent + "/" + id
-	info, err := root.Lstat(rel)
-	if err != nil && !os.IsNotExist(err) {
-		return "", err
-	}
-	if err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return "", fmt.Errorf("toolchain session is a symlink")
-	}
-	if err == nil && !info.IsDir() {
-		return "", fmt.Errorf("toolchain session is not a directory")
-	}
-	if os.IsNotExist(err) {
-		if err := root.Mkdir(rel, 0o700); err != nil {
-			return "", err
-		}
-	}
-	dir := filepath.Join(cache, "cfgb", "builds", id)
-	if err := tightenDir(dir); err != nil {
-		return "", err
-	}
-	return dir, nil
+// newWorkspace creates this invocation's toolchain directory. MkdirTemp uses
+// mode 0700 before umask. The build identifier does not choose the name.
+func newWorkspace() (string, error) {
+	return os.MkdirTemp("", "cfgb-build-*")
 }
 
-// openCache opens the user cache directory. That directory is the session root:
-// a symlink the caller configured as the cache is the root, and operations below
-// it stay inside it.
-func openCache() (*os.Root, string, error) {
-	cache, err := os.UserCacheDir()
-	if err != nil {
-		return nil, "", err
+// discardFailedBuild removes the incomplete output and the workspace created by
+// this invocation. A successful build leaves both in place.
+func discardFailedBuild(out, workspace string, built *bool) {
+	if built != nil && *built {
+		return
 	}
-	root, err := os.OpenRoot(cache)
-	if err != nil {
-		return nil, "", err
-	}
-	return root, cache, nil
-}
-
-func tightenDir(dir string) error {
-	fd, err := syscall.Open(dir, syscall.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return err
-	}
-	defer syscall.Close(fd)
-	return syscall.Fchmod(fd, 0o700)
-}
-
-// prepareSession removes the per-build trees inside a retained session.
-// The session directory itself stays for a later deploy or preview.
-// Removal goes through the cache root, so a symlink that leaves the cache is not a deletion target.
-func prepareSession(session string) error {
-	root, cache, err := openCache()
-	if err != nil {
-		return err
-	}
-	defer root.Close()
-	rel, err := filepath.Rel(filepath.Clean(cache), filepath.Clean(session))
-	if err != nil || rel == "." || !filepath.IsLocal(rel) {
-		return fmt.Errorf("toolchain session escapes the cache")
-	}
-	rel = filepath.ToSlash(rel)
-	for _, name := range []string{"renderer", "snapshot"} {
-		if err := root.RemoveAll(rel + "/" + name); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func newSessionID() (string, error) {
-	if raw := os.Getenv("WORKERS_CI_BUILD_UUID"); raw != "" {
-		sum := sha256.Sum256([]byte(raw))
-		return hex.EncodeToString(sum[:]), nil
-	}
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf), nil
-}
-
-func sessionID(dir string) string {
-	return filepath.Base(dir)
+	_ = os.RemoveAll(out)
+	_ = os.RemoveAll(workspace)
 }
 
 func extractRenderer(dest string) error {
@@ -816,13 +723,13 @@ func isArticleYear(name string) bool {
 	return true
 }
 
-func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, session string, routes []string, out string) ([]byte, error) {
+func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, workspace string, routes []string, out string) ([]byte, error) {
 	commit, branch, dirty := gitState(cfg.Root(), out)
 	manifest := map[string]any{
 		"schemaVersion":      1,
 		"cfgbVersion":        version.Version,
 		"rendererVersion":    req.RendererVersion,
-		"toolchainSessionId": session,
+		"toolchainSessionId": filepath.Base(workspace),
 		"source": map[string]any{
 			"commit": commit,
 			"branch": branch,
@@ -863,7 +770,10 @@ func gitState(repo, out string) (string, string, bool) {
 	if relErr == nil && filepath.IsLocal(rel) {
 		args = append(args, ":(exclude)"+filepath.ToSlash(rel))
 	}
-	status, _ := output("git", args...)
+	status, err := output("git", args...)
+	if err != nil {
+		return commit, branch, true
+	}
 	return commit, branch, strings.TrimSpace(status) != ""
 }
 

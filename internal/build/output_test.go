@@ -1,15 +1,14 @@
 package build
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ymmt2005/cfgb/internal/config"
-	"github.com/ymmt2005/cfgb/internal/frontmatter"
 )
 
 func TestOutputDirRejectsInputs(t *testing.T) {
@@ -119,112 +118,112 @@ func TestDeliverStopsWhenRemovalFails(t *testing.T) {
 	}
 }
 
-func TestSessionDirIsPrivate(t *testing.T) {
-	cache := t.TempDir()
-	t.Setenv("XDG_CACHE_HOME", cache)
-	t.Setenv("WORKERS_CI_BUILD_UUID", "existing-session")
-	sum := sha256.Sum256([]byte("existing-session"))
-	dir := filepath.Join(cache, "cfgb", "builds", hex.EncodeToString(sum[:]))
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	got, err := sessionDir()
+func TestFreshWorkspacesStayDistinct(t *testing.T) {
+	t.Setenv("WORKERS_CI_BUILD_UUID", "build/../same-id")
+	first, err := newWorkspace()
 	if err != nil {
 		t.Fatal(err)
 	}
-	info, err := os.Stat(got)
+	t.Cleanup(func() { _ = os.RemoveAll(first) })
+	second, err := newWorkspace()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o700 {
-		t.Fatalf("mode = %o", info.Mode().Perm())
+	t.Cleanup(func() { _ = os.RemoveAll(second) })
+	if first == second {
+		t.Fatal("repeated builds shared a workspace")
 	}
-	outside := t.TempDir()
-	if err := os.Remove(dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(outside, dir); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := sessionDir(); err == nil {
-		t.Fatal("session symlink was accepted")
-	}
-	if _, err := os.Stat(filepath.Join(outside, "renderer")); !os.IsNotExist(err) {
-		t.Fatal("session symlink was followed")
+	for _, dir := range []string{first, second} {
+		info, err := os.Stat(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0o700 {
+			t.Fatalf("mode = %o", info.Mode().Perm())
+		}
+		rel, err := filepath.Rel(os.TempDir(), dir)
+		if err != nil || !filepath.IsLocal(rel) || strings.Contains(rel, string(filepath.Separator)) {
+			t.Fatalf("workspace = %s", dir)
+		}
+		if !strings.HasPrefix(rel, "cfgb-build-") || strings.Contains(rel, "same-id") {
+			t.Fatalf("basename = %s", rel)
+		}
 	}
 }
 
-func TestCacheAncestorSymlinkStaysInCache(t *testing.T) {
-	cache := t.TempDir()
-	outside := t.TempDir()
-	t.Setenv("XDG_CACHE_HOME", cache)
-	t.Setenv("WORKERS_CI_BUILD_UUID", "existing-session")
-	sum := sha256.Sum256([]byte("existing-session"))
-	id := hex.EncodeToString(sum[:])
-	escaped := filepath.Join(outside, "builds", id)
-	if err := os.MkdirAll(filepath.Join(escaped, "renderer"), 0o755); err != nil {
+func TestFailedBuildRemovesItsWorkspace(t *testing.T) {
+	failed, err := newWorkspace()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(escaped, "renderer", "keep.txt"), []byte("keep"), 0o644); err != nil {
+	retained, err := newWorkspace()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(outside, filepath.Join(cache, "cfgb")); err != nil {
+	t.Cleanup(func() { _ = os.RemoveAll(retained) })
+	out := filepath.Join(t.TempDir(), "dist")
+	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := sessionDir(); err == nil {
-		t.Fatal("cache symlink escaped")
+	built := false
+	discardFailedBuild(out, failed, &built)
+	if _, err := os.Stat(failed); !os.IsNotExist(err) {
+		t.Fatal("failed build retained its workspace")
 	}
-	if err := prepareSession(escaped); err == nil {
-		t.Fatal("removal left the cache")
+	if _, err := os.Stat(retained); err != nil {
+		t.Fatal("failed build removed another workspace")
 	}
-	raw, err := os.ReadFile(filepath.Join(escaped, "renderer", "keep.txt"))
-	if err != nil || string(raw) != "keep" {
-		t.Fatalf("escaped session = %q, %v", raw, err)
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatal("failed build retained the incomplete output")
+	}
+
+	kept, err := newWorkspace()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(kept) })
+	artifact := filepath.Join(t.TempDir(), "dist")
+	if err := os.MkdirAll(artifact, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(artifact) })
+	built = true
+	discardFailedBuild(artifact, kept, &built)
+	if _, err := os.Stat(kept); err != nil {
+		t.Fatal("successful build removed its workspace")
+	}
+	if _, err := os.Stat(artifact); err != nil {
+		t.Fatal("successful build removed its output")
 	}
 }
 
-func TestInRootCacheSymlinkIsUsable(t *testing.T) {
-	cache := t.TempDir()
-	t.Setenv("XDG_CACHE_HOME", cache)
-	t.Setenv("WORKERS_CI_BUILD_UUID", "inside-session")
-	if err := os.MkdirAll(filepath.Join(cache, "inside"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(cache, "inside", "keep.txt"), []byte("keep"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink("inside", filepath.Join(cache, "cfgb")); err != nil {
-		t.Fatal(err)
-	}
-	dir, err := sessionDir()
+func TestManifestSessionIDIsBasename(t *testing.T) {
+	cfg, repo := testRepo(t)
+	t.Setenv("WORKERS_CI_BUILD_UUID", "opaque/id")
+	workspace, err := newWorkspace()
 	if err != nil {
 		t.Fatal(err)
 	}
-	info, err := os.Stat(dir)
+	t.Cleanup(func() { _ = os.RemoveAll(workspace) })
+	raw, err := manifestJSON(cfg, requirements{}, toolchainCheck{}, workspace, []string{"/ja/"}, filepath.Join(repo, "dist"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o700 {
-		t.Fatalf("mode = %o", info.Mode().Perm())
+	var manifest struct {
+		ToolchainSessionID string `json:"toolchainSessionId"`
+		BuildUUID          string `json:"buildUUID"`
 	}
-	if err := os.MkdirAll(filepath.Join(dir, "renderer"), 0o755); err != nil {
+	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "renderer", "old.txt"), []byte("old"), 0o644); err != nil {
-		t.Fatal(err)
+	if manifest.ToolchainSessionID != filepath.Base(workspace) {
+		t.Fatalf("session = %s", manifest.ToolchainSessionID)
 	}
-	if err := prepareSession(dir); err != nil {
-		t.Fatal(err)
+	if strings.Contains(string(raw), workspace) || strings.Contains(manifest.ToolchainSessionID, "/") {
+		t.Fatalf("manifest recorded a workspace path: %s", raw)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "renderer", "old.txt")); !os.IsNotExist(err) {
-		t.Fatal("session refresh left the previous renderer")
-	}
-	if _, err := os.Stat(dir); err != nil {
-		t.Fatal(err)
-	}
-	raw, err := os.ReadFile(filepath.Join(cache, "inside", "keep.txt"))
-	if err != nil || string(raw) != "keep" {
-		t.Fatalf("cache sibling = %q, %v", raw, err)
+	if manifest.BuildUUID != "opaque/id" {
+		t.Fatalf("buildUUID = %s", manifest.BuildUUID)
 	}
 }
 
@@ -271,6 +270,31 @@ func TestGeneratedOutputIsNotSourceDirty(t *testing.T) {
 	}
 	if _, _, dirty := gitState(repo, out); !dirty {
 		t.Fatal("source edit was recorded as clean")
+	}
+}
+
+func TestGitStatusFailureIsDirty(t *testing.T) {
+	repo := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=cfgb", "GIT_AUTHOR_EMAIL=cfgb@example.com", "GIT_COMMITTER_NAME=cfgb", "GIT_COMMITTER_EMAIL=cfgb@example.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", args, err, out)
+		}
+	}
+	git("init")
+	if err := os.WriteFile(filepath.Join(repo, "article.md"), []byte("source\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "article.md")
+	git("commit", "-m", "source")
+	if err := os.Truncate(filepath.Join(repo, ".git", "index"), 8); err != nil {
+		t.Fatal(err)
+	}
+	commit, branch, dirty := gitState(repo, filepath.Join(repo, "site-out"))
+	if commit == "" || branch == "" || !dirty {
+		t.Fatalf("commit=%s branch=%s dirty=%v", commit, branch, dirty)
 	}
 }
 
@@ -420,86 +444,6 @@ func TestMissingLinkCardCache(t *testing.T) {
 	}
 	if _, err := os.Stat(linkcardsDir); !os.IsNotExist(err) {
 		t.Fatal("absent cache was created")
-	}
-}
-
-func TestReusedSessionDropsDeletedInputs(t *testing.T) {
-	cfg, repo := testRepo(t)
-	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	t.Setenv("WORKERS_CI_BUILD_UUID", "reuse-session")
-	article := filepath.Join(repo, "src", "content", "posts", "2026", "guide")
-	assets := filepath.Join(article, "assets")
-	if err := os.MkdirAll(assets, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	post := "---\ntitle: T\nslug: t\npublishedAt: '2026-01-02T03:04:05Z'\ntopics:\n- protobuf\n---\nbody\n"
-	if err := os.WriteFile(filepath.Join(article, "ja.md"), []byte(post), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(assets, "hero.svg"), []byte("<svg/>"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(repo, "src", "data", "linkcards", "card.json"), []byte("{}"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	session, err := sessionDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := prepareSession(session); err != nil {
-		t.Fatal(err)
-	}
-	contentRoot, _, cardsDir, err := stageContent(cfg, filepath.Join(session, "snapshot"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	media := filepath.Join(session, "renderer", "public", "media")
-	if err := stageMedia(cfg, media); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(contentRoot, "posts", "2026", "guide", "ja.md")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(media, "2026", "guide", "hero.svg")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(cardsDir, "card.json")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.RemoveAll(filepath.Join(repo, "src", "content", "posts", "2026")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.RemoveAll(filepath.Join(repo, "src", "data", "linkcards")); err != nil {
-		t.Fatal(err)
-	}
-	if err := prepareSession(session); err != nil {
-		t.Fatal(err)
-	}
-	contentRoot, topicsFile, cardsDir, err := stageContent(cfg, filepath.Join(session, "snapshot"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := stageMedia(cfg, media); err != nil {
-		t.Fatal(err)
-	}
-	index, err := frontmatter.Collect(contentRoot, topicsFile, []string{"ja"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(index.Posts) != 0 {
-		t.Fatalf("deleted article remained in metadata: %#v", index.Posts)
-	}
-	if _, err := os.Stat(filepath.Join(contentRoot, "posts", "2026", "guide", "ja.md")); !os.IsNotExist(err) {
-		t.Fatal("deleted article survived the reused session")
-	}
-	if _, err := os.Stat(filepath.Join(media, "2026", "guide", "hero.svg")); !os.IsNotExist(err) {
-		t.Fatal("deleted media survived the reused session")
-	}
-	if _, err := os.Stat(filepath.Join(cardsDir, "card.json")); !os.IsNotExist(err) {
-		t.Fatal("removed link card survived the reused session")
-	}
-	if _, err := os.Stat(session); err != nil {
-		t.Fatal(err)
 	}
 }
 

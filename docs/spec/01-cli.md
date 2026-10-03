@@ -84,10 +84,17 @@ are specified in the [Action contract](09-github-action.md).
 
 CFGB owns the embedded renderer, Worker, lockfile and artifact integration checks.
 Content repositories require no package.json, Astro files, Wrangler files or
-custom executable build scripts. `build` extracts implementation files to a
-disposable workspace, stages configured content, parses article front matter and
-`topics.yaml` with `goccy/go-yaml`, and installs pinned dependencies;
-rendering, Pagefind and artifact checks then run offline. No AI, metadata refresh,
+custom executable build scripts. `build` creates a fresh workspace with
+`os.MkdirTemp("", "cfgb-build-*")`, extracts implementation files there, stages
+configured content, parses article front matter and
+`topics.yaml` with `goccy/go-yaml`, and installs pinned dependencies. The
+manifest records `filepath.Base` of that directory as `toolchainSessionId`.
+`buildUUID` stays separate provenance and does not name the workspace. A failed
+build removes the workspace it created. A successful build retains it until
+upload completion, upload failure, or disposal of the build environment. Deploy
+and preview, which are not implemented here, resolve it as
+`filepath.Join(os.TempDir(), toolchainSessionId)` when they share that temp
+directory. Rendering, Pagefind and artifact checks then run offline. No AI, metadata refresh,
 remote image fetch or source mutation occurs. Node.js remains required in v1.
 The [build runtime contract](10-build-runtime.md) defines bootstrap, runtime
 requirements, retained toolchain sessions and source-provenance resolution. Build
@@ -119,13 +126,15 @@ publication dates for previews but requires existing valid summaries.
 Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and
 `build-manifest.json` (source commit and branch, CFGB/renderer versions,
 config/input/output hashes, publication metadata snapshot, completed checks, provenance provider,
-optional opaque build identifier (`buildUUID`), toolchain session ID and required/observed runtime versions).
+optional opaque build identifier (`buildUUID`), toolchain workspace basename and required/observed runtime versions).
 Publication metadata includes article key, locale, slug, summary and timestamps for each variant. Local
 builds may record dirty worktrees; remote uploads require a clean checkout matching
 the recorded commit and input hashes. Generated output does not count as
 a source edit. The selected `--out` directory is left out of that check, including
 when it is unignored and already present before the build. A real article or
-configuration edit is still dirty. Never include credentials or raw private source exports.
+configuration edit is still dirty. A `git status` query that fails is recorded as
+dirty while a commit and branch that were already read stay in the manifest.
+Never include credentials or raw private source exports.
 
 `deploy`/`preview` verify artifact bytes against the recorded hashes, completed
 checks, supported versions and source identity before upload. These are
