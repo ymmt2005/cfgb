@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About · CFGB Example</title>
+<meta name="description" content="About">
+<link rel="stylesheet" href="/assets/site.css">
+<script>
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get("theme");if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);var palettes={cyber:1,dope:1,forest:1,dusk:1};var p=q.get("palette");if(!palettes[p])p=localStorage.getItem("cfgb-palette");if(palettes[p])document.documentElement.setAttribute("data-palette",p);}catch(e){}})();
+</script>
+</head>
+<body>
+<a class="skip" href="#content">本文へ</a>
+<header class="mast">
+  <div class="wrap">
+    <div class="mast-row">
+      <a class="brand" href="/ja/">CFGB <span>Example</span></a>
+      <div class="tools">
+        <nav class="locales" aria-label="言語">
+          <a href="/ja/about/" aria-current="true" hreflang="ja">日本語</a>
+          <a href="/en/about/"  hreflang="en">English</a>
+        </nav>
+        <div class="menu">
+          <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">テーマ</button>
+          <ul class="menu-list" id="theme-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="system">システムに合わせる</li>
+            <li role="option" tabindex="-1" data-value="light">ライト</li>
+            <li role="option" tabindex="-1" data-value="dark">ダーク</li>
+          </ul>
+        </div>
+        <div class="menu">
+          <button class="menu-button" id="palette" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="palette-list">配色</button>
+          <ul class="menu-list" id="palette-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="classic">Classic</li>
+            <li role="option" tabindex="-1" data-value="cyber">Cyber</li>
+            <li role="option" tabindex="-1" data-value="dope">Dope</li>
+            <li role="option" tabindex="-1" data-value="forest">Forest</li>
+            <li role="option" tabindex="-1" data-value="dusk">Dusk</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <nav class="sections" aria-label="サイト"><a href="/ja/">ホーム</a><a href="/ja/posts/">記事</a><a href="/ja/archive/2026/09/">アーカイブ</a><a href="/ja/topics/protobuf/">トピック</a><a href="/ja/search/">検索</a><a href="/ja/about/" aria-current="page">About</a></nav>
+  </div>
+</header>
+<main id="content">
+  <div class="wrap frame">
+
+    <div class="frame-main">
+<article class="page-narrow prose"><h1>このサンプルについて</h1><p>CFGB の開発に使う架空の技術ブログです。実在する著者の経歴や実績を表すものではありません。</p></article>
+    </div>
+    <aside class="rail"><h2>ほかの場所</h2>
+<ul>
+<li><a href="https://github.com/ymmt2005/cfgb">CFGB</a></li>
+<li><a href="https://github.com/ymmt2005/cfgb-example">サンプル原稿</a></li>
+<li><a href="https://github.com/ymmt2005/pbschema-lens">pbschema-lens</a></li>
+<li><a href="/ja/feed.xml">RSS</a></li>
+</ul></aside>
+  </div>
+</main>
+<footer class="site"><div class="wrap"><span>CFGB Example · example.invalid</span><span><a href="/ja/feed.xml">RSS</a> · <a href="https://github.com/ymmt2005/cfgb">GitHub</a></span></div></footer>
+<script src="/assets/site.js"></script>
+</body>
+</html>

@@ -37,6 +37,12 @@ aliases: [/ja/posts/old-protobuf-guide/]
 their title and routing come from localized layout labels. They are excluded
 from article feeds/search. Their relative assets are scoped to their directory.
 
+`aside/<locale>.md` is optional. It is ordinary Markdown with no frontmatter and
+no prescribed structure. The renderer places its HTML in the right-hand column
+of every page for that locale and does not give the file a URL. A missing file
+omits the column. The column is excluded from feeds, search, the sitemap, and
+route fixtures.
+
 ## URLs and ordering
 
 Serve `/` as a runtime locale-negotiation route; do not generate an index page.
@@ -120,10 +126,13 @@ strict`. Keep original source in a no-JS fallback; hide it only after successful
 rendering. Invalid Mermaid keeps source with a useful error, not blank content.
 Re-render from original source on theme change; serialize renders to avoid races.
 
-Theme states are system/light/dark. Store explicit choice locally, handle storage
+Theme states are system/light/dark. The color palette is specified only in
+`cfgb.yaml`, not by a visitor control and not by a content file. Store explicit choice locally, handle storage
 failure, listen for system changes only in system mode, and set the initial theme
-before paint. TOC is an anchor list without JS, a sticky desktop panel and mobile
-disclosure; IntersectionObserver highlights the current section. Reduced motion,
+before paint. TOC is an anchor list the reader can collapse and expand. An article
+opens with the list expanded. Without JavaScript it remains that expanded
+disclosure: a sticky column on a wide page and above the body on a narrow page.
+IntersectionObserver highlights the current section. Reduced motion,
 keyboard focus, skip link and WCAG AA contrast are required. Static list pages
 may load the small global theme controller; no Mermaid/Pagefind there.
 
@@ -133,7 +142,7 @@ Run Pagefind Extended on built output. Each page has correct `<html lang>`;
 load search only at `/<locale>/search/`, and reinitialize when locale changes.
 Use `data-pagefind-body` only on article content, with metadata for title, summary,
 publication date and topics; filters use stable topic IDs and site-local year.
-Navigation/TOC/footer/copy labels are excluded. Search title must remain searchable
+Navigation, the right-hand column, TOC, footer, and copy labels are excluded. Search title must remain searchable
 even if metadata is set outside the body. URL results must be canonical locale
 paths. The checked-in query corpus specifies top-k inclusion, not brittle ranking.
 

@@ -84,6 +84,7 @@ parsing, migration planning and validation do not require a Cloudflare account.
 - Markdown is GFM plus footnotes, GitHub alerts, Mermaid and reviewed raw HTML.
 - Expressive Code + Shiki for code, Pagefind Extended for locale-specific search.
 - Light/dark/system themes, system fonts, no UI framework, local JS bundles.
+- The color palette is specified only in `cfgb.yaml`. Visitors do not switch palettes.
 - Summaries are reviewed Git content; models remain unselected until evaluation.
 
 ## Required implementation invariants

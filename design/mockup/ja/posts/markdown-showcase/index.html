@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown 表現の確認 · CFGB Example</title>
+<meta name="description" content="表、注意書き、脚注、コードのファイル名と行強調、Mermaid の図を一つの記事で確認するサンプルです。画像や HTML、内部リンクも含め、明暗テーマと JavaScript 無効時の表示を見比べます。">
+<link rel="stylesheet" href="/assets/site.css">
+<script>
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get("theme");if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);var palettes={cyber:1,dope:1,forest:1,dusk:1};var p=q.get("palette");if(!palettes[p])p=localStorage.getItem("cfgb-palette");if(palettes[p])document.documentElement.setAttribute("data-palette",p);}catch(e){}})();
+</script>
+</head>
+<body>
+<a class="skip" href="#content">本文へ</a>
+<header class="mast">
+  <div class="wrap">
+    <div class="mast-row">
+      <a class="brand" href="/ja/">CFGB <span>Example</span></a>
+      <div class="tools">
+        <nav class="locales" aria-label="言語">
+          <a href="/ja/posts/markdown-showcase/" aria-current="true" hreflang="ja">日本語</a>
+          <a href="/en/posts/markdown-rendering-showcase/"  hreflang="en">English</a>
+        </nav>
+        <div class="menu">
+          <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">テーマ</button>
+          <ul class="menu-list" id="theme-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="system">システムに合わせる</li>
+            <li role="option" tabindex="-1" data-value="light">ライト</li>
+            <li role="option" tabindex="-1" data-value="dark">ダーク</li>
+          </ul>
+        </div>
+        <div class="menu">
+          <button class="menu-button" id="palette" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="palette-list">配色</button>
+          <ul class="menu-list" id="palette-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="classic">Classic</li>
+            <li role="option" tabindex="-1" data-value="cyber">Cyber</li>
+            <li role="option" tabindex="-1" data-value="dope">Dope</li>
+            <li role="option" tabindex="-1" data-value="forest">Forest</li>
+            <li role="option" tabindex="-1" data-value="dusk">Dusk</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <nav class="sections" aria-label="サイト"><a href="/ja/">ホーム</a><a href="/ja/posts/" aria-current="page">記事</a><a href="/ja/archive/2026/09/">アーカイブ</a><a href="/ja/topics/protobuf/">トピック</a><a href="/ja/search/">検索</a><a href="/ja/about/">About</a></nav>
+  </div>
+</header>
+<main id="content">
+  <div class="wrap frame frame-article">
+<details class="toc toc-desktop" open><summary>目次</summary><ol>
+<li><a href="#コード">コード</a></li>
+<li class="sub"><a href="#長い行">長い行</a></li>
+<li><a href="#図と注意書き">図と注意書き</a></li>
+<li><a href="#補足">補足</a></li>
+<li><a href="#補足-2">補足</a></li>
+<li><a href="#架空の公開パイプラインをレビューする">架空の公開パイプラインをレビューする</a></li>
+<li class="sub"><a href="#正しいデータを一つにする">正しいデータを一つにする</a></li>
+<li class="sub"><a href="#人間の編集を守る">人間の編集を守る</a></li>
+<li class="sub"><a href="#プレビューの役割">プレビューの役割</a></li>
+<li><a href="#このレビューで残ったこと">このレビューで残ったこと</a></li>
+</ol></details>
+    <div class="frame-main">
+
+<article>
+  <p class="kicker">2026年9月20日</p>
+  <h1 class="article-title">Markdown 表現の確認</h1>
+  <div class="meta-row"><p class="topics"><a href="/ja/topics/software-engineering/">ソフトウェアエンジニアリング</a></p></div>
+  <p class="translation">英語版があります。 <a href="/en/posts/markdown-rendering-showcase/">対訳を開く</a></p>
+  <details class="toc-mobile" open><summary>目次</summary><ol>
+<li><a href="#コード">コード</a></li>
+<li class="sub"><a href="#長い行">長い行</a></li>
+<li><a href="#図と注意書き">図と注意書き</a></li>
+<li><a href="#補足">補足</a></li>
+<li><a href="#補足-2">補足</a></li>
+<li><a href="#架空の公開パイプラインをレビューする">架空の公開パイプラインをレビューする</a></li>
+<li class="sub"><a href="#正しいデータを一つにする">正しいデータを一つにする</a></li>
+<li class="sub"><a href="#人間の編集を守る">人間の編集を守る</a></li>
+<li class="sub"><a href="#プレビューの役割">プレビューの役割</a></li>
+<li><a href="#このレビューで残ったこと">このレビューで残ったこと</a></li>
+</ol></details>
+  <div class="prose">
+
+<h2 id="コード">コード</h2>
+<p>構文強調と行強調、コピー操作を確認します。4–6 行目が強調され、<mark class="token">Println</mark> が文中の印です。</p>
+<figure class="code"><figcaption><span>main.go</span><button class="copy" type="button">コピー</button></figcaption><pre><code><span class="row"><span class="ln">1</span><span class="kw">package</span> main</span><span class="row"><span class="ln">2</span><span class="kw">import</span> <span class="str">"fmt"</span></span><span class="row"><span class="ln">3</span></span><span class="row mark"><span class="ln">4</span><span class="kw">func</span> <span class="fn">main</span>() {</span><span class="row mark"><span class="ln">5</span>    fmt.<mark class="token">Println</mark>(<span class="str">"hello"</span>)</span><span class="row mark"><span class="ln">6</span>}</span></code></pre></figure>
+<h3 id="長い行">長い行</h3>
+<p>横スクロール時もページ全体の幅を壊さないことを確認します。</p>
+<figure class="code"><figcaption><span>snippet.txt</span><button class="copy" type="button">コピー</button></figcaption><pre><code><span class="row"><span class="ln">1</span>0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 </span></code></pre></figure>
+<h2 id="図と注意書き">図と注意書き</h2>
+<p>Mermaid の図、注意書き、表、脚注を確認します。図の文字は本文と同じ色を使い、暗いテーマでも背景に埋もれません。</p>
+<div class="alert alert-note"><p class="alert-label">Note</p><p>This is a note. 日本語の本文のなかに English の注意書きを置いても、行間と文字色は同じ組版のままです。</p></div>
+<div class="alert alert-tip"><p class="alert-label">Tip</p><p>Copy the code with the keyboard too.</p></div>
+<div class="alert alert-important"><p class="alert-label">Important</p><p>Keep the original source in Git.</p></div>
+<div class="alert alert-warning"><p class="alert-label">Warning</p><p>A preview is not automatically private.</p></div>
+<div class="alert alert-caution"><p class="alert-label">Caution</p><p>Review external embeds before publishing.</p></div>
+<div class="table-wrap"><table><thead><tr><th>Feature</th><th>State</th></tr></thead><tbody><tr><td>Table</td><td>Ready</td></tr><tr><td><s>Old label</s></td><td>Replaced</td></tr></tbody></table></div>
+<ul><li><label><input type="checkbox" checked disabled> Write Markdown</label></li><li><label><input type="checkbox" disabled> Review the preview</label></li></ul>
+<details><summary>Raw HTML disclosure</summary><p id="html-anchor">A stable explicit HTML anchor.</p></details>
+<figure><img src="/media/bars.png" alt="Lossless raster fixture with three colored bars" width="640" height="180"><figcaption>元画像はそのまま掲載します。</figcaption></figure>
+<svg class="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" role="img" aria-label="Draft から Review を経て Publish へ進み、Review から Draft へ戻れる図">
+<rect x="24" y="64" width="150" height="64" rx="8" fill="currentColor" opacity="0.08" stroke="currentColor"/>
+<text x="99" y="102" text-anchor="middle" fill="currentColor" font-size="18">Draft</text>
+<rect x="244" y="64" width="150" height="64" rx="8" fill="currentColor" opacity="0.08" stroke="currentColor"/>
+<text x="319" y="102" text-anchor="middle" fill="currentColor" font-size="18">Review</text>
+<rect x="464" y="64" width="150" height="64" rx="8" fill="currentColor" opacity="0.08" stroke="currentColor"/>
+<text x="539" y="102" text-anchor="middle" fill="currentColor" font-size="18">Publish</text>
+<path d="M174 96H244M394 96H464" stroke="currentColor" fill="none"/>
+<path d="M319 128 V168 H99 V128" stroke="currentColor" fill="none"/>
+</svg>
+<pre class="mermaid-source"><code>flowchart TD
+  Draft --&gt; Review
+  Review --&gt; Publish
+  Review --&gt; Draft</code></pre>
+<p>An inline <a href="https://www.iana.org/domains/reserved">ordinary link</a> stays a link. This standalone URL has no cache and must fall back to a hyperlink:</p>
+<p><a href="https://www.iana.org/domains/reserved">https://www.iana.org/domains/reserved</a></p>
+<p>Footnotes are supported.<a href="#fn-one" id="fnref-one">[1]</a></p>
+<h2 id="補足">補足</h2>
+<p><a href="/ja/posts/protobuf-schema-guide/#フィールド番号">Protocol Buffers の記事</a>へ戻ります。</p>
+<h2 id="補足-2">補足</h2>
+<p>同じ見出しでも固有のアンカーが必要です。</p>
+<h2 id="架空の公開パイプラインをレビューする">架空の公開パイプラインをレビューする</h2>
+<p>ここからは長い技術記事の要約と目次を確認するための架空の設計レビューです。対象は、Markdown を Git に保存し、レビューされた内容だけを静的なサイトへ公開する小さなシステムです。実在するサービスの導入事例ではありません。</p>
+<h3 id="正しいデータを一つにする">正しいデータを一つにする</h3>
+<p>記事の本文と要約は同じ Git の変更として扱います。本文はリポジトリにあるのに要約だけが別のサービスに保存されていると、過去の状態を再現するときに二つの履歴を照合しなければなりません。公開に使ったコミットを指定すれば、本文、要約、画像をまとめて確認できる構成を考えます。</p>
+<h3 id="人間の編集を守る">人間の編集を守る</h3>
+<p>自動生成された要約を人間が直したら、その変更には意味があると考えます。本文が変わったという理由だけで再生成すると、表現を整えた作業を失います。生成時の出力と現在の要約が同じときだけ、自動更新の候補にします。</p>
+<h3 id="プレビューの役割">プレビューの役割</h3>
+<p>差分の確認と表示の確認は役割が異なります。パソコンで読めても、幅の狭い画面ではコードブロックがページ全体を押し広げることがあります。暗いテーマで図の文字が背景に埋もれることもあります。本文が同じでも表示条件が違えば確認すべき点は変わります。</p>
+<h2 id="このレビューで残ったこと">このレビューで残ったこと</h2>
+<p>この架空のレビューでは、機能の数よりも境界を明確にすることを優先しました。生成する処理と配信する処理、人間の編集と機械が管理する出力、原稿の公開範囲とプレビューの公開範囲をそれぞれ分けています。</p>
+<aside class="footnotes"><ol><li id="fn-one">A local note, not an external request. <a href="#fnref-one">↩</a></li></ol></aside>
+
+  </div>
+</article>
+
+    </div>
+    <aside class="rail"><h2>ほかの場所</h2>
+<ul>
+<li><a href="https://github.com/ymmt2005/cfgb">CFGB</a></li>
+<li><a href="https://github.com/ymmt2005/cfgb-example">サンプル原稿</a></li>
+<li><a href="https://github.com/ymmt2005/pbschema-lens">pbschema-lens</a></li>
+<li><a href="/ja/feed.xml">RSS</a></li>
+</ul></aside>
+  </div>
+</main>
+<footer class="site"><div class="wrap"><span>CFGB Example · example.invalid</span><span><a href="/ja/feed.xml">RSS</a> · <a href="https://github.com/ymmt2005/cfgb">GitHub</a></span></div></footer>
+<script src="/assets/site.js"></script>
+</body>
+</html>

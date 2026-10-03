@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>検索 · CFGB Example</title>
+<meta name="description" content="検索">
+<link rel="stylesheet" href="/assets/site.css">
+<script>
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get("theme");if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);var palettes={cyber:1,dope:1,forest:1,dusk:1};var p=q.get("palette");if(!palettes[p])p=localStorage.getItem("cfgb-palette");if(palettes[p])document.documentElement.setAttribute("data-palette",p);}catch(e){}})();
+</script>
+</head>
+<body>
+<a class="skip" href="#content">本文へ</a>
+<header class="mast">
+  <div class="wrap">
+    <div class="mast-row">
+      <a class="brand" href="/ja/">CFGB <span>Example</span></a>
+      <div class="tools">
+        <nav class="locales" aria-label="言語">
+          <a href="/ja/search/" aria-current="true" hreflang="ja">日本語</a>
+          <a href="/en/search/"  hreflang="en">English</a>
+        </nav>
+        <div class="menu">
+          <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">テーマ</button>
+          <ul class="menu-list" id="theme-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="system">システムに合わせる</li>
+            <li role="option" tabindex="-1" data-value="light">ライト</li>
+            <li role="option" tabindex="-1" data-value="dark">ダーク</li>
+          </ul>
+        </div>
+        <div class="menu">
+          <button class="menu-button" id="palette" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="palette-list">配色</button>
+          <ul class="menu-list" id="palette-list" role="listbox" hidden>
+            <li role="option" tabindex="-1" data-value="classic">Classic</li>
+            <li role="option" tabindex="-1" data-value="cyber">Cyber</li>
+            <li role="option" tabindex="-1" data-value="dope">Dope</li>
+            <li role="option" tabindex="-1" data-value="forest">Forest</li>
+            <li role="option" tabindex="-1" data-value="dusk">Dusk</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <nav class="sections" aria-label="サイト"><a href="/ja/">ホーム</a><a href="/ja/posts/">記事</a><a href="/ja/archive/2026/09/">アーカイブ</a><a href="/ja/topics/protobuf/">トピック</a><a href="/ja/search/" aria-current="page">検索</a><a href="/ja/about/">About</a></nav>
+  </div>
+</header>
+<main id="content">
+  <div class="wrap frame">
+
+    <div class="frame-main">
+
+<div class="page-narrow">
+<p class="kicker">Search</p>
+<h1 class="home-title">検索</h1>
+<p class="mock-banner">表示中の結果はラベル付きのモックデータです。Pagefind による実検索は後のマイルストーンで接続します。</p>
+<form data-search-mock>
+  <div class="search-box"><input name="q" value="スキーマ" aria-label="検索語"></div>
+  <div class="filters">
+    <select name="topic" aria-label="トピック"><option value="">すべてのトピック</option><option value="protobuf">Protocol Buffers</option><option value="security">セキュリティ</option><option value="writing">文章を書く</option></select>
+    <select name="year" aria-label="年"><option value="">すべての年</option><option value="2026">2026</option><option value="2025">2025</option></select>
+  </div>
+</form>
+<div class="result" data-result data-topic="protobuf oss" data-year="2026" data-text="スキーマ Protocol Buffers フィールド番号">
+  <p class="post-meta">2026年9月19日</p>
+  <h2><a href="/ja/posts/protobuf-schema-guide/">Protocol Buffers のスキーマを読む</a></h2>
+  <p class="summary">メッセージ、フィールド番号、型の参照を小さな例で確認します。</p>
+</div>
+<div class="result" data-result data-topic="software-engineering" data-year="2026" data-text="脚注 注意書き Mermaid">
+  <p class="post-meta">2026年9月20日</p>
+  <h2><a href="/ja/posts/markdown-showcase/">Markdown 表現の確認</a></h2>
+  <p class="summary">脚注、注意書き、コードの行強調を一つの記事で確認します。</p>
+</div>
+<div class="result" data-result data-topic="writing" data-year="2025" data-text="短い文章 要約">
+  <p class="post-meta">2025年12月15日</p>
+  <h2><a href="/ja/posts/what-to-keep-in-a-short-post/">短く書くために残すもの</a></h2>
+  <p class="summary">読者に持ち帰ってほしいことを一つに絞る架空の随筆です。</p>
+</div>
+</div>
+
+    </div>
+    <aside class="rail"><h2>ほかの場所</h2>
+<ul>
+<li><a href="https://github.com/ymmt2005/cfgb">CFGB</a></li>
+<li><a href="https://github.com/ymmt2005/cfgb-example">サンプル原稿</a></li>
+<li><a href="https://github.com/ymmt2005/pbschema-lens">pbschema-lens</a></li>
+<li><a href="/ja/feed.xml">RSS</a></li>
+</ul></aside>
+  </div>
+</main>
+<footer class="site"><div class="wrap"><span>CFGB Example · example.invalid</span><span><a href="/ja/feed.xml">RSS</a> · <a href="https://github.com/ymmt2005/cfgb">GitHub</a></span></div></footer>
+<script src="/assets/site.js"></script>
+</body>
+</html>
