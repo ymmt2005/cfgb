@@ -21,7 +21,7 @@ func TestVersion(t *testing.T) {
 
 func TestUnknownCommand(t *testing.T) {
 	var out, err bytes.Buffer
-	if code := run([]string{"build"}, &out, &err); code != 2 {
+	if code := run([]string{"deploy"}, &out, &err); code != 2 {
 		t.Fatalf("exit %d, want 2", code)
 	}
 }
@@ -33,6 +33,9 @@ func TestEmbeddedAssets(t *testing.T) {
 		"prompts/summary-ja-v1.txt",
 		"prompts/summary-en-v1.txt",
 		"toolchain-requirements.json",
+		"renderer/package.json",
+		"renderer/astro.config.mjs",
+		"renderer/src/content.config.ts",
 	} {
 		if _, err := cfgb.FS.ReadFile(name); err != nil {
 			t.Errorf("missing embedded %s: %v", name, err)

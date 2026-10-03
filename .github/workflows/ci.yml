@@ -12,7 +12,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.27.1"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.14.0"
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@10.33.3 --activate
+      - uses: actions/checkout@v4
+        with:
+          repository: ymmt2005/cfgb-example
+          path: cfgb-example
       - name: Test
-        run: go test ./...
+        run: CFGB_EXAMPLE="${GITHUB_WORKSPACE}/cfgb-example" CFGB_REQUIRE_EXAMPLE=1 go test ./...
       - name: Format
         run: test -z "$(gofmt -l .)"

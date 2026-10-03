@@ -1,0 +1,26 @@
+---
+import Base from "../../layouts/Base.astro";
+import PostList from "../../components/PostList.astro";
+import { posts, renderedProse } from "../../lib/content";
+import { loadSite, ui } from "../../lib/load-site.mjs";
+
+export function getStaticPaths() {
+  const { site } = loadSite();
+  return Object.keys(site.locales).map((locale) => ({ params: { locale } }));
+}
+const { locale } = Astro.params;
+const { site } = loadSite();
+const copy = ui[locale] || ui.en;
+const all = await posts();
+const latest = all.filter((post) => post.locale === locale).slice(0, site.latestPosts || 5);
+const home = await renderedProse("home", locale);
+const aside = await renderedProse("aside", locale);
+const other = Object.keys(site.locales).find((item) => item !== locale);
+---
+<Base locale={locale} title={site.title} path={`/${locale}/`} alternatePath={other ? `/${other}/` : ""} showAside={!!aside}>
+  {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
+  <h1 class="home-title">{site.title}</h1>
+  {home && <div class="home-intro prose"><home.Content /></div>}
+  <h2>{copy.latest}</h2>
+  <PostList locale={locale} posts={latest} />
+</Base>

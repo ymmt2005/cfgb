@@ -1,0 +1,21 @@
+---
+import Base from "../../layouts/Base.astro";
+import { renderedProse } from "../../lib/content";
+import { loadSite, ui } from "../../lib/load-site.mjs";
+
+export function getStaticPaths() {
+  const { site } = loadSite();
+  return Object.keys(site.locales).map((locale) => ({ params: { locale } }));
+}
+const { locale } = Astro.params;
+const { site } = loadSite();
+const copy = ui[locale] || ui.en;
+const about = await renderedProse("about", locale);
+const aside = await renderedProse("aside", locale);
+const other = Object.keys(site.locales).find((item) => item !== locale);
+---
+<Base locale={locale} title={copy.about} path={`/${locale}/about/`} alternatePath={other ? `/${other}/about/` : ""} showAside={!!aside}>
+  {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
+  <h1 class="home-title">{copy.about}</h1>
+  {about && <div class="prose"><about.Content /></div>}
+</Base>

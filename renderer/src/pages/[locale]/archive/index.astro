@@ -1,0 +1,31 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { monthOf, posts, renderedProse } from "../../../lib/content";
+import { loadSite, ui } from "../../../lib/load-site.mjs";
+
+export function getStaticPaths() {
+  const { site } = loadSite();
+  return Object.keys(site.locales).map((locale) => ({ params: { locale } }));
+}
+const { locale } = Astro.params;
+const copy = ui[locale] || ui.en;
+const months = new Map<string, { year: string; month: string; count: number }>();
+for (const post of (await posts()).filter((item) => item.locale === locale)) {
+  const month = monthOf(post.data.publishedAt);
+  const id = `${month.year}/${month.month}`;
+  const current = months.get(id) || { ...month, count: 0 };
+  current.count += 1;
+  months.set(id, current);
+}
+const list = [...months.values()].sort((a, b) => (a.year === b.year ? b.month.localeCompare(a.month) : b.year.localeCompare(a.year)));
+const aside = await renderedProse("aside", locale);
+---
+<Base locale={locale} title={copy.archiveTitle} path={`/${locale}/archive/`} showAside={!!aside}>
+  {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
+  <h1 class="home-title">{copy.archiveTitle}</h1>
+  <ul>
+    {list.map((month) => (
+      <li><a href={`/${locale}/archive/${month.year}/${month.month}/`}>{month.year}-{month.month}</a> ({month.count})</li>
+    ))}
+  </ul>
+</Base>

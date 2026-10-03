@@ -1,0 +1,61 @@
+---
+import { render } from "astro:content";
+import Base from "../../../layouts/Base.astro";
+import { alternateFor, monthOf, posts, renderedProse } from "../../../lib/content";
+import { formatDate, loadSite } from "../../../lib/load-site.mjs";
+
+export async function getStaticPaths() {
+  return (await posts()).map((post) => ({
+    params: { locale: post.locale, slug: post.data.slug },
+    props: { id: post.id },
+  }));
+}
+const { locale } = Astro.params;
+const all = await posts();
+const post = all.find((item) => item.id === Astro.props.id);
+if (!post) throw new Error("missing post");
+const { Content, headings } = await render(post);
+const pair = alternateFor(all, post);
+const aside = await renderedProse("aside", locale);
+const { site, topics } = loadSite();
+const month = monthOf(post.data.publishedAt);
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: post.data.title,
+  datePublished: post.data.publishedAt,
+  dateModified: post.data.updatedAt || post.data.publishedAt,
+  description: post.data.summary || "",
+  inLanguage: locale,
+  mainEntityOfPage: site.baseUrl.replace(/\/$/, "") + post.url,
+};
+---
+<Base
+  locale={locale}
+  title={post.data.title}
+  description={post.data.summary || ""}
+  path={post.url}
+  alternatePath={pair?.url || ""}
+  untranslated={!pair}
+  headings={headings}
+  showAside={!!aside}
+  pagefind={true}
+  jsonLd={jsonLd}
+>
+  {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
+  <article data-pagefind-filter={`locale:${locale}`}>
+    <p class="kicker"><a href={`/${locale}/archive/${month.year}/${month.month}/`}>{formatDate(post.data.publishedAt, locale, site.timezone)}</a></p>
+    <h1 class="article-title" data-pagefind-meta="title">{post.data.title}</h1>
+    <div class="meta-row">
+      <p class="topics">
+        {post.data.topics.map((topic) => (
+          <a href={`/${locale}/topics/${topic}/`} data-pagefind-filter={`topic:${topic}`}>{topics[topic]?.[locale] || topic}</a>
+        ))}
+      </p>
+    </div>
+    {post.data.summary && <p class="summary" data-pagefind-meta="summary">{post.data.summary}</p>}
+    <div class="prose" data-pagefind-body>
+      <Content />
+    </div>
+  </article>
+</Base>

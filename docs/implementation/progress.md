@@ -10,7 +10,7 @@ Baseline reviewed before this work:
 
 ## M0-A — visual mockup
 
-Browsable static prototype in `design/mockup/`. Search results are labeled mock data. The owner has not accepted a visual direction yet. The production renderer does not exist, so this direction is not yet copied into Astro.
+Browsable static prototype in `design/mockup/`. Search results are labeled mock data. The owner accepted this direction. The production renderer now follows it.
 
 The header controls are dropdowns labeled only テーマ / Theme and 配色 / Palette. The open menu follows the page colors, including a dark menu in the dark theme. Palette choices are Classic, Cyber, Dope, Forest, and Dusk. Wide articles put the table of contents on the left. It opens expanded and can be collapsed; the article uses that width while the contents are closed. The right column renders optional `aside/<locale>.md` from the content repository and adds no structure of its own. The mockup palette menu is for appearance review only. In the finished site the palette is specified only in `cfgb.yaml`. The production visitor theme contract remains system, light, and dark. The palette field is not in the schema yet.
 
@@ -27,6 +27,12 @@ The header controls are dropdowns labeled only テーマ / Theme and 配色 / Pa
 - Corpus tests are not wired yet. The example commit above is the pin to use.
 - Node `22.14.0` is the tested runtime. `nodeRange` is `>=22.12.0 <23`, matching Astro 6.4.8.
 
+## Phase 1 — renderer and build, started
+
+`cfgb build` extracts the embedded Astro 6 renderer, installs the pinned lockfile, renders the content repository, and runs Pagefind. The artifact is `site/`, `worker/index.js`, and `build-manifest.json`. Article repositories still contain no framework files.
+
+The renderer covers locale homes, articles, lists, archives, topics, about, search, feeds, sitemap, robots, alias `_redirects`, and localized 404 pages. Markdown includes GFM footnotes, GitHub alerts, Expressive Code, Mermaid, and cached link cards. The Worker negotiates `/` and `/__locale`. Visitors do not get a palette switch; theme is still system, light, or dark. Full semantic validation, deploy, and preview upload are not implemented yet. CSP still allows inline styles because Expressive Code and the footnote markup need them.
+
 ## Not done
 
-Renderer layouts, Worker, validation, build, and every later milestone. Live Cloudflare, model, and release gates remain open.
+Validation, deploy/preview upload, and every later milestone. Live Cloudflare, model, and release gates remain open.

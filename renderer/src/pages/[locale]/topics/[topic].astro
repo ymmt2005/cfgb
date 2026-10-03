@@ -1,0 +1,32 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PostList from "../../../components/PostList.astro";
+import { posts, renderedProse } from "../../../lib/content";
+import { loadSite } from "../../../lib/load-site.mjs";
+
+export async function getStaticPaths() {
+  const { topics } = loadSite();
+  const seen = new Set<string>();
+  const paths = [];
+  for (const post of await posts()) {
+    for (const topic of post.data.topics) {
+      if (!topics[topic]) continue;
+      const id = `${post.locale}/${topic}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      paths.push({ params: { locale: post.locale, topic } });
+    }
+  }
+  return paths;
+}
+const { locale, topic } = Astro.params;
+const { topics } = loadSite();
+const label = topics[topic]?.[locale] || topic;
+const list = (await posts()).filter((post) => post.locale === locale && post.data.topics.includes(topic));
+const aside = await renderedProse("aside", locale);
+---
+<Base locale={locale} title={label} path={`/${locale}/topics/${topic}/`} showAside={!!aside}>
+  {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
+  <h1 class="home-title">{label}</h1>
+  <PostList locale={locale} posts={list} />
+</Base>
