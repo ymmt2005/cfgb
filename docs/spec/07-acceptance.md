@@ -27,7 +27,7 @@ Initial preparation checks only its structural and referential integrity.
 | Separate build/upload stages | `tests/build-delivery/cases.json`; artifact integrity and timestamp gates | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
 | Required preview access | `tests/fixtures/configuration/cases.json` | Configuration loader |
-| Unified Action entry point and independent version pins | [Action contract](09-github-action.md), operation-to-CLI parity and install/cache failures | `cfgb-action` |
+| Setup Action and independent version pins | [Action contract](09-github-action.md), install/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Anonymous denied / authorized successful | Cloudflare integration |
 | Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
@@ -59,11 +59,11 @@ Initial preparation checks only its structural and referential integrity.
    with controlled HTTP/fake-provider responses. Never use actual old-site writes
    to test idempotence.
 
-Action acceptance additionally covers checksum/corrupt-cache/version failures,
-literal input handling, CLI exit/annotation parity and explicit-operation gates.
-Use one Action entry point for all capabilities; never require framework source
-files in article repositories. These are future integration gates, not performed
-checks at the documentation stage.
+Action acceptance covers checksum/corrupt-cache/version failures, safe extraction,
+PATH registration and setup without a checkout. A smoke workflow installs CFGB
+and invokes it in a subsequent `run` step. Domain diagnostics and exit-code tests
+remain CLI tests; setup adds no framework files to article repositories. These
+are future integration gates, not performed checks at the documentation stage.
 
 Required extra failure tests in the tool: DNS rebinding/mixed A+AAAA/redirect SSRF,
 YAML duplicate keys, symlink escapes, network timeout/429/retry budgets, invalid AI

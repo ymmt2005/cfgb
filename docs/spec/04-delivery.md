@@ -49,22 +49,22 @@ the alternate production workers.dev origin. Do not redirect previews to
 production. Check deployed source-commit metadata and retain platform rollback
 to the last good Worker version. Runtime has no AI or Hatena credentials.
 
-## Unified GitHub Action
+## GitHub Action setup
 
-Use the single public `ymmt2005/cfgb-action` entry point for GitHub preparation
-and checks, selecting `prepare`, `summarize`, `validate` or `build` operations
-without separate function-specific Actions. Pin the Action to a full commit SHA
-and its `cfgb-version` input to the same exact CLI release used by Workers Builds.
-See the [Action contract](09-github-action.md) and [usage design](https://github.com/ymmt2005/cfgb-action/blob/main/docs/usage.md).
-The Action supports setup-only use and maps other operations to CLI commands;
-caller workflows still own checkout, job permissions, trusted configuration,
-concurrency, bot commits and latest-head merge checks. It never commits or pushes
-automatically.
+Use `ymmt2005/cfgb-action` once per GitHub job to install a verified CLI and
+register it on PATH. Pin the Action to a full commit SHA and its `cfgb-version`
+input to the same exact CLI release used by Workers Builds. Execute preparation,
+summary generation, validation and build directly in workflow `run` steps.
+See the [setup contract](09-github-action.md) and [usage design](https://github.com/ymmt2005/cfgb-action/blob/main/docs/usage.md).
+Caller workflows own checkout, job permissions, trusted configuration, runtime
+prerequisites, concurrency, bot commits and latest-head merge checks. CLI step
+failures must fail the corresponding required checks. The Action only installs
+CFGB and provides verified version/path outputs.
 
 Workers Builds continues to deploy in the default architecture and invokes CFGB
-directly. The Action's optional `deploy`/`preview` operations support deliberately
-selected alternative pipelines, with the same artifact/publication/Access gates.
-Do not enable both deployment owners for the same target.
+directly. If upload ownership is explicitly moved to GitHub, use direct CLI `run`
+steps with the same artifact/publication/Access gates. Do not enable both deployment
+owners for the same target.
 
 ## Trust boundary and PR lifecycle
 

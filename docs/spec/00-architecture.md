@@ -8,7 +8,7 @@ the intended implementation, not features already delivered in this repository.
 | Repository | Responsibility |
 | --- | --- |
 | `ymmt2005/cfgb` (tool repository) | Go CLI, embedded renderer/Worker sources, dependency lockfile, schemas, prompts, migration/AI and build/deployment adapters |
-| `ymmt2005/cfgb-action` | One integrated public GitHub Action: verified CLI installation, operation mapping, annotations/outputs and Action tests |
+| `ymmt2005/cfgb-action` | One public setup Action: verified CLI installation, cache/PATH handling, setup outputs and Action tests |
 | `ymmt2005/cfgb-example` | Synthetic article sources, assets, blog configuration and acceptance fixtures |
 | `ymmt2005/ymmt2005.dev` (intended content repository) | Personal article sources, assets and blog configuration |
 
@@ -33,12 +33,12 @@ The public interface is `cfgb build`, `cfgb deploy` and `cfgb preview`. Builds
 create artifacts, never deploy them. Upload commands consume the same verified
 artifact and do not rebuild. See [delivery](04-delivery.md).
 
-GitHub automation uses one public Action, `ymmt2005/cfgb-action`, selecting setup,
-preparation, validation, summaries, build or optional upload with `operation`.
-All these features live in that repository under a single root entry point;
-CLI/domain/renderer behavior stays in CFGB. Action and CLI releases are separately
-pinned. Workers Builds invokes the CLI directly, without requiring the Action.
-See the [Action contract](09-github-action.md).
+GitHub automation uses `ymmt2005/cfgb-action` to install and verify the selected
+CLI release and register it on PATH. Workflow `run` steps execute CFGB commands
+directly. Action and CLI releases are separately pinned. Future GitHub-specific
+capabilities, if needed, stay in the same public Action repository and entry point.
+Workers Builds invokes the CLI directly, without requiring the Action.
+See the [setup Action contract](09-github-action.md).
 
 ```mermaid
 flowchart TD
@@ -105,9 +105,9 @@ parsing, migration planning and validation do not require a Cloudflare account.
 | Phase | Deliverable | Exit gate |
 | --- | --- | --- |
 | 1 | Embedded renderer and `cfgb build` in CFGB | Corpus renders without framework files in article repositories |
-| 2 | Search, Worker and deploy/preview adapters in CFGB; unified Action build/upload operations | Search corpus passes; anonymous preview access blocked |
-| 3 | Go authoring/validation and unified Action setup/prepare/validate adapters | Schemas, diagnostics, link cards and editor paste contracts pass |
-| 4 | AI adapter, ownership and unified Action summarize adapter | All state transitions pass; blind evaluation approved |
+| 2 | Search, Worker and deploy/preview adapters in CFGB | Search corpus passes; anonymous preview access blocked |
+| 3 | Go authoring/validation and the setup Action | Schemas, diagnostics, link cards and editor paste contracts pass |
+| 4 | AI adapter and ownership | All state transitions pass; blind evaluation approved |
 | 5 | Hatena importer | Configured-source inventory and restart/conflict tests pass |
 | 6 | Personal cutover | Real corpus checks, canonical/feeds/redirects and visual review |
 

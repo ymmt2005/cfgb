@@ -70,14 +70,12 @@ characters. Emit `W_SUMMARY_REQUIRED` in authoring and `E_SUMMARY_REQUIRED`
 otherwise, without a second length warning for that field. Non-string values
 fail with `E_SCHEMA` in every mode. Other required fields are not relaxed.
 
-## GitHub Action adapter
+## GitHub Action setup
 
-The unified `ymmt2005/cfgb-action` provides setup, prepare, validate, summarize,
-build, deploy and preview operations through one public entry point. It installs
-a verified, exact CFGB release and maps typed inputs to these CLI commands.
-Action-specific inputs, outputs and release compatibility are specified in the
-[Action contract](09-github-action.md). It does not change CLI semantics or
-automatically commit generated content.
+`ymmt2005/cfgb-action` installs a verified, exact CFGB release and registers it on
+PATH. Caller workflow `run` steps execute the CLI directly, retaining its argument,
+diagnostic and exit-code contract. Setup inputs, outputs and release installation
+are specified in the [Action contract](09-github-action.md).
 
 ## Build and delivery
 
