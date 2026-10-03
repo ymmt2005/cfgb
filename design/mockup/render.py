@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Generate the browsable CFGB visual mockup. Content is transcribed from cfgb-example."""
 
+import html
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -169,28 +171,73 @@ def chips(locale, topics):
     )
 
 
-def rail(locale):
-    if locale == "ja":
-        label = "ほかの場所"
-        links = [
-            ("CFGB", "https://github.com/ymmt2005/cfgb", "github.com/ymmt2005/cfgb"),
-            ("サンプル原稿", "https://github.com/ymmt2005/cfgb-example", "github.com/ymmt2005/cfgb-example"),
-            ("pbschema-lens", "https://github.com/ymmt2005/pbschema-lens", "リンクカードの例"),
-            ("RSS", "/ja/feed.xml", "このサイトのフィード"),
-        ]
-    else:
-        label = "Elsewhere"
-        links = [
-            ("CFGB", "https://github.com/ymmt2005/cfgb", "github.com/ymmt2005/cfgb"),
-            ("Example corpus", "https://github.com/ymmt2005/cfgb-example", "github.com/ymmt2005/cfgb-example"),
-            ("pbschema-lens", "https://github.com/ymmt2005/pbschema-lens", "Link-card fixture"),
-            ("RSS", "/en/feed.xml", "Feed for this site"),
-        ]
-    items = "".join(
-        f'<li><a href="{href}">{name}</a><span>{note}</span></li>'
-        for name, href, note in links
-    )
-    return f'<aside class="rail" aria-label="{label}"><p>{label}</p><ul>{items}</ul></aside>'
+def inline_md(text):
+    escaped = html.escape(text.strip())
+    escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+    escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", escaped)
+    escaped = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', escaped)
+    return escaped
+
+
+def render_markdown(source):
+    """Render the small Markdown subset used by the optional aside file."""
+    lines = source.replace("\r\n", "\n").replace("\r", "\n").strip("\n").split("\n")
+    out = []
+    paragraph = []
+    list_open = False
+
+    def close_list():
+        nonlocal list_open
+        if list_open:
+            out.append("</ul>")
+            list_open = False
+
+    def flush_paragraph():
+        nonlocal paragraph
+        if paragraph:
+            out.append("<p>" + inline_md(" ".join(paragraph)) + "</p>")
+            paragraph = []
+
+    for line in lines:
+        if not line.strip():
+            flush_paragraph()
+            close_list()
+            continue
+        if line.startswith("### "):
+            flush_paragraph()
+            close_list()
+            out.append("<h3>" + inline_md(line[4:]) + "</h3>")
+        elif line.startswith("## "):
+            flush_paragraph()
+            close_list()
+            out.append("<h2>" + inline_md(line[3:]) + "</h2>")
+        elif line.startswith("# "):
+            flush_paragraph()
+            close_list()
+            out.append("<h2>" + inline_md(line[2:]) + "</h2>")
+        elif line.startswith("- "):
+            flush_paragraph()
+            if not list_open:
+                out.append("<ul>")
+                list_open = True
+            out.append("<li>" + inline_md(line[2:]) + "</li>")
+        else:
+            close_list()
+            paragraph.append(line.strip())
+    flush_paragraph()
+    close_list()
+    return "\n".join(out)
+
+
+def aside_html(locale):
+    path = EXAMPLE / "src/content/aside" / f"{locale}.md"
+    if not path.is_file():
+        return ""
+    body = render_markdown(path.read_text(encoding="utf-8"))
+    if not body.strip():
+        return ""
+    return f'<aside class="rail">{body}</aside>'
 
 
 def layout(locale, title, body, current, alt_href, description, self_href=None, toc=""):
@@ -204,6 +251,10 @@ def layout(locale, title, body, current, alt_href, description, self_href=None, 
     skip = "本文へ" if locale == "ja" else "Skip to content"
     ja_href = self_href if locale == "ja" else alt_href
     en_href = alt_href if locale == "ja" else self_href
+    aside = aside_html(locale)
+    frame_class = "frame frame-article" if toc else "frame"
+    if not aside:
+        frame_class += " frame-no-rail"
     theme_name = "テーマ" if locale == "ja" else "Theme"
     palette_name = "配色" if locale == "ja" else "Palette"
     mode_system = "システムに合わせる" if locale == "ja" else "Match system"
@@ -256,12 +307,12 @@ def layout(locale, title, body, current, alt_href, description, self_href=None, 
   </div>
 </header>
 <main id="content">
-  <div class="wrap {'frame frame-article' if toc else 'frame'}">
+  <div class="wrap {frame_class}">
 {toc}
     <div class="frame-main">
 {body}
     </div>
-    {rail(locale)}
+    {aside}
   </div>
 </main>
 <footer class="site"><div class="wrap"><span>CFGB Example · example.invalid</span><span><a href="/{locale}/feed.xml">RSS</a> · <a href="https://github.com/ymmt2005/cfgb">GitHub</a></span></div></footer>
@@ -293,10 +344,12 @@ def article_page(post, prose, toc):
     else:
         link_label = "Open translation" if paired else "Japanese home"
     note = f'<p class="translation">{post["alt_note"]} <a href="{post["alt"]}">{link_label}</a></p>'
-    mobile = f'<details class="toc-mobile"><summary>{"目次" if locale == "ja" else "Contents"}</summary>{toc}</details>'
+    contents = "目次" if locale == "ja" else "Contents"
+    mobile = ""
     desktop = ""
     if 'href="' in toc:
-        desktop = f'<nav class="toc toc-desktop" aria-label="{"目次" if locale == "ja" else "Contents"}"><p>{"目次" if locale == "ja" else "Contents"}</p>{toc}</nav>'
+        mobile = f'<details class="toc-mobile" open><summary>{contents}</summary>{toc}</details>'
+        desktop = f'<details class="toc toc-desktop" open><summary>{contents}</summary>{toc}</details>'
     body = f"""
 <article>
   <p class="kicker">{post["date"]}</p>
