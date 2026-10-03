@@ -436,6 +436,9 @@ a:hover { color: var(--accent); }
   margin: 0;
   background-color: transparent;
   color: var(--ink);
+  /* The closed control uses --ink. The native popup on this platform stays
+     light, so it must not inherit that dark-theme ink. */
+  color-scheme: light;
   font: inherit;
   font-size: 0.82rem;
   line-height: 1.4;
@@ -447,6 +450,15 @@ a:hover { color: var(--accent); }
   background-position: right 0.32rem center, right 0.12rem center;
   background-size: 0.28rem 0.28rem, 0.28rem 0.28rem;
   background-repeat: no-repeat;
+}
+select option {
+  background-color: #ffffff;
+  color: #1c1915;
+}
+select option:checked,
+select option:hover {
+  background-color: #d6e6f8;
+  color: #1c1915;
 }
 #theme { min-width: 9.2rem; }
 #palette { min-width: 5.6rem; }
@@ -721,6 +733,7 @@ html.js .mermaid-source { display: none; }
   border: 1px solid var(--line);
   border-radius: 0.4rem;
   padding: 0.45rem 0.6rem;
+  color-scheme: light;
 }
 .search-box input { flex: 1 1 16rem; }
 .mock-banner {
