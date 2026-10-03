@@ -30,7 +30,7 @@ Initial preparation checks only its structural and referential integrity.
 | Separate build/upload stages | `tests/build-delivery/cases.json`; artifact integrity and timestamp gates | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
 | Required preview access | `tests/fixtures/configuration/cases.json` | Configuration loader |
-| Setup Action and independent version/digest pins | [Action contract](09-github-action.md), install/cache failures and subsequent direct CLI execution | `cfgb-action` |
+| Setup Action and immutable-release verification | [Action contract](09-github-action.md), attestation/platform/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
 | Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
@@ -62,8 +62,9 @@ Initial preparation checks only its structural and referential integrity.
    with controlled HTTP/fake-provider responses. Never use actual old-site writes
    to test idempotence.
 
-Action acceptance covers required caller-digest validation, checksum/corrupt-cache/
-version failures, release-checksum agreement with a mismatching caller pin, safe extraction,
+Action acceptance covers mutable releases, absent/invalid attestations, wrong
+release/asset identity, byte mismatch and corrupt-cache/version failures,
+platform selection without caller digests, safe extraction,
 PATH registration and setup without a checkout. A smoke workflow installs CFGB
 and invokes it in a subsequent `run` step. Domain diagnostics and exit-code tests
 remain CLI tests; setup adds no framework files to article repositories. These

@@ -13,8 +13,20 @@ contract is `cfgb-linux-amd64` under the exact release tag in `ymmt2005/cfgb`.
 The checksum is SHA-256 over executable bytes, not an archive. Other targets have
 separate assets/checksums; never substitute a different architecture or version.
 `ymmt2005/cfgb` will use immutable releases: published release artifacts cannot
-be replaced. Independently reviewed caller digest pins remain mandatory for
-both Workers Builds and the setup Action, including downloads and cache reuse.
+be replaced. The setup Action verifies the exact release and runner-specific
+asset through GitHub release attestation. Workers Builds retains the independently
+reviewed `CFGB_SHA256` pin for its fixed Linux/amd64 executable. Both paths verify
+bytes before execution, including reused downloads/installations.
+
+| Environment | Installation verification |
+| --- | --- |
+| GitHub setup Action | Exact version, immutable release and verified release attestation for the selected runner asset |
+| Workers Builds | Exact version and independently reviewed `CFGB_SHA256` for `cfgb-linux-amd64` |
+| Manual local installation | Exact version; GitHub release-attestation verification is recommended |
+
+Publish all platform assets, checksums and toolchain requirements in the draft
+before publishing the immutable release. Published assets cannot be filled in
+later. Release notes or latest/pre-release labels do not determine CLI selection.
 
 A trusted maintainer configures the following Workers Builds variables; they are
 not read from articles or PR-controlled scripts:
@@ -76,11 +88,13 @@ selected release. In Workers Builds the CLI also checks its embedded release
 version against `CFGB_VERSION` before build/upload and rejects a mismatch with
 `E_TOOLCHAIN`, exit 2. These are command-setting examples, not files to add to content
 repositories. The GitHub setup Action has its own installer implementation and
-uses the same release asset/checksum/requirements contract.
-For GitHub jobs on the same Linux/amd64 target, configure Action `cfgb-version`
-and `cfgb-sha256` to equal `CFGB_VERSION` and `CFGB_SHA256` respectively; this
-verifies the same executable bytes in both environments. Other targets have
-different executable bytes and require their own reviewed digest.
+uses the same release asset/requirements contract with the attestation verification
+defined in its setup specification. Match Action `cfgb-version` to `CFGB_VERSION`.
+For the same Linux/amd64 target, the independently reviewed Workers Builds
+`CFGB_SHA256` must match the asset digest in the verified release attestation;
+both environments then verify the same executable bytes. Action callers need no
+platform-specific digest configuration. Other runner targets use different
+executable bytes from the same exact immutable CFGB release.
 
 ## Node, pnpm and toolchain workspace
 

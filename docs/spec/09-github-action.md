@@ -9,7 +9,7 @@ register its executable on PATH for subsequent workflow steps.
 
 `cfgb` owns the CLI, domain rules, renderer/Worker, embedded dependencies, schemas,
 prompts and this canonical specification. `cfgb-action` owns release installation,
-checksum/cache handling, PATH registration, setup outputs, Action tests and usage
+release-attestation verification/cache handling, PATH registration, setup outputs, Action tests and usage
 documentation. `cfgb-example` supplies the CLI conformance corpus.
 
 Workflows run `cfgb prepare`, `cfgb validate`, `cfgb summarize`, `cfgb build`,
@@ -29,8 +29,7 @@ reusable workflow is a separate job-level mechanism and is not required for v1.
 
 | Input | Requirement |
 | --- | --- |
-| `cfgb-version` | Required exact released CFGB version; no implicit latest, branch or range |
-| `cfgb-sha256` | Required independently reviewed 64-character lowercase SHA-256 of the selected OS/architecture's executable bytes |
+| `cfgb-version` | Required exact released CFGB version from an immutable release; no implicit latest, branch or range |
 
 | Output | Meaning |
 | --- | --- |
@@ -46,13 +45,16 @@ by the caller according to the selected CFGB release.
 ## Installation and versioning
 
 Resolve the runner OS/architecture against supported CFGB release assets; fail
-clearly for an unsupported runner. Download only the selected version's artifacts
-from `ymmt2005/cfgb` releases and verify executable bytes against the caller's
-required `cfgb-sha256` before execution. Validate both required inputs before
-download. A release-published checksum may inform the caller's review but must
-never supply a default, replace the caller pin or authorize a mismatch. The
-caller maintains the digest in reviewed workflow configuration or a trusted
-Actions variable; it is not obtained dynamically alongside the binary.
+clearly for an unsupported runner. Validate the exact version input before
+download. Download only the selected runner-specific asset from that exact
+immutable `ymmt2005/cfgb` release on github.com. Before executing the binary,
+verify release immutability and GitHub's cryptographically signed release
+attestation, including the selected asset's bytes and its binding to the expected
+repository, tag, commit and asset identity. Checking the repository's current
+immutability setting is insufficient: the selected release itself must qualify.
+The Action owns platform selection and verification; callers supply only the
+exact version, without platform-specific digests. A checksum file alone does
+not satisfy release-attestation verification.
 Do not compile from the caller checkout or accept a caller-controlled download
 URL. Validate safe extraction and the installed binary's reported version.
 Release asset naming/checksums and published/embedded toolchain requirements
@@ -60,8 +62,27 @@ follow the [build runtime contract](10-build-runtime.md). Setup only installs th
 CLI; subsequent CLI build/upload commands manage their own retained toolchain
 sessions. Treat input values literally; never interpolate them into executable shell code.
 
-Cache by exact version, OS, architecture and caller-pinned checksum; verify bytes on every
-reuse. Repeated invocations can reuse a verified installation. Installation lives
+Verification must provide the guarantees of GitHub's `gh release verify` and
+`gh release verify-asset`, using an explicit fixed repository and exact tag.
+Illustrative commands after download of the Linux/amd64 asset are:
+
+```sh
+gh release verify vX.Y.Z --repo github.com/ymmt2005/cfgb
+gh release verify-asset vX.Y.Z ./cfgb-linux-amd64 --repo github.com/ymmt2005/cfgb
+```
+
+These are verification examples, not a complete installer. The Action owns a
+reviewed verifier and its trusted dependencies; if it uses `gh`, pin a compatible
+version rather than assume an arbitrary runner installation supports these
+commands. Verification must work without a caller checkout. If authenticated
+public-release reads are needed, use the job's GitHub token without write
+permissions; do not require a caller PAT, AI/upload secrets or attestation-write
+permissions. Do not disable verification when the verifier or evidence is absent.
+
+Cache by exact version, OS, architecture, asset identity and digest obtained from
+verified release attestation. Verify release evidence and cached executable bytes
+on every reuse before execution; cached metadata is not a trust anchor.
+Repeated invocations can reuse a verified installation. Installation lives
 in runner-managed storage, outside the content checkout. Setup adds no framework,
 Worker, package or other files to the article repository. Action-owned installer
 dependencies belong in `cfgb-action`; renderer dependencies remain embedded in CFGB.
@@ -69,21 +90,24 @@ dependencies belong in `cfgb-action`; renderer dependencies remain embedded in C
 Action releases and CLI releases are independent. Document supported release
 formats and runner targets and reject unsupported combinations. Never substitute
 a different CLI version. Pin the Action to a full commit SHA in trusted workflows
-and independently pin `cfgb-version` plus `cfgb-sha256`. Major Action tags such as `v1` are convenience
-references once published, not immutable pins. Use the same CFGB release in
-GitHub checks and Workers Builds, with the same OS/architecture and digest:
-`cfgb-version` = `CFGB_VERSION` and `cfgb-sha256` = `CFGB_SHA256`. Both installers
-then verify identical executable bytes. Other runner targets need their own
-reviewed asset digest; a version match alone does not imply identical bytes.
-The planned immutable CFGB releases complement, rather than replace, the caller
-digest pin. No versions are published by this documentation.
+and independently pin `cfgb-version`. Major Action tags such as `v1` are convenience
+references once published, not immutable pins. Use the same exact CFGB release
+in GitHub checks and Workers Builds: `cfgb-version` = `CFGB_VERSION`. Workers
+Builds retains its independently configured `CFGB_SHA256` for the fixed
+Linux/amd64 asset. For the same target, this digest must match that asset in the
+verified release attestation, yielding identical verified executable bytes.
+Other runner targets use their own assets from the same immutable release;
+cross-platform release equivalence does not imply byte identity. No versions
+are published by this documentation.
 
 ## Failure behavior and trust boundary
 
-Missing/malformed version or digest input, unsupported assets, download/checksum/extraction failures,
-corrupt cache or reported-version mismatch fail the setup step. Emit successful
-setup outputs and register PATH only after verification. Do not print credentials
-or use AI/upload credentials during installation. Setup does not obtain tokens or
+Missing/malformed version input, mutable releases, absent/invalid attestations,
+wrong repository/tag/asset binding, byte mismatch, unavailable verification,
+unsupported assets, download/extraction failures, corrupt cache or reported-version
+mismatch fail the setup step. No fallback to checksum-only or unverified installation.
+Emit successful setup outputs and register PATH only after verification. Do not print credentials
+or use AI/upload credentials during installation. Setup does not mint tokens or
 grant repository permissions. Native step failure is mandatory; `continue-on-error`
 is a caller policy, never an Action default.
 
@@ -104,16 +128,17 @@ commits. Installing CFGB does not authorize a subsequent credentialed operation.
 
 ## Implementation acceptance
 
-Test exact-version/digest installation, missing/malformed digest rejection before
-download, safe extraction, checksum failure, corrupt-cache
+Test exact-version installation from immutable releases, mutable-release refusal,
+absent/invalid attestation, wrong repository/tag/asset identity, tampered binary,
+unavailable verifier, safe extraction and corrupt-cache
 rejection, unsupported release/runner, literal version-input handling and version
 mismatch. Verify setup works without a checkout or blog configuration, creates no
 repository files, emits only verified setup outputs, and makes the selected CLI
 available to subsequent steps. Verify repeated setup and separate-job behavior.
-Assert a caller digest mismatch fails even when the downloaded binary matches a
-release-published checksum, and cached bytes are checked against the current
-caller pin. Test OS/architecture-specific digest selection and equality of
-verified executable bytes with Workers Builds for matching version/target/digest.
+Assert a matching checksum file cannot bypass a failed attestation check, and
+cached bytes/evidence are reverified. Test platform selection across supported
+runner targets without caller digests. For matching release/target, assert the
+Workers Builds configured digest matches the Action's attested executable bytes.
 
 CLI tests run the shared example corpus directly. Once implemented, a smoke
 workflow can install CFGB using this Action and invoke the CLI in a later `run`

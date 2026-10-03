@@ -64,8 +64,9 @@ to the last good Worker version. Runtime has no AI or Hatena credentials.
 Use `ymmt2005/cfgb-action` once per GitHub job to install a verified CLI and
 register it on PATH. Pin the Action to a full commit SHA and its `cfgb-version`
 input to the same exact CLI release used by Workers Builds.
-Pin the required `cfgb-sha256` independently to the selected executable's digest;
-for the same OS/architecture it must equal Workers Builds `CFGB_SHA256`.
+The Action selects the runner asset and verifies the immutable release and its
+GitHub release attestation before execution, including cache reuse. Workers
+Builds retains its independent `CFGB_SHA256` pin for the Linux/amd64 asset.
 Execute preparation, summary generation, validation and build directly in workflow `run` steps.
 See the [setup contract](09-github-action.md) and [usage design](https://github.com/ymmt2005/cfgb-action/blob/main/docs/usage.md).
 Caller workflows own checkout, job permissions, trusted configuration, runtime

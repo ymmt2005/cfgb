@@ -20,6 +20,9 @@ when implementation begins and pinned in that repository.
 - [Static site generation routing](https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/): hierarchical `404-page` fallback and 404 status.
 - [Static Assets headers](https://developers.cloudflare.com/workers/static-assets/headers/): static `_headers`; Worker responses need their own headers.
 - [Static Assets redirects](https://developers.cloudflare.com/workers/static-assets/redirects/): `_redirects` for same-site aliases.
+- [GitHub immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases): locked release assets/tags, release attestations and publishing all assets before final publication.
+- [GitHub release integrity verification](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/verify-release-integrity): immutable-release and local-asset verification.
+- [GitHub CLI release verification](https://cli.github.com/manual/gh_release_verify) and [asset verification](https://cli.github.com/manual/gh_release_verify-asset): exact-tag signed-attestation checks with explicit repository selection.
 - [GitHub Marketplace publication](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace): root Action metadata and an Action-specific public repository.
 - [GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax): step-level Action references and commit pins.
 - [Reusing workflow configurations](https://docs.github.com/en/actions/concepts/workflows-and-actions/reusing-workflow-configurations): Action steps versus job-level reusable workflows.
