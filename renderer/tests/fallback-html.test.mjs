@@ -19,4 +19,5 @@ test("root 404 lists only configured locales and escapes labels", () => {
   assert.match(html, /日本語 &lt;b&gt;/);
   assert.match(html, /Example &amp; Co/);
   assert.doesNotMatch(html, /日本語 <b>/);
+  assert.match(html, /<body data-pagefind-ignore="all">/);
 });

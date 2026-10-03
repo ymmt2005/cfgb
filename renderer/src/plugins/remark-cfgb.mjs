@@ -164,16 +164,34 @@ function cardBlock(node, cards) {
   return `<a class="card" href="${escapeHtml(link.url)}"><span class="card-site">${escapeHtml(card.siteName || "")}</span><span class="card-title">${escapeHtml(card.title || link.url)}</span><span class="card-desc">${escapeHtml(card.description || "")}</span></a>`;
 }
 
+function splitUrl(url) {
+  let path = url;
+  let suffix = "";
+  const hash = path.indexOf("#");
+  if (hash >= 0) {
+    suffix = path.slice(hash);
+    path = path.slice(0, hash);
+  }
+  const query = path.indexOf("?");
+  if (query >= 0) {
+    suffix = path.slice(query) + suffix;
+    path = path.slice(0, query);
+  }
+  return { path, suffix };
+}
+
 function rewriteLink(url, source, byFile) {
-  const hashIndex = url.indexOf("#");
-  const pathPart = hashIndex >= 0 ? url.slice(0, hashIndex) : url;
-  const hash = hashIndex >= 0 ? url.slice(hashIndex) : "";
+  const { path: pathPart, suffix } = splitUrl(url);
+  if (pathPart.startsWith("./assets/")) {
+    const media = rewriteImage(pathPart, source);
+    if (media !== pathPart) return `${media}${suffix}`;
+  }
   if (!pathPart.endsWith(".md")) return url;
   if (!source) return url;
   const resolved = path.resolve(path.dirname(source), pathPart);
   const target = byFile.get(resolved);
   if (!target) return url;
-  return `${target.url}${hash}`;
+  return `${target.url}${suffix}`;
 }
 
 function rewriteImage(url, source) {

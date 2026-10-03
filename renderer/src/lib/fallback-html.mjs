@@ -19,7 +19,7 @@ export function fallbackHtml(corpus, locale) {
 <title>${title} · ${escapeHtml(corpus.site.title)}</title>
 <link rel="stylesheet" href="/assets/site.css">
 </head>
-<body>
+<body data-pagefind-ignore="all">
 <main id="content" class="wrap page-narrow">
 <h1>${title}</h1>
 ${copy}

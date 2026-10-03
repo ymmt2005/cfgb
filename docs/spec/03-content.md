@@ -124,7 +124,9 @@ embed must be consistent with the final CSP/privacy policy.
 
 Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images
 and supplies dimensions/responsive delivery. External images remain external
-without build-time downloads and appear in migration/privacy reports. Local SVG
+without build-time downloads and appear in migration/privacy reports. A Markdown
+or raw HTML link to `./assets/...` is rewritten to the published
+`/media/<year>/<article>/` path, and any query or fragment stays on that URL. Local SVG
 is used as an image, not blindly injected as trusted inline markup. The example
 includes SVG as a precise diagram and PNG as an original lossless raster fixture.
 OG fallback is a build-time PNG with title/branding and a bundled licensed font
@@ -164,7 +166,9 @@ Run Pagefind Extended on built output. Each page has correct `<html lang>`;
 load search only at `/<locale>/search/`, and reinitialize when locale changes.
 Use `data-pagefind-body` only on article content, with metadata for title, summary,
 publication date and topics; filters use stable topic IDs and site-local year.
-Navigation, the right-hand column, TOC, footer, and copy labels are excluded. Search title must remain searchable
+Pages that are not articles, including generated 404 pages, carry
+`data-pagefind-ignore="all"`. The search UI selects the document language as the
+`locale` filter. Navigation, the right-hand column, TOC, footer, and copy labels are excluded. Search title must remain searchable
 even if metadata is set outside the body. URL results must be canonical locale
 paths. The checked-in query corpus specifies top-k inclusion, not brittle ranking.
 

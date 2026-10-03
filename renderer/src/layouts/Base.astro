@@ -81,7 +81,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 <script is:inline src="/assets/theme-boot.js"></script>
 {json && <script type="application/ld+json" is:inline set:html={json} />}
 </head>
-<body>
+<body data-pagefind-ignore={pagefind ? undefined : "all"}>
 <a class="skip" href="#content">{copy.skip}</a>
 <header class="mast">
   <div class="wrap">

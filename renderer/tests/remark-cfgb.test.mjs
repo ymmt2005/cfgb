@@ -122,6 +122,9 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
           lang: "mermaid",
           value: "graph TD\nA-->B\n",
         },
+        { type: "link", url: "./assets/diagram.png#detail", children: [{ type: "text", value: "diagram" }] },
+        { type: "definition", identifier: "fig", url: "./assets/figures/one.png?x=1" },
+        { type: "html", value: '<a href="./assets/a b.png?download=1#y">asset</a>' },
       ],
     };
     remarkCfgb()(tree, { path: sourceFile });
@@ -145,6 +148,12 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
     assert.match(tree.children[3].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
     assert.match(tree.children[4].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
     assert.equal(tree.children[5].value, '<div class="diagram-block"><pre class="mermaid">graph TD\nA--&gt;B</pre></div>');
+    assert.equal(tree.children[6].url, "/media/2026/2026-09-20-markdown-showcase/diagram.png#detail");
+    assert.equal(tree.children[7].url, "/media/2026/2026-09-20-markdown-showcase/figures/one.png?x=1");
+    assert.equal(
+      tree.children[8].value,
+      '<a href="/media/2026/2026-09-20-markdown-showcase/a%20b.png?download=1#y">asset</a>',
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
