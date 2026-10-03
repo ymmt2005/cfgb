@@ -7,7 +7,7 @@
 <meta name="description" content="短い文章にするために何を削るかではなく、読者に何を持ち帰ってほしいかを考える架空の随筆です。結論を一つに絞り、細部を参照先へ置く方針を説明します。">
 <link rel="stylesheet" href="/assets/site.css">
 <script>
-(function(){try{var t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get("theme");if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);var palettes={cyber:1,dope:1,forest:1,dusk:1};var p=q.get("palette");if(!palettes[p])p=localStorage.getItem("cfgb-palette");if(palettes[p])document.documentElement.setAttribute("data-palette",p);}catch(e){}})();
 </script>
 </head>
 <body>
@@ -21,7 +21,8 @@
           <a href="/ja/posts/what-to-keep-in-a-short-post/" aria-current="true" hreflang="ja">日本語</a>
           <a href="/en/"  hreflang="en">English</a>
         </nav>
-        <button class="theme" id="theme" type="button">テーマ: システム</button>
+        <label class="theme"><span>テーマ</span><select id="theme" autocomplete="off"><option value="system">システムに合わせる</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
+        <label class="theme"><span>配色</span><select id="palette" autocomplete="off"><option value="classic">Classic</option><option value="cyber">Cyber</option><option value="dope">Dope</option><option value="forest">Forest</option><option value="dusk">Dusk</option></select></label>
       </div>
     </div>
     <nav class="sections" aria-label="サイト"><a href="/ja/">ホーム</a><a href="/ja/posts/" aria-current="page">記事</a><a href="/ja/archive/2026/09/">アーカイブ</a><a href="/ja/topics/protobuf/">トピック</a><a href="/ja/search/">検索</a><a href="/ja/about/">About</a></nav>
@@ -35,7 +36,7 @@
     <p class="kicker">2025年12月15日</p>
     <h1 class="article-title">短く書くために残すもの</h1>
     <div class="meta-row"><p class="topics"><a href="/ja/topics/writing/">文章を書く</a></p></div>
-    <p class="translation">英語版はありません。言語を切り替えると英語のホームへ移動します。 <a href="/en/">英語版</a></p>
+    <p class="translation">英語版はありません。言語を切り替えると英語のホームへ移動します。 <a href="/en/">英語のホーム</a></p>
     <details class="toc-mobile"><summary>目次</summary><ol></ol></details>
     <div class="prose">
 <p>短い文章にするために何を削るかではなく、読者に何を持ち帰ってほしいかを考える架空の随筆です。結論を一つに絞り、細部を参照先へ置く方針を説明します。</p>

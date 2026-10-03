@@ -180,7 +180,11 @@ def layout(locale, title, body, current, alt_href, description, self_href=None):
     skip = "本文へ" if locale == "ja" else "Skip to content"
     ja_href = self_href if locale == "ja" else alt_href
     en_href = alt_href if locale == "ja" else self_href
-    theme_label = "システム" if locale == "ja" else "System"
+    theme_name = "テーマ" if locale == "ja" else "Theme"
+    palette_name = "配色" if locale == "ja" else "Palette"
+    mode_system = "システムに合わせる" if locale == "ja" else "Match system"
+    mode_light = "ライト" if locale == "ja" else "Light"
+    mode_dark = "ダーク" if locale == "ja" else "Dark"
     return f"""<!DOCTYPE html>
 <html lang="{lang}">
 <head>
@@ -190,7 +194,7 @@ def layout(locale, title, body, current, alt_href, description, self_href=None):
 <meta name="description" content="{description}">
 <link rel="stylesheet" href="/assets/site.css">
 <script>
-(function(){{try{{var q=new URLSearchParams(location.search).get("theme");var t=q;if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}}catch(e){{}}}})();
+(function(){{try{{var q=new URLSearchParams(location.search);var t=q.get("theme");if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);var palettes={{cyber:1,dope:1,forest:1,dusk:1}};var p=q.get("palette");if(!palettes[p])p=localStorage.getItem("cfgb-palette");if(palettes[p])document.documentElement.setAttribute("data-palette",p);}}catch(e){{}}}})();
 </script>
 </head>
 <body>
@@ -204,7 +208,8 @@ def layout(locale, title, body, current, alt_href, description, self_href=None):
           <a href="{ja_href}" {'aria-current="true"' if locale == 'ja' else ''} hreflang="ja">日本語</a>
           <a href="{en_href}" {'aria-current="true"' if locale == 'en' else ''} hreflang="en">English</a>
         </nav>
-        <button class="theme" id="theme" type="button">{theme_label}</button>
+        <label class="theme"><span>{theme_name}</span><select id="theme" autocomplete="off"><option value="system">{mode_system}</option><option value="light">{mode_light}</option><option value="dark">{mode_dark}</option></select></label>
+        <label class="theme"><span>{palette_name}</span><select id="palette" autocomplete="off"><option value="classic">Classic</option><option value="cyber">Cyber</option><option value="dope">Dope</option><option value="forest">Forest</option><option value="dusk">Dusk</option></select></label>
       </div>
     </div>
     <nav class="sections" aria-label="{'サイト' if locale == 'ja' else 'Site'}">{''.join(nav)}</nav>
@@ -272,10 +277,14 @@ def code_block(filename, rows):
     return f"""<figure class="code"><figcaption><span>{filename}</span><button class="copy" type="button">コピー</button></figcaption><pre><code>{''.join(body)}</code></pre></figure>"""
 
 
+WRITTEN = set()
+
+
 def write(rel, html):
     path = ROOT / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(html, encoding="utf-8")
+    WRITTEN.add(rel)
 
 
 def main():
@@ -534,7 +543,7 @@ def main():
     # Short pages so list links resolve.
     for post in POSTS:
         rel = post["url"].strip("/") + "/index.html"
-        if (ROOT / rel).exists():
+        if rel in WRITTEN:
             continue
         write(rel, article_page(post, f'<p>{post["summary"]}</p>', "<ol></ol>"))
 

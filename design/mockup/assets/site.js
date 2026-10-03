@@ -1,43 +1,64 @@
-/* Theme, code copy, and table-of-contents highlight for the visual mockup. */
+/* Theme, palette, code copy, and table-of-contents highlight for the visual mockup. */
 (function () {
   var root = document.documentElement;
   root.classList.add("js");
-  var key = "cfgb-theme";
-  var order = ["system", "light", "dark"];
+  var themeKey = "cfgb-theme";
+  var paletteKey = "cfgb-palette";
+  var modes = { system: 1, light: 1, dark: 1 };
+  var palettes = { classic: 1, cyber: 1, dope: 1, forest: 1, dusk: 1 };
+  var named = { cyber: 1, dope: 1, forest: 1, dusk: 1 };
   var ja = document.documentElement.lang === "ja";
-  var labels = ja
-    ? { system: "システム", light: "明", dark: "暗" }
-    : { system: "System", light: "Light", dark: "Dark" };
   var copyLabel = ja ? "コピー" : "Copy";
   var copiedLabel = ja ? "コピーしました" : "Copied";
 
-  function current() {
+  function currentMode() {
     var attr = root.getAttribute("data-theme");
     if (attr === "light" || attr === "dark") return attr;
     var saved = "system";
-    try { saved = localStorage.getItem(key) || "system"; } catch (e) {}
-    return order.indexOf(saved) === -1 ? "system" : saved;
+    try { saved = localStorage.getItem(themeKey) || "system"; } catch (e) {}
+    return modes[saved] ? saved : "system";
   }
 
-  function apply(mode) {
+  function currentPalette() {
+    var attr = root.getAttribute("data-palette");
+    if (named[attr]) return attr;
+    var saved = "classic";
+    try { saved = localStorage.getItem(paletteKey) || "classic"; } catch (e) {}
+    return palettes[saved] ? saved : "classic";
+  }
+
+  function applyMode(mode) {
     if (mode === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", mode);
-    var button = document.getElementById("theme");
-    if (button) {
-      button.textContent = labels[mode];
-      button.setAttribute("aria-label", (ja ? "テーマ: " : "Theme: ") + labels[mode]);
-      button.setAttribute("aria-pressed", mode === "system" ? "false" : "true");
-    }
+    var select = document.getElementById("theme");
+    if (select) select.value = mode;
   }
 
-  apply(current());
+  function applyPalette(name) {
+    if (named[name]) root.setAttribute("data-palette", name);
+    else root.removeAttribute("data-palette");
+    var select = document.getElementById("palette");
+    if (select) select.value = palettes[name] ? name : "classic";
+  }
 
-  var button = document.getElementById("theme");
-  if (button) {
-    button.addEventListener("click", function () {
-      var next = order[(order.indexOf(current()) + 1) % order.length];
-      try { localStorage.setItem(key, next); } catch (e) {}
-      apply(next);
+  applyMode(currentMode());
+  applyPalette(currentPalette());
+
+  var themeSelect = document.getElementById("theme");
+  if (themeSelect) {
+    themeSelect.addEventListener("change", function () {
+      var next = modes[themeSelect.value] ? themeSelect.value : "system";
+      try { localStorage.setItem(themeKey, next); } catch (e) {}
+      applyMode(next);
+    });
+  }
+
+  var paletteSelect = document.getElementById("palette");
+  if (paletteSelect) {
+    paletteSelect.addEventListener("change", function () {
+      var next = palettes[paletteSelect.value] ? paletteSelect.value : "classic";
+      try { localStorage.setItem(paletteKey, next); } catch (e) {}
+      applyPalette(next);
     });
   }
 

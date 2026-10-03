@@ -7,7 +7,7 @@
 <meta name="description" content="A fictional event-processing design separates delivery attempts from application success, so a retry does not pretend the work happened twice.">
 <link rel="stylesheet" href="/assets/site.css">
 <script>
-(function(){try{var t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get("theme");if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);var palettes={cyber:1,dope:1,forest:1,dusk:1};var p=q.get("palette");if(!palettes[p])p=localStorage.getItem("cfgb-palette");if(palettes[p])document.documentElement.setAttribute("data-palette",p);}catch(e){}})();
 </script>
 </head>
 <body>
@@ -21,7 +21,8 @@
           <a href="/ja/"  hreflang="ja">日本語</a>
           <a href="/en/posts/retries-and-events/" aria-current="true" hreflang="en">English</a>
         </nav>
-        <button class="theme" id="theme" type="button">Theme: system</button>
+        <label class="theme"><span>Theme</span><select id="theme" autocomplete="off"><option value="system">Match system</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+        <label class="theme"><span>Palette</span><select id="palette" autocomplete="off"><option value="classic">Classic</option><option value="cyber">Cyber</option><option value="dope">Dope</option><option value="forest">Forest</option><option value="dusk">Dusk</option></select></label>
       </div>
     </div>
     <nav class="sections" aria-label="Site"><a href="/en/">Home</a><a href="/en/posts/" aria-current="page">Posts</a><a href="/en/archive/2026/09/">Archive</a><a href="/en/topics/protobuf/">Topics</a><a href="/en/search/">Search</a><a href="/en/about/">About</a></nav>
@@ -35,7 +36,7 @@
     <p class="kicker">23 Sep 2026</p>
     <h1 class="article-title">Retries and event processing</h1>
     <div class="meta-row"><p class="topics"><a href="/en/topics/software-engineering/">Software Engineering</a></p></div>
-    <p class="translation">No Japanese version. Switching language opens the Japanese home. <a href="/ja/">Other language</a></p>
+    <p class="translation">No Japanese version. Switching language opens the Japanese home. <a href="/ja/">Japanese home</a></p>
     <details class="toc-mobile"><summary>Contents</summary><ol></ol></details>
     <div class="prose">
 <p>A fictional event-processing design separates delivery attempts from application success, so a retry does not pretend the work happened twice.</p>

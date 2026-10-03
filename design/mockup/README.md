@@ -28,7 +28,7 @@ Open `http://127.0.0.1:4173/ja/`.
 | Search | `/ja/search/` |
 | About | `/ja/about/` |
 
-The header theme control cycles system, light, and dark. It stores the choice in `localStorage` under `cfgb-theme` and applies it before paint. Add `?theme=dark` or `?theme=light` to open a page in that theme. With JavaScript disabled, the page follows the system theme, the diagram source stays visible, and the table of contents remains a list of links.
+The header has two dropdowns. **テーマ** / **Theme** chooses system, light, or dark. The label stays visible, so the control is not a bare “システム” or “System”. **配色** / **Palette** chooses Classic, Cyber, Dope, Forest, or Dusk. Classic is the warm paper palette. The others are separate color systems, each with a light and a dark pair. Choices are stored in `localStorage` under `cfgb-theme` and `cfgb-palette` and applied before paint. Add `?theme=dark` or `?theme=light`, and `?palette=cyber` (or `dope`, `forest`, `dusk`), to open a page that way. With JavaScript disabled, the page follows the system theme in Classic, the diagram source stays visible, and the table of contents remains a list of links. These palettes are for appearance review. The production theme contract is still system, light, and dark.
 
 Regenerate the HTML after editing `render.py`. The script copies `bars.png` and `schema.svg` from the example corpus when that checkout is available.
 
@@ -38,6 +38,6 @@ Article prose uses a Japanese mincho: Hiragino Mincho, Yu Mincho, then Noto Seri
 
 The reading column is 40rem. On a desktop article the table of contents is a 15rem sticky column; below 860px it becomes a disclosure above the body. The page padding is 1.25rem. Home and list pages keep the same column rather than stretching summaries across the viewport. Vertical rhythm is about 1.15–1.8 inside prose, with section headings separated by roughly 2rem.
 
-The header is the site name, a Japanese/English switch, and the theme control, then a second row of section links. The current language stays on this page. The other language opens the paired article when one exists, and that locale’s home when it does not. An untranslated article says so in the translation note.
+The header is the site name, a Japanese/English switch, and the theme and palette dropdowns, then a second row of section links. The current language stays on this page. The other language opens the paired article when one exists, and that locale’s home when it does not. An untranslated article says so in the translation note.
 
-The palette is warm paper and ink, with a copper link color. Dark theme uses the same structure and a lighter copper, not a separate layout. Code marks are a background band plus an underline on the marked token. Alerts are a left rule and a label, not filled boxes. Diagrams use `currentColor` so the text stays visible in both themes.
+Classic is warm paper and ink, with a copper link color. Cyber is phosphor and magenta. Dope is peach, crimson, and acid yellow. Forest is sage paper with a persimmon link. Dusk is lilac and violet. Dark mode keeps the same structure and swaps in that palette’s dark pair. Code marks are a background band plus an underline on the marked token. Alerts are a left rule and a label, not filled boxes. Diagrams use `currentColor` so the text stays visible in both themes.

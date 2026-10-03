@@ -10,7 +10,9 @@ Baseline reviewed before this work:
 
 ## M0-A — visual mockup
 
-Browsable static prototype in `design/mockup/`. Search results are labeled mock data. The owner has not reviewed it yet. The production renderer does not exist, so this direction is not yet copied into Astro.
+Browsable static prototype in `design/mockup/`. Search results are labeled mock data. The owner has not accepted a visual direction yet. The production renderer does not exist, so this direction is not yet copied into Astro.
+
+The header theme control is a dropdown labeled テーマ / Theme (system, light, dark). A second dropdown, 配色 / Palette, offers Classic, Cyber, Dope, Forest, and Dusk so the copper-on-paper look is not the only review option. Palettes are mockup-only. The production theme contract remains system, light, and dark.
 
 ## M0-B — token handoff
 

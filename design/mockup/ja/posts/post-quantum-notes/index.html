@@ -7,7 +7,7 @@
 <meta name="description" content="耐量子暗号を学ぶときに、鍵共有とデータ暗号化を区別するための短いメモです。量子コンピュータ、ML-KEM、ハイブリッド方式という検索語を含め、技術用語を日本語で探せるかを確認するサンプルです。">
 <link rel="stylesheet" href="/assets/site.css">
 <script>
-(function(){try{var q=new URLSearchParams(location.search).get("theme");var t=q;if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get("theme");if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);var palettes={cyber:1,dope:1,forest:1,dusk:1};var p=q.get("palette");if(!palettes[p])p=localStorage.getItem("cfgb-palette");if(palettes[p])document.documentElement.setAttribute("data-palette",p);}catch(e){}})();
 </script>
 </head>
 <body>
@@ -21,7 +21,8 @@
           <a href="/ja/posts/post-quantum-notes/" aria-current="true" hreflang="ja">日本語</a>
           <a href="/en/"  hreflang="en">English</a>
         </nav>
-        <button class="theme" id="theme" type="button">システム</button>
+        <label class="theme"><span>テーマ</span><select id="theme" autocomplete="off"><option value="system">システムに合わせる</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
+        <label class="theme"><span>配色</span><select id="palette" autocomplete="off"><option value="classic">Classic</option><option value="cyber">Cyber</option><option value="dope">Dope</option><option value="forest">Forest</option><option value="dusk">Dusk</option></select></label>
       </div>
     </div>
     <nav class="sections" aria-label="サイト"><a href="/ja/">ホーム</a><a href="/ja/posts/" aria-current="page">記事</a><a href="/ja/archive/2026/09/">アーカイブ</a><a href="/ja/topics/protobuf/">トピック</a><a href="/ja/search/">検索</a><a href="/ja/about/">About</a></nav>

@@ -7,7 +7,7 @@
 <meta name="description" content="Read a small Protocol Buffers message, identify field numbers, and follow type references. The English slug differs from the Japanese article in the same group.">
 <link rel="stylesheet" href="/assets/site.css">
 <script>
-(function(){try{var q=new URLSearchParams(location.search).get("theme");var t=q;if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+(function(){try{var q=new URLSearchParams(location.search);var t=q.get("theme");if(t!=="light"&&t!=="dark")t=localStorage.getItem("cfgb-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);var palettes={cyber:1,dope:1,forest:1,dusk:1};var p=q.get("palette");if(!palettes[p])p=localStorage.getItem("cfgb-palette");if(palettes[p])document.documentElement.setAttribute("data-palette",p);}catch(e){}})();
 </script>
 </head>
 <body>
@@ -21,7 +21,8 @@
           <a href="/ja/posts/protobuf-schema-guide/"  hreflang="ja">日本語</a>
           <a href="/en/posts/reading-protobuf-schemas/" aria-current="true" hreflang="en">English</a>
         </nav>
-        <button class="theme" id="theme" type="button">System</button>
+        <label class="theme"><span>Theme</span><select id="theme" autocomplete="off"><option value="system">Match system</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+        <label class="theme"><span>Palette</span><select id="palette" autocomplete="off"><option value="classic">Classic</option><option value="cyber">Cyber</option><option value="dope">Dope</option><option value="forest">Forest</option><option value="dusk">Dusk</option></select></label>
       </div>
     </div>
     <nav class="sections" aria-label="Site"><a href="/en/">Home</a><a href="/en/posts/" aria-current="page">Posts</a><a href="/en/archive/2026/09/">Archive</a><a href="/en/topics/protobuf/">Topics</a><a href="/en/search/">Search</a><a href="/en/about/">About</a></nav>
