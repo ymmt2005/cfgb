@@ -135,12 +135,13 @@ function headers() {
   // pagefind/pagefind-worker.js. script-src therefore includes
   // 'wasm-unsafe-eval'. That release does not create a blob worker, so the
   // script-src fallback covers the worker and blob: is not required.
+  // img-src includes https: because remote article images stay external.
   return `/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'
 `;
 }
 

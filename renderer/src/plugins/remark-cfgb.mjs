@@ -178,7 +178,7 @@ function rewriteLink(url, source, byFile) {
 
 function rewriteImage(url, source) {
   if (!url.startsWith("./assets/") || !source) return url;
-  const match = source.match(/posts\/(\d{4})\/([^/]+)\/[^/]+\.md$/);
+  const match = source.replaceAll("\\", "/").match(/posts\/(\d{4})\/([^/]+)\/[^/]+\.md$/);
   if (!match) return url;
   const name = url.slice("./assets/".length);
   return `/media/${match[1]}/${match[2]}/${name.split("/").map(encodeURIComponent).join("/")}`;

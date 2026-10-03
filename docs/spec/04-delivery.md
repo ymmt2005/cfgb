@@ -238,7 +238,8 @@ same-site aliases. Worker redirects/errors set their own headers; static
 `_headers` does not apply to them. Set nosniff, strict-origin-when-cross-origin,
 DENY framing and disabled camera/microphone/geolocation. Apply a CSP consistent with local fonts,
 assets, code-copy, Pagefind and Mermaid behavior; no content-time remote scripts
-or fonts. Specify permitted inline-script/style handling during renderer
+or fonts. Image sources are the site itself, data URLs, and HTTPS, so a remote
+article image that the build does not fetch can still load. Specify permitted inline-script/style handling during renderer
 implementation, prefer generated script hashes, and test both themes, keyboard
 access and no-JS fallbacks. No tracking cookies or analytics by default; analytics
 is a future explicit opt-in.

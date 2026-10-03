@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	cfgb "github.com/ymmt2005/cfgb"
@@ -209,6 +211,9 @@ func checkToolchain(req requirements) (toolchainCheck, error) {
 	if err != nil {
 		return tc, fmt.Errorf("node is required (%s)", req.NodeRange)
 	}
+	if _, err := parseSemver(node); err != nil {
+		return tc, fmt.Errorf("node version %q is not a valid semantic version", node)
+	}
 	if !nodeInRange(node, req.NodeRange) {
 		return tc, fmt.Errorf("node %s is outside %s", node, req.NodeRange)
 	}
@@ -225,8 +230,8 @@ func checkToolchain(req requirements) (toolchainCheck, error) {
 			return tc, fmt.Errorf("npm >= %s is required (tested %s)", minimumNpmVersion, req.NpmVersion)
 		}
 		npm = strings.TrimPrefix(npm, "v")
-		if compareVersion(npm, minimumNpmVersion) < 0 {
-			return tc, fmt.Errorf("npm >= %s is required (tested %s), found %s", minimumNpmVersion, req.NpmVersion, npm)
+		if err := requireMinimumVersion("npm", npm, minimumNpmVersion, req.NpmVersion); err != nil {
+			return tc, err
 		}
 		tc.NpmVersion = npm
 	case "pnpm":
@@ -235,8 +240,8 @@ func checkToolchain(req requirements) (toolchainCheck, error) {
 			return tc, fmt.Errorf("pnpm >= %s is required (tested %s)", minimumPnpmVersion, req.PnpmVersion)
 		}
 		pnpm = strings.TrimPrefix(pnpm, "v")
-		if compareVersion(pnpm, minimumPnpmVersion) < 0 {
-			return tc, fmt.Errorf("pnpm >= %s is required (tested %s), found %s", minimumPnpmVersion, req.PnpmVersion, pnpm)
+		if err := requireMinimumVersion("pnpm", pnpm, minimumPnpmVersion, req.PnpmVersion); err != nil {
+			return tc, err
 		}
 		tc.PnpmVersion = pnpm
 	}
@@ -285,6 +290,21 @@ func renderSite(dir string, stdout, stderr io.Writer, extra []string, tc toolcha
 	return nil
 }
 
+func requireMinimumVersion(tool, found, minimum, tested string) error {
+	parsed, err := parseSemver(found)
+	if err != nil {
+		return fmt.Errorf("%s version %q is not a valid semantic version", tool, found)
+	}
+	floor, err := parseSemver(minimum)
+	if err != nil {
+		return err
+	}
+	if compareSemver(parsed, floor) < 0 {
+		return fmt.Errorf("%s >= %s is required (tested %s), found %s", tool, minimum, tested, found)
+	}
+	return nil
+}
+
 func nodeInRange(version, constraint string) bool {
 	for _, clause := range strings.Split(constraint, "||") {
 		if nodeMatchesClause(version, strings.TrimSpace(clause)) {
@@ -295,58 +315,222 @@ func nodeInRange(version, constraint string) bool {
 }
 
 func nodeMatchesClause(version, clause string) bool {
+	parsed, err := parseSemver(version)
+	if err != nil {
+		return false
+	}
 	parts := strings.Fields(clause)
 	if len(parts) == 0 {
 		return false
 	}
+	bounds := make([]semverBound, 0, len(parts))
 	for _, part := range parts {
-		switch {
-		case strings.HasPrefix(part, ">="):
-			if compareVersion(version, strings.TrimPrefix(part, ">=")) < 0 {
-				return false
-			}
-		case strings.HasPrefix(part, "<="):
-			if compareVersion(version, strings.TrimPrefix(part, "<=")) > 0 {
-				return false
-			}
-		case strings.HasPrefix(part, ">"):
-			if compareVersion(version, strings.TrimPrefix(part, ">")) <= 0 {
-				return false
-			}
-		case strings.HasPrefix(part, "<"):
-			if compareVersion(version, strings.TrimPrefix(part, "<")) >= 0 {
-				return false
-			}
-		default:
+		op, raw, ok := splitComparator(part)
+		if !ok {
+			return false
+		}
+		bound, err := parseBound(raw)
+		if err != nil {
+			return false
+		}
+		bounds = append(bounds, semverBound{op: op, version: bound})
+	}
+	if !stableRangeAllows(parsed, bounds) {
+		return false
+	}
+	for _, bound := range bounds {
+		if !compareOp(parsed, bound.op, bound.version) {
 			return false
 		}
 	}
 	return true
 }
 
-func compareVersion(left, right string) int {
-	lp := parseVersion(left)
-	rp := parseVersion(right)
-	for i := 0; i < 3; i++ {
-		if lp[i] != rp[i] {
-			if lp[i] < rp[i] {
-				return -1
-			}
-			return 1
+func splitComparator(part string) (string, string, bool) {
+	switch {
+	case strings.HasPrefix(part, ">="):
+		return ">=", strings.TrimPrefix(part, ">="), true
+	case strings.HasPrefix(part, "<="):
+		return "<=", strings.TrimPrefix(part, "<="), true
+	case strings.HasPrefix(part, ">"):
+		return ">", strings.TrimPrefix(part, ">"), true
+	case strings.HasPrefix(part, "<"):
+		return "<", strings.TrimPrefix(part, "<"), true
+	default:
+		return "", "", false
+	}
+}
+
+func compareOp(version semver, op string, bound semver) bool {
+	cmp := compareSemver(version, bound)
+	switch op {
+	case ">=":
+		return cmp >= 0
+	case "<=":
+		return cmp <= 0
+	case ">":
+		return cmp > 0
+	case "<":
+		return cmp < 0
+	default:
+		return false
+	}
+}
+
+// stableRangeAllows keeps a prerelease out of a range whose comparators are
+// stable releases. A prerelease matches only when one comparator names a
+// prerelease of that same major.minor.patch.
+func stableRangeAllows(version semver, bounds []semverBound) bool {
+	if len(version.pre) == 0 {
+		return true
+	}
+	for _, bound := range bounds {
+		if len(bound.version.pre) > 0 &&
+			bound.version.major == version.major &&
+			bound.version.minor == version.minor &&
+			bound.version.patch == version.patch {
+			return true
 		}
+	}
+	return false
+}
+
+type semverBound struct {
+	op      string
+	version semver
+}
+
+type semver struct {
+	major, minor, patch int
+	pre                 []preIdent
+}
+
+type preIdent struct {
+	numeric bool
+	number  int
+	text    string
+}
+
+var (
+	semverPattern = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
+	numericIdent  = regexp.MustCompile(`^(0|[1-9]\d*)$`)
+	partialBound  = regexp.MustCompile(`^(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?$`)
+)
+
+func parseSemver(value string) (semver, error) {
+	match := semverPattern.FindStringSubmatch(value)
+	if match == nil {
+		return semver{}, fmt.Errorf("invalid semantic version %q", value)
+	}
+	major, err := strconv.Atoi(match[1])
+	if err != nil {
+		return semver{}, fmt.Errorf("invalid semantic version %q", value)
+	}
+	minor, err := strconv.Atoi(match[2])
+	if err != nil {
+		return semver{}, fmt.Errorf("invalid semantic version %q", value)
+	}
+	patch, err := strconv.Atoi(match[3])
+	if err != nil {
+		return semver{}, fmt.Errorf("invalid semantic version %q", value)
+	}
+	var pre []preIdent
+	if match[4] != "" {
+		for _, part := range strings.Split(match[4], ".") {
+			if numericIdent.MatchString(part) {
+				number, err := strconv.Atoi(part)
+				if err != nil {
+					return semver{}, fmt.Errorf("invalid semantic version %q", value)
+				}
+				pre = append(pre, preIdent{numeric: true, number: number})
+				continue
+			}
+			pre = append(pre, preIdent{text: part})
+		}
+	}
+	return semver{major: major, minor: minor, patch: patch, pre: pre}, nil
+}
+
+// parseBound accepts a full semantic version, or a major / major.minor floor
+// used by the embedded node range, such as "<25".
+func parseBound(value string) (semver, error) {
+	if parsed, err := parseSemver(value); err == nil {
+		return parsed, nil
+	}
+	if !partialBound.MatchString(value) {
+		return semver{}, fmt.Errorf("invalid version bound %q", value)
+	}
+	padded := value
+	switch strings.Count(value, ".") {
+	case 0:
+		padded += ".0.0"
+	case 1:
+		padded += ".0"
+	}
+	return parseSemver(padded)
+}
+
+func compareSemver(left, right semver) int {
+	if cmp := compareInt(left.major, right.major); cmp != 0 {
+		return cmp
+	}
+	if cmp := compareInt(left.minor, right.minor); cmp != 0 {
+		return cmp
+	}
+	if cmp := compareInt(left.patch, right.patch); cmp != 0 {
+		return cmp
+	}
+	return comparePre(left.pre, right.pre)
+}
+
+func compareInt(left, right int) int {
+	if left < right {
+		return -1
+	}
+	if left > right {
+		return 1
 	}
 	return 0
 }
 
-func parseVersion(value string) [3]int {
-	var out [3]int
-	for i, part := range strings.Split(value, ".") {
-		if i > 2 {
-			break
-		}
-		fmt.Sscanf(part, "%d", &out[i])
+func comparePre(left, right []preIdent) int {
+	if len(left) == 0 && len(right) == 0 {
+		return 0
 	}
-	return out
+	if len(left) == 0 {
+		return 1
+	}
+	if len(right) == 0 {
+		return -1
+	}
+	n := len(left)
+	if len(right) < n {
+		n = len(right)
+	}
+	for i := 0; i < n; i++ {
+		if cmp := compareIdent(left[i], right[i]); cmp != 0 {
+			return cmp
+		}
+	}
+	return compareInt(len(left), len(right))
+}
+
+func compareIdent(left, right preIdent) int {
+	switch {
+	case left.numeric && right.numeric:
+		return compareInt(left.number, right.number)
+	case left.numeric:
+		return -1
+	case right.numeric:
+		return 1
+	}
+	if left.text < right.text {
+		return -1
+	}
+	if left.text > right.text {
+		return 1
+	}
+	return 0
 }
 
 // newWorkspace creates this invocation's toolchain directory. MkdirTemp uses

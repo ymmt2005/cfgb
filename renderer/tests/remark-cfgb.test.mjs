@@ -215,3 +215,70 @@ test("markdown parsing keeps rewritten anchor labels inside the anchor", async (
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("asset paths rewrite when the source path uses Windows separators", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "cfgb-remark-win-"));
+  try {
+    const source = path.join(dir, "content", "posts", "2026", "article-key");
+    mkdirSync(source, { recursive: true });
+    const sourceFile = path.join(source, "en.md");
+    writeFileSync(sourceFile, "Body\n");
+    mkdirSync(path.join(dir, "linkcards"));
+    const metadataPath = path.join(dir, "metadata.json");
+    writeFileSync(
+      metadataPath,
+      JSON.stringify({
+        topics: {},
+        posts: [
+          {
+            id: "posts/2026/article-key/en",
+            file: sourceFile,
+            body: "Body\n",
+            group: "2026/article-key",
+            year: "2026",
+            articleKey: "article-key",
+            locale: "en",
+            data: {
+              title: "Assets",
+              slug: "assets",
+              publishedAt: "2026-09-20T09:00:00+09:00",
+              topics: [],
+            },
+          },
+        ],
+        prose: [],
+      }),
+    );
+    const sitePath = path.join(dir, "site.json");
+    writeFileSync(
+      sitePath,
+      JSON.stringify({
+        title: "Example",
+        baseUrl: "https://example.invalid",
+        defaultLocale: "en",
+        timezone: "UTC",
+        locales: { en: { label: "English" } },
+        contentRoot: path.join(dir, "content"),
+        topicsFile: path.join(dir, "topics.yaml"),
+        linkcardsDir: path.join(dir, "linkcards"),
+        metadataFile: metadataPath,
+        latestPosts: 5,
+      }),
+    );
+    process.env.CFGB_SITE_JSON = sitePath;
+    resetSiteCache();
+    const tree = {
+      type: "root",
+      children: [
+        { type: "image", url: "./assets/diagram.png", alt: "Diagram" },
+        { type: "image", url: "./assets/figures/one.png", alt: "One" },
+      ],
+    };
+    const windowsPath = ["C:", "content", "posts", "2026", "article-key", "en.md"].join("\\");
+    remarkCfgb()(tree, { path: windowsPath });
+    assert.equal(tree.children[0].url, "/media/2026/article-key/diagram.png");
+    assert.equal(tree.children[1].url, "/media/2026/article-key/figures/one.png");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

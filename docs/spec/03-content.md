@@ -144,7 +144,8 @@ system mode, which has no `data-theme` attribute, keeps the library's
 local Mermaid bundle only when a page contains diagrams; use `securityLevel:
 strict`. Keep original source in a no-JS fallback; hide it only after successful
 rendering. Invalid Mermaid keeps source with a useful error, not blank content.
-Re-render from original source on theme change; serialize renders to avoid races.
+Re-render from original source on theme change, including a system color-scheme
+change while the page remains in system mode; serialize renders to avoid races.
 
 Theme states are system/light/dark. The color palette is specified only in
 `cfgb.yaml`, not by a visitor control and not by a content file. Store explicit choice locally, handle storage

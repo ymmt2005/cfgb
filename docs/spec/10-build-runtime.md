@@ -109,7 +109,11 @@ dependency install, `build` checks the actual Node runtime against the embedded
 `nodeRange` and requires the actual npm to be >= 12.0.0. npm 11 and older still
 run those scripts by default, so they fail `E_TOOLCHAIN`. The check does not
 require an exact npm patch, and it does not trust environment-variable values as
-proof of the installed versions. Workers Builds uses `NODE_VERSION` to provision
+proof of the installed versions. Observed Node, npm, and pnpm strings must be
+valid semantic versions. Comparison uses semantic version precedence, so a
+prerelease is lower than the same numbered release and does not satisfy a
+stable range. Malformed output, including a numeric prefix with trailing junk,
+is rejected before the range is applied. Workers Builds uses `NODE_VERSION` to provision
 Node 24.15.0 or newer on the Node 24 line, or Node 26.0.0 or newer. Node 25 is
 outside npm 12's supported engines. Node 24 (Krypton) is the tested Active LTS
 release. Node 26 and newer are accepted. These releases bundle npm 11, so the

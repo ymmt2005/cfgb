@@ -144,6 +144,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 <script is:inline src="/assets/site.js"></script>
 <script>
   import { createThemeQueue } from "../lib/theme-queue.mjs";
+  import { watchSystemTheme } from "../lib/system-theme.mjs";
   const blocks = document.querySelectorAll("pre.mermaid");
   const requestDraw = createThemeQueue(async (current) => {
     if (!blocks.length || !current()) return;
@@ -175,6 +176,11 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
   });
   requestDraw();
   document.addEventListener("cfgb-theme", () => { requestDraw(); });
+  watchSystemTheme(
+    window.matchMedia("(prefers-color-scheme: dark)"),
+    () => !document.documentElement.hasAttribute("data-theme"),
+    requestDraw,
+  );
 </script>
 </body>
 </html>
