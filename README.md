@@ -1,4 +1,4 @@
-# CFGB — Cloudflare Git-based Blog
+# CFGB — Git-based Blog on Cloudflare
 
 A Git-native publishing system for multilingual technical blogs on Cloudflare.
 CFGB is an independent open-source project and is not affiliated with Cloudflare,
@@ -35,3 +35,8 @@ The personal reference site will use `https://ymmt2005.dev`. The reusable exampl
 uses a reserved origin so its metadata cannot impersonate the real site. No
 account resources, credentials, active deployment workflows or executable CLI
 implementation are included at this stage.
+
+## License
+
+This project, including its documentation, schemas and prompt specifications,
+is licensed under the [Apache License, Version 2.0](LICENSE).
