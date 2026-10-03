@@ -1,0 +1,23 @@
+# Primary-source references
+
+Reviewed on 2026-10-03. Specifications above are CFGB design choices. These sources
+support platform integration points; exact dependency versions must be verified
+when implementation begins and pinned in that repository.
+
+- [Astro Markdown](https://docs.astro.build/en/guides/markdown-content/): Markdown pipeline and heading information.
+- [Expressive Code installation](https://expressive-code.com/installation/): Astro integration; code rendering remains a site responsibility.
+- [VS Code Markdown](https://code.visualstudio.com/docs/languages/markdown): paste/drop destination configuration. Cursor compatibility requires a manual check.
+- [Pagefind multilingual search](https://pagefind.app/docs/multilingual/): language-specific indexes and Extended support for Japanese.
+- [Pagefind API](https://pagefind.app/docs/api/): real result-data retrieval for search acceptance.
+- [Workers Builds branches](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/): production versus Preview builds and current preview command.
+- [Worker Previews](https://developers.cloudflare.com/workers/previews/): branch/deployment URLs; previews are public unless Access protects them.
+- [Static Assets Worker routing](https://developers.cloudflare.com/workers/static-assets/routing/worker-script/): selective Worker-first routing and ASSETS binding.
+- [Static Assets headers](https://developers.cloudflare.com/workers/static-assets/headers/): static `_headers`; Worker responses need their own headers.
+- [Static Assets redirects](https://developers.cloudflare.com/workers/static-assets/redirects/): `_redirects` for same-site aliases.
+- [GitHub token behavior](https://docs.github.com/en/actions/concepts/security/github_token): do not assume token-generated activity reruns checks without approval.
+- [AI Gateway compatibility API](https://developers.cloudflare.com/ai-gateway/usage/chat-completion/): endpoint and authentication modes; not a recommendation of any listed model.
+- [Hatena AtomPub](https://developer.hatena.ne.jp/ja/documents/blog/apis/atom/): original content types, formatted HTML, pagination and remote editing API.
+
+No current price, model quality, hosting quota or cross-version compatibility is
+assumed by the corpus. This repository intentionally does not include a pretend
+working deployment configuration with unverified account-specific values.

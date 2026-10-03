@@ -1,0 +1,67 @@
+# Acceptance and fixture guide
+
+The documents define the desired behavior. The example corpus is acceptance data, not a CLI or renderer implementation.
+Initial preparation checks only its structural and referential integrity.
+
+| Gate | Evidence / fixture | Implementing component |
+| --- | --- | --- |
+| Japanese/English Markdown authoring | Positive articles, home, about | CLI + renderer |
+| Single-language and translated groups | `tests/expected/articles.json` | Discovery + routing |
+| Different locale slugs / shared images | Protobuf group | Renderer |
+| Full Markdown, alerts, code marks, footnotes | Markdown showcase | Renderer visual/browser tests |
+| TOC and no-JS fallback | H2/H3, duplicate headings, Mermaid | Browser tests |
+| Paste/drop colocates originals | `.vscode/settings.json` | VS Code and Cursor manual check |
+| Image warnings and local-path isolation | Negative cases + asset inventory | CLI |
+| Cached link card / missing cache fallback | Protobuf URL and IANA URL | CLI + renderer |
+| Monthly ordering and timezone boundary | 2025 and 2026 groups; UTC boundary article | Renderer |
+| Topic IDs and labels | `src/data/topics.yaml` | CLI + renderer |
+| All static routes, aliases and collisions | Golden route/alias files, mutations | CLI + renderer |
+| Local links and fragment resolution | Cross-article/HTML/reference links | Shared renderer manifest + CLI |
+| 20–30 search cases | `tests/search/queries.yaml` (24 queries) | Actual Pagefind browser search |
+| Locale isolation and filters | Each query has locale; topic/year cases | Pagefind |
+| SEO, RSS, OG and sitemap | Locale pairs + explicit/fallback OG | Renderer integration tests |
+| AI lifecycle and human edit preservation | `tests/ai/lifecycle.json` | CLI with fake provider |
+| AI quality and provider selection | `tests/ai/summary-corpus.yaml` | Live evaluation + human review |
+| No runtime/build-time AI/content fetching | Network-denied build after installation | Site build |
+| PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
+| Private preview on every exposed host | Anonymous denied / authorized successful | Cloudflare integration |
+| Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
+| Two-blog import and syntax inventory | Synthetic Atom exports | Importer |
+| Complete map before link rewriting | Migration expected map and forward link | Importer |
+| Pairing approval and asset deduplication | Migration pairing/category/asset decisions | Importer |
+| Rerun and conflicts | `tests/fixtures/hatena/cases.json` | Importer |
+| Independent tool/site versions | Config schema + pinned corpus commit | CLI/release management |
+
+## Test execution levels
+
+1. Corpus preparation: verify schema validity, routes, links, asset references,
+   target hashes and summary lifecycle expectations with temporary tooling. Do not
+   treat this as implementation acceptance.
+2. During CLI implementation: copy each mutation onto a fresh positive tree, run
+   the real `cfgb validate` in the specified mode, and require the expected error
+   code. Keep fixtures out of normal content discovery. Do not compare full English
+   diagnostics; additional independent diagnostics are permitted.
+3. During site implementation: render all positives, inspect desktop/mobile in
+   both themes and with JS disabled. Assert no unexpected remote requests. Check
+   code-copy keyboard behavior and accessible diagrams/TOC. Validate XML and HTML
+   metadata and all emitted internal URLs/anchors.
+4. Search: serve the actual built output, open `/<locale>/search/`, run each query
+   through Pagefind and materialize result data. Assert expected canonical URLs
+   appear within topK, unexpected locale URLs do not appear, and filters work.
+   Token presence in source is not a search test. Add 20–30 real-article Japanese
+   queries after Hatena import; do not replace them with synthetic easy matches.
+5. Delivery/import: execute integration tests in disposable branches/environments
+   with controlled HTTP/fake-provider responses. Never use actual old-site writes
+   to test idempotence.
+
+Required extra failure tests in the tool: DNS rebinding/mixed A+AAAA/redirect SSRF,
+YAML duplicate keys, symlink escapes, network timeout/429/retry budgets, invalid AI
+responses, stale PR heads, failures between paired file writes, public preview
+alternate hostname, Atom pagination loops, duplicate IDs, XML external entities,
+unsupported Hatena syntax, ambiguous heading fragments and cross-locale aliases.
+
+For acceptance, all original v1 outcomes remain required: Markdown-only authoring,
+image paste, rich rendering/code/TOC, private PR previews, main publication,
+Japanese and locale-specific search, reciprocal translations, automatic lists/
+archives/topics/feed/SEO, reviewed AI summaries, deterministic production content,
+Hatena migration and manual-edit protection, and reusable independent tooling.

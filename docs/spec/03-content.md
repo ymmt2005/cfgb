@@ -1,0 +1,125 @@
+# Content, renderer and URL contract
+
+## Identity and frontmatter
+
+Discover only `content.root/posts/<YYYY>/<article-key>/<locale>.md`.
+The pair `<YYYY>/<article-key>` is the logical article identity. Article keys
+match `[a-z0-9]+(-[a-z0-9]+)*`; the initial `YYYY-MM-DD-` prefix is a creation
+convention, not a source of publication dates. Do not rename published groups.
+The filename supplies locale. An article group has one or both enabled locales
+and shared `assets/`; `.cfgb.json` is optional. A stray `fr.md`, nested variant,
+or duplicate locale is an error. Discovery excludes `tests`, docs and examples.
+
+Publication frontmatter requires `title`, `slug`, `publishedAt`, `topics`,
+`summary`; optionally `updatedAt`, `ogImage`, `aliases`. No other keys.
+`slug` is lowercase ASCII letters/digits separated by single hyphens, unique
+within locale. `publishedAt`/`updatedAt` are RFC3339 strings with explicit zone;
+quote them in YAML. `topics` is a nonempty unique array. `summary` is plain text,
+trimmed, without markup or newlines after YAML folding. Titles/summaries are
+escaped in HTML, JSON-LD, XML and attributes. `ogImage` is a local `./assets/`
+image; no remote OG dependency. All paths must remain within the article group.
+
+```yaml
+---
+title: "Protocol Buffers のスキーマを読む"
+slug: protobuf-schema-guide
+publishedAt: "2026-09-19T13:12:40+09:00"
+topics: [protobuf, oss]
+summary: "A human-reviewed summary belongs here."
+ogImage: ./assets/schema.svg
+aliases: [/ja/posts/old-protobuf-guide/]
+---
+```
+
+`home/<locale>.md` and `pages/about/<locale>.md` have no frontmatter in v1;
+their title and routing come from localized layout labels. They are excluded
+from article feeds/search. Their relative assets are scoped to their directory.
+
+## URLs and ordering
+
+Generate `/`, and for each enabled locale:
+`/<locale>/`, `/posts/`, `/posts/<slug>/`, `/archive/`,
+`/archive/<YYYY>/<MM>/`, `/topics/<topic>/`, `/search/`, `/about/`, `/feed.xml`
+(all after the locale prefix). Generate `/sitemap-index.xml` and `/robots.txt`.
+Generate localized `/<locale>/404.html` and bilingual `/404.html` as internal
+fallback assets, not indexable articles. Empty locale archives/home lists remain
+valid. Monthly/topic pages exist only where that locale has matching articles.
+Default lists are unpaginated in v1. Latest = descending publication instant,
+then ascending article key as a deterministic tie break. `updatedAt` never
+reorders publication feeds. Archive year/month and visible dates use site timezone.
+
+An article's URL never depends on directory year, title, or date. Build a single
+route registry before rendering. Aliases are origin-relative paths with a trailing
+slash; reject queries/fragments, encoded separators, dot segments, backslashes,
+`//`, external URLs and wildcard placeholders. V1 permits ASCII path segments
+using letters/digits/hyphens/underscores. Reject alias loops, duplicate aliases,
+canonical collisions, reserved routes and cross-locale aliases. Emit direct 301s
+to current canonical routes (no chains). Hatena URLs are provenance, not aliases.
+
+Global language links target the same article's counterpart if available;
+otherwise target the other locale home. Only real pairs receive an article-level
+translation notice and reciprocal `hreflang`. Each pair member uses its own
+canonical and its own summary/dates. Do not pretend untranslated content has an
+alternate. Other translated page pairs have reciprocal locale links. Root may
+use `x-default`; unpaired articles must not invent a language alternate.
+
+## Markdown and images
+
+Use GFM (tables, task lists, strikeout, autolinks) plus footnotes and GitHub alerts
+NOTE/TIP/IMPORTANT/WARNING/CAUTION. Process Markdown via AST, including reference
+links and raw HTML attributes. Local links to `../other-key/ja.md#heading` resolve
+through the route registry; root-relative internal URLs must also resolve.
+Fragment checks use the renderer's actual heading IDs, including duplicates and
+non-Latin headings. Go validation uses a shared heading-manifest adapter or the
+same algorithm, never an independent guess. Explicit HTML `id` values count too.
+Do not rewrite examples inside code fences. Markdown H1 is reserved for the
+layout title; article body headings begin at H2, TOC includes H2/H3.
+
+Raw HTML is allowed for trusted, reviewed authors. It does not imply arbitrary
+third-party scripts are acceptable; inventory and review migration embeds. Reject
+javascript URLs. No MDX/code execution. Imported inline event handlers, iframes
+and scripts are surfaced as review blockers before publication. Any approved
+embed must be consistent with the final CSP/privacy policy.
+
+Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images
+and supplies dimensions/responsive delivery. External images remain external
+without build-time downloads and appear in migration/privacy reports. Local SVG
+is used as an image, not blindly injected as trusted inline markup. The example
+includes SVG as a precise diagram and PNG as an original lossless raster fixture.
+OG fallback is a build-time PNG with title/branding and a bundled licensed font
+supporting Japanese; browser web fonts are still unnecessary. OG references must
+resolve to a crawler-compatible PNG/JPEG, rasterizing SVG source if necessary.
+
+## Code, diagrams, theme and TOC
+
+Expressive Code + Shiki handles syntax, `title="main.go"`, line/text marks, copy
+buttons and accessible filename frames. One light/dark representation follows
+page theme. Mermaid fences are extracted before code highlighting. Lazy-load a
+local Mermaid bundle only when a page contains diagrams; use `securityLevel:
+strict`. Keep original source in a no-JS fallback; hide it only after successful
+rendering. Invalid Mermaid keeps source with a useful error, not blank content.
+Re-render from original source on theme change; serialize renders to avoid races.
+
+Theme states are system/light/dark. Store explicit choice locally, handle storage
+failure, listen for system changes only in system mode, and set the initial theme
+before paint. TOC is an anchor list without JS, a sticky desktop panel and mobile
+disclosure; IntersectionObserver highlights the current section. Reduced motion,
+keyboard focus, skip link and WCAG AA contrast are required. Static list pages
+may load the small global theme controller; no Mermaid/Pagefind there.
+
+## Search, metadata and feeds
+
+Run Pagefind Extended on built output. Each page has correct `<html lang>`;
+load search only at `/<locale>/search/`, and reinitialize when locale changes.
+Use `data-pagefind-body` only on article content, with metadata for title, summary,
+publication date and topics; filters use stable topic IDs and site-local year.
+Navigation/TOC/footer/copy labels are excluded. Search title must remain searchable
+even if metadata is set outside the body. URL results must be canonical locale
+paths. The checked-in query corpus specifies top-k inclusion, not brittle ranking.
+
+Generate canonical, reciprocal alternates, OpenGraph, Twitter cards, BlogPosting
+JSON-LD, sitemap and RSS. Feed descriptions reuse summaries; no full-body feed is
+required in v1. RSS dates are correctly formatted instants; sitemap includes
+canonical public pages only, excluding search/fallback/alias/preview URLs.
+Use `updatedAt` when present for modification metadata. Escape `</script>` in
+JSON-LD and validate XML. Preview robots deny crawling and emit noindex headers.

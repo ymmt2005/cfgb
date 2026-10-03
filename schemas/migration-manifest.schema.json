@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CFGB v1 migration-manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+          },
+          "locale": {
+            "enum": [
+              "ja",
+              "en"
+            ]
+          },
+          "sourceHash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "articleKey": {
+            "type": "string",
+            "pattern": "^[0-9]{4}/[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "targetUrl": {
+            "type": "string",
+            "pattern": "^/(?:[A-Za-z0-9_-]+/)+$"
+          },
+          "targetHash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "conflict"
+            ]
+          }
+        },
+        "required": [
+          "sourceId",
+          "sourceUrl",
+          "locale",
+          "sourceHash",
+          "articleKey",
+          "targetUrl",
+          "targetHash",
+          "status"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "entries"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CFGB v1 topics",
+  "type": "object",
+  "minProperties": 1,
+  "propertyNames": {
+    "type": "string",
+    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+  },
+  "additionalProperties": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "ja": {
+        "type": "string",
+        "minLength": 1
+      },
+      "en": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": []
+  }
+}
