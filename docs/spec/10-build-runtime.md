@@ -39,18 +39,16 @@ not read from articles or PR-controlled scripts:
 | `PNPM_VERSION` | Optional. A pnpm release >= 11, used only when `CFGB_PACKAGE_MANAGER=pnpm`. The tested release is recorded in `pnpmVersion` |
 | `SKIP_DEPENDENCY_INSTALL` | `1`; CFGB owns dependency installation outside the content checkout |
 
-Each CFGB release publishes `toolchain-requirements.json` and embeds the same
-requirements. Required fields are `schemaVersion: 1`, `nodeRange` (SemVer range),
-`testedNodeVersion` (exact version satisfying that range), `packageManager`
-(`npm`, the default installer), `npmVersion` (tested npm, at least 12.0.0;
-`build` accepts any npm >= 12.0.0), `pnpmVersion` (tested optional pnpm, at least
-11.0.0; `build` accepts any pnpm >= 11.0.0), `wranglerVersion`,
-`workerCompatibilityDate` (tested Workers runtime date in `YYYY-MM-DD` form),
-`rendererVersion`, `lockfileHash` (SHA-256 of embedded `package-lock.json`) and
-`pnpmLockfileHash` (SHA-256 of embedded `pnpm-lock.yaml`). A compatible Node
-range such as `24.x` is illustrative, not an already selected runtime. The actual
-versions are verified when releasing CFGB. Wrangler must meet the Preview minimum
-of 4.135.0.
+The CFGB executable embeds the renderer `package.json`, `package-lock.json`, and
+`pnpm-lock.yaml`, and the build copies those files into the workspace. `engines.node`
+is the Node range. npm >= 12.0.0 and optional pnpm >= 11.0.0 are the installer
+floors. The tested Node, npm, and pnpm releases are `24.21.0`, `12.2.0`, and
+`12.8.1`; the manifest records them. The exact `wrangler` dependency is the
+Wrangler pin, and it must be at least 4.135.0. `workerCompatibilityDate` is the
+Workers runtime date pinned with the Worker source, in `YYYY-MM-DD` form. The
+lockfiles are the dependency pins. A compatible Node range such as `24.x` is
+illustrative, not an already selected runtime. The actual versions are verified
+when releasing CFGB.
 
 The Build command first downloads the pinned binary into a temporary file,
 verifies the independently configured digest, installs it under
@@ -105,8 +103,8 @@ executable bytes from the same exact immutable CFGB release.
 
 Node.js is not pinned by a JavaScript package lockfile. npm >= 12 is the default
 installer because that release makes dependency install scripts opt-in. Before
-dependency install, `build` checks the actual Node runtime against the embedded
-`nodeRange` and requires the actual npm to be >= 12.0.0. npm 11 and older still
+dependency install, `build` checks the actual Node runtime against the renderer's
+`engines.node` and requires the actual npm to be >= 12.0.0. npm 11 and older still
 run those scripts by default, so they fail `E_TOOLCHAIN`. The check does not
 require an exact npm patch, and it does not trust environment-variable values as
 proof of the installed versions. Observed Node, npm, and pnpm strings must be
@@ -195,10 +193,10 @@ a recreated upload session can use another Node version within the recorded
 supported range, while retaining a separate record of that upload runtime. The
 manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `packageManager`
 (the installer this build used), `npmVersion`, `pnpmVersion`, `wranglerVersion`,
-`workerCompatibilityDate`, `rendererVersion`, `lockfileHash`, `pnpmLockfileHash`
-and observed `nodeVersion`, `observedNpmVersion` and `observedPnpmVersion`.
-`lockfileHash` and `pnpmLockfileHash` identify the lockfiles embedded in the
-CFGB release. They are not hashes of site configuration, inputs, or outputs.
+`workerCompatibilityDate`, `rendererVersion`, and observed `nodeVersion`,
+`observedNpmVersion` and `observedPnpmVersion`. `nodeRange` is the renderer's
+`engines.node`. `wranglerVersion` is its exact `wrangler` dependency.
+`workerCompatibilityDate` is the date pinned with the Worker source.
 An npm build records the observed npm version and requires npm >= 12.0.0.
 A pnpm build records the observed pnpm version and requires pnpm >= 11.0.0.
 Observed Wrangler must match its exact required
@@ -207,13 +205,15 @@ used to generate Wrangler configuration. A mismatch fails with `E_ARTIFACT`, exi
 
 ## Generated Wrangler runtime configuration
 
-The CFGB release pins `workerCompatibilityDate` together with its Worker source
-and Wrangler version, and records it in the artifact's toolchain requirements.
-Release testing covers that exact runtime date for production and preview.
-Build/deploy/preview must not derive it from their execution date, the source
+The CFGB release pins `workerCompatibilityDate` with its Worker source and pins
+Wrangler in the renderer package manifest. The artifact records both. Release
+testing covers that exact runtime date for production and preview.
+Build/deploy/preview must not derive the date from their execution date, the source
 commit date or the current platform default. Changing it requires a reviewed,
-tested CFGB release. Missing/invalid embedded requirements fail `E_TOOLCHAIN`,
-exit 2; a mismatching artifact requirement fails `E_ARTIFACT`, exit 1.
+tested CFGB release. A missing `engines.node`, or a Wrangler dependency that is
+not an exact version of at least 4.135.0, fails `E_TOOLCHAIN`, exit 2. An
+artifact whose `workerCompatibilityDate` differs from the release pin fails
+`E_ARTIFACT`, exit 1.
 
 Generate temporary Wrangler configuration for both upload commands with top-level
 `compatibility_date` equal to that pinned value, `workers_dev: false`,

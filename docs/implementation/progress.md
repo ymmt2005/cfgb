@@ -21,9 +21,9 @@ The header controls are dropdowns labeled only テーマ / Theme and 配色 / Pa
 ## M0-C — foundation started
 
 - Go module `github.com/ymmt2005/cfgb`, toolchain Go 1.27.1. `cfgb version` works. Other commands exit 2.
-- Schemas, prompts, and `toolchain-requirements.json` are embedded. `cfgb.yaml` is parsed with `github.com/goccy/go-yaml` `v1.19.2`. Unknown fields still fail.
+- Schemas and prompts are embedded. The renderer package manifest, its lockfiles, and the Worker source are the toolchain pins. `cfgb.yaml` is parsed with `github.com/goccy/go-yaml` `v1.19.2`. Unknown fields still fail.
 - Renderer dependency pin is Astro `7.3.5`, `@astrojs/markdown-remark` `7.3.1`, `@astrojs/sitemap` `3.7.4`, `astro-expressive-code` `0.44.2`, Mermaid `12.1.0`, Pagefind `1.5.2`, Wrangler `4.147.0`. The default installer is npm >= 12, tested at `12.2.0`. `allowScripts` permits install scripts for esbuild and workerd. sharp `0.35.4` and `0.35.5` have no install script. pnpm >= 11 remains optional through `CFGB_PACKAGE_MANAGER=pnpm`, tested at `12.8.1`.
-- `workerCompatibilityDate` is `2026-09-22`. It has not been deployed.
+- `workerCompatibilityDate` is `2026-09-22`, pinned with the Worker source. It has not been deployed.
 - The example commit above is the corpus pin. CI checks out that commit rather than the moving default branch.
 - Node `24.21.0` (Krypton, Active LTS) is the tested runtime. `nodeRange` is `>=24.15.0 <25 || >=26.0.0`. Node 26 and newer are accepted; the example corpus also built on Node `26.10.0`. The Go job runs `go build ./...`, `go vet ./...`, `go test ./...`, and `go tool staticcheck ./...`, in that order, then checks `gofmt`. staticcheck `2026.2.1` (`v0.8.1`) is pinned with a `tool` directive in `go.mod`. It skips `TestExampleCorpus`. The TypeScript jobs run that corpus on Node `24.21.0` and Node `26.10.0`, with npm `12.2.0` and pnpm `12.8.1`. The `required` job is the status check to require: it is skipped when those jobs pass and fails when one of them fails or is cancelled. Node 25 is not, because npm 12 does not run there. Node 24 and Node 26 bundle npm 11.
 

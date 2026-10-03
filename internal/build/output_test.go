@@ -206,7 +206,7 @@ func TestManifestSessionIDIsBasename(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(workspace) })
-	raw, err := manifestJSON(cfg, requirements{}, toolchainCheck{}, workspace, []string{"/ja/"}, filepath.Join(repo, "dist"), frontmatter.Index{})
+	raw, err := manifestJSON(cfg, releasePins{}, toolchainCheck{}, workspace, []string{"/ja/"}, filepath.Join(repo, "dist"), frontmatter.Index{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +263,7 @@ func TestManifestRecordsOptionalDiagnostics(t *testing.T) {
 	}
 	decode := func() map[string]any {
 		t.Helper()
-		raw, err := manifestJSON(cfg, requirements{}, toolchainCheck{}, workspace, nil, filepath.Join(repo, "dist"), index)
+		raw, err := manifestJSON(cfg, releasePins{}, toolchainCheck{}, workspace, nil, filepath.Join(repo, "dist"), index)
 		if err != nil {
 			t.Fatal(err)
 		}

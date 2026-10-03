@@ -27,6 +27,17 @@ const minimumNpmVersion = "12.0.0"
 // minimumPnpmVersion is the oldest optional pnpm release CFGB accepts.
 const minimumPnpmVersion = "11.0.0"
 
+// minimumWranglerVersion is the oldest Wrangler that can create Worker Previews.
+const minimumWranglerVersion = "4.135.0"
+
+// testedNodeVersion, testedNpmVersion, and testedPnpmVersion are the releases
+// exercised by CI. They are recorded in the manifest and named in errors.
+const (
+	testedNodeVersion = "24.21.0"
+	testedNpmVersion  = "12.2.0"
+	testedPnpmVersion = "12.8.1"
+)
+
 // ExitError is a command failure with a CFGB exit code.
 type ExitError struct {
 	Code int
@@ -45,17 +56,11 @@ type Options struct {
 	Stderr io.Writer
 }
 
-type requirements struct {
-	NodeRange               string `json:"nodeRange"`
-	TestedNodeVersion       string `json:"testedNodeVersion"`
-	PackageManager          string `json:"packageManager"`
-	NpmVersion              string `json:"npmVersion"`
-	PnpmVersion             string `json:"pnpmVersion"`
-	WranglerVersion         string `json:"wranglerVersion"`
-	WorkerCompatibilityDate string `json:"workerCompatibilityDate"`
-	RendererVersion         string `json:"rendererVersion"`
-	LockfileHash            string `json:"lockfileHash"`
-	PnpmLockfileHash        string `json:"pnpmLockfileHash"`
+// releasePins are read from the embedded renderer package.
+type releasePins struct {
+	NodeRange       string
+	RendererVersion string
+	WranglerVersion string
 }
 
 // toolchainCheck is the package manager selected for this build.
@@ -97,11 +102,11 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 2, Err: err}
 	}
-	req, err := loadRequirements()
+	pins, err := loadToolchain()
 	if err != nil {
-		return &ExitError{Code: 2, Err: err}
+		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}
 	}
-	tc, err := checkToolchain(req)
+	tc, err := checkToolchain(pins)
 	if err != nil {
 		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}
 	}
@@ -170,7 +175,7 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	manifest, err := manifestJSON(cfg, req, tc, workspace, routes, out, index)
+	manifest, err := manifestJSON(cfg, pins, tc, workspace, routes, out, index)
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
@@ -182,16 +187,41 @@ func Run(opts Options) error {
 	return nil
 }
 
-func loadRequirements() (requirements, error) {
-	var req requirements
-	raw, err := cfgb.FS.ReadFile("toolchain-requirements.json")
+func loadToolchain() (releasePins, error) {
+	var pins releasePins
+	raw, err := cfgb.FS.ReadFile("renderer/package.json")
 	if err != nil {
-		return req, err
+		return pins, err
 	}
-	if err := json.Unmarshal(raw, &req); err != nil {
-		return req, err
+	var pkg struct {
+		Version string `json:"version"`
+		Engines struct {
+			Node string `json:"node"`
+		} `json:"engines"`
+		Dependencies map[string]string `json:"dependencies"`
 	}
-	return req, nil
+	if err := json.Unmarshal(raw, &pkg); err != nil {
+		return pins, err
+	}
+	if strings.TrimSpace(pkg.Engines.Node) == "" {
+		return pins, fmt.Errorf("renderer engines.node is required")
+	}
+	wrangler := pkg.Dependencies["wrangler"]
+	parsed, err := parseSemver(wrangler)
+	if err != nil {
+		return pins, fmt.Errorf("renderer wrangler dependency must be an exact semantic version, found %q", wrangler)
+	}
+	floor, err := parseSemver(minimumWranglerVersion)
+	if err != nil {
+		return pins, err
+	}
+	if compareSemver(parsed, floor) < 0 {
+		return pins, fmt.Errorf("wrangler >= %s is required, found %s", minimumWranglerVersion, wrangler)
+	}
+	pins.NodeRange = pkg.Engines.Node
+	pins.RendererVersion = pkg.Version
+	pins.WranglerVersion = wrangler
+	return pins, nil
 }
 
 func packageManager() (string, error) {
@@ -205,17 +235,17 @@ func packageManager() (string, error) {
 	}
 }
 
-func checkToolchain(req requirements) (toolchainCheck, error) {
+func checkToolchain(pins releasePins) (toolchainCheck, error) {
 	var tc toolchainCheck
 	node, err := output("node", "-p", "process.versions.node")
 	if err != nil {
-		return tc, fmt.Errorf("node is required (%s)", req.NodeRange)
+		return tc, fmt.Errorf("node is required (%s)", pins.NodeRange)
 	}
 	if _, err := parseSemver(node); err != nil {
 		return tc, fmt.Errorf("node version %q is not a valid semantic version", node)
 	}
-	if !nodeInRange(node, req.NodeRange) {
-		return tc, fmt.Errorf("node %s is outside %s", node, req.NodeRange)
+	if !nodeInRange(node, pins.NodeRange) {
+		return tc, fmt.Errorf("node %s is outside %s", node, pins.NodeRange)
 	}
 	manager, err := packageManager()
 	if err != nil {
@@ -227,20 +257,20 @@ func checkToolchain(req requirements) (toolchainCheck, error) {
 	case "npm":
 		npm, err := output("npm", "-v")
 		if err != nil {
-			return tc, fmt.Errorf("npm >= %s is required (tested %s)", minimumNpmVersion, req.NpmVersion)
+			return tc, fmt.Errorf("npm >= %s is required (tested %s)", minimumNpmVersion, testedNpmVersion)
 		}
 		npm = strings.TrimPrefix(npm, "v")
-		if err := requireMinimumVersion("npm", npm, minimumNpmVersion, req.NpmVersion); err != nil {
+		if err := requireMinimumVersion("npm", npm, minimumNpmVersion, testedNpmVersion); err != nil {
 			return tc, err
 		}
 		tc.NpmVersion = npm
 	case "pnpm":
 		pnpm, err := output("pnpm", "-v")
 		if err != nil {
-			return tc, fmt.Errorf("pnpm >= %s is required (tested %s)", minimumPnpmVersion, req.PnpmVersion)
+			return tc, fmt.Errorf("pnpm >= %s is required (tested %s)", minimumPnpmVersion, testedPnpmVersion)
 		}
 		pnpm = strings.TrimPrefix(pnpm, "v")
-		if err := requireMinimumVersion("pnpm", pnpm, minimumPnpmVersion, req.PnpmVersion); err != nil {
+		if err := requireMinimumVersion("pnpm", pnpm, minimumPnpmVersion, testedPnpmVersion); err != nil {
 			return tc, err
 		}
 		tc.PnpmVersion = pnpm
@@ -910,7 +940,7 @@ func isArticleYear(name string) bool {
 	return true
 }
 
-func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, workspace string, routes []string, out string, index frontmatter.Index) ([]byte, error) {
+func manifestJSON(cfg *config.File, pins releasePins, tc toolchainCheck, workspace string, routes []string, out string, index frontmatter.Index) ([]byte, error) {
 	commit, branch, dirty := gitState(cfg.Root(), out)
 	ciCommit := os.Getenv("WORKERS_CI_COMMIT_SHA")
 	ciBranch := os.Getenv("WORKERS_CI_BRANCH")
@@ -928,23 +958,21 @@ func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, workspa
 	manifest := map[string]any{
 		"schemaVersion":      1,
 		"cfgbVersion":        version.Version,
-		"rendererVersion":    req.RendererVersion,
+		"rendererVersion":    pins.RendererVersion,
 		"toolchainSessionId": filepath.Base(workspace),
 		"dirty":              dirty,
 		"publications":       publicationSnapshot(index),
 		"checks":             []string{"render", "pagefind"},
 		"routes":             routes,
 		"toolchain": map[string]any{
-			"nodeRange":               req.NodeRange,
-			"testedNodeVersion":       req.TestedNodeVersion,
+			"nodeRange":               pins.NodeRange,
+			"testedNodeVersion":       testedNodeVersion,
 			"packageManager":          tc.PackageManager,
-			"npmVersion":              req.NpmVersion,
-			"pnpmVersion":             req.PnpmVersion,
-			"wranglerVersion":         req.WranglerVersion,
-			"workerCompatibilityDate": req.WorkerCompatibilityDate,
-			"rendererVersion":         req.RendererVersion,
-			"lockfileHash":            req.LockfileHash,
-			"pnpmLockfileHash":        req.PnpmLockfileHash,
+			"npmVersion":              testedNpmVersion,
+			"pnpmVersion":             testedPnpmVersion,
+			"wranglerVersion":         pins.WranglerVersion,
+			"workerCompatibilityDate": worker.CompatibilityDate,
+			"rendererVersion":         pins.RendererVersion,
 			"nodeVersion":             tc.Node,
 			"observedNpmVersion":      tc.NpmVersion,
 			"observedPnpmVersion":     tc.PnpmVersion,

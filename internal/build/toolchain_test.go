@@ -1,11 +1,11 @@
 package build
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"testing"
 
 	cfgb "github.com/ymmt2005/cfgb"
+	"github.com/ymmt2005/cfgb/internal/worker"
 )
 
 func TestPackageManager(t *testing.T) {
@@ -28,13 +28,13 @@ func TestPackageManager(t *testing.T) {
 }
 
 func TestNodeRange(t *testing.T) {
-	req, err := loadRequirements()
+	pins, err := loadToolchain()
 	if err != nil {
 		t.Fatal(err)
 	}
 	const constraint = ">=24.15.0 <25 || >=26.0.0"
-	if req.NodeRange != constraint {
-		t.Fatalf("nodeRange = %s", req.NodeRange)
+	if pins.NodeRange != constraint {
+		t.Fatalf("nodeRange = %s", pins.NodeRange)
 	}
 	for _, version := range []string{"24.15.0", "24.21.0", "26.0.0", "26.10.0", "27.1.0"} {
 		if !nodeInRange(version, constraint) {
@@ -110,28 +110,37 @@ func TestSemverPrecedence(t *testing.T) {
 	}
 }
 
-func TestLockfileHashes(t *testing.T) {
-	req, err := loadRequirements()
+func TestReleasePins(t *testing.T) {
+	pins, err := loadToolchain()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if req.PackageManager != "npm" {
-		t.Fatalf("default package manager = %s", req.PackageManager)
+	if pins.WranglerVersion != "4.147.0" || pins.RendererVersion != "0.0.0" {
+		t.Fatalf("pins = %+v", pins)
 	}
-	if got := fileHash(t, "renderer/package-lock.json"); got != req.LockfileHash {
-		t.Fatalf("package-lock.json hash = %s", got)
+	if worker.CompatibilityDate != "2026-09-22" {
+		t.Fatalf("compatibility date = %s", worker.CompatibilityDate)
 	}
-	if got := fileHash(t, "renderer/pnpm-lock.yaml"); got != req.PnpmLockfileHash {
-		t.Fatalf("pnpm-lock.yaml hash = %s", got)
-	}
-}
-
-func fileHash(t *testing.T, name string) string {
-	t.Helper()
-	raw, err := cfgb.FS.ReadFile(name)
+	raw, err := cfgb.FS.ReadFile("renderer/package.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum := sha256.Sum256(raw)
-	return hex.EncodeToString(sum[:])
+	var pkg struct {
+		Engines struct {
+			Npm  string `json:"npm"`
+			Pnpm string `json:"pnpm"`
+		} `json:"engines"`
+	}
+	if err := json.Unmarshal(raw, &pkg); err != nil {
+		t.Fatal(err)
+	}
+	if pkg.Engines.Npm != ">=12" || pkg.Engines.Pnpm != ">=11" {
+		t.Fatalf("engines = %+v", pkg.Engines)
+	}
+	if _, err := cfgb.FS.ReadFile("renderer/package-lock.json"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cfgb.FS.ReadFile("renderer/pnpm-lock.yaml"); err != nil {
+		t.Fatal(err)
+	}
 }

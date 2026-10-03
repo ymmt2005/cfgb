@@ -28,8 +28,10 @@ and is selected with `CFGB_PACKAGE_MANAGER=pnpm`. Embedding sources does not
 embed a JS runtime or node_modules.
 Dependency installation may use network; rendering and artifact tests must work
 offline. Renderer implementation and dependencies can change without adding files
-to article repositories. A release records its embedded renderer version and publishes/embeds Node range,
-npm >= 12, optional pnpm >= 11, Wrangler, the tested Workers compatibility date and lockfile requirements.
+to article repositories. A release records its renderer version. The Node range and Wrangler version come
+from the embedded renderer package manifest, the npm and pnpm floors are part of
+the build, and the Workers compatibility date is pinned with the Worker source.
+The embedded lockfiles are the dependency pins.
 Retain each external toolchain
 workspace through its upload command. Workers Builds bootstraps the exact binary
 under HOME. Available CI variables are recorded as diagnostic build metadata; see the

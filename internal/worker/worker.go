@@ -7,6 +7,10 @@ import (
 	"fmt"
 )
 
+// CompatibilityDate is the Workers runtime date pinned with this Worker.
+// Upload configuration uses this value. It is not taken from the build clock.
+const CompatibilityDate = "2026-09-22"
+
 // Options are baked into the generated Worker.
 type Options struct {
 	DefaultLocale string

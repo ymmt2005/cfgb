@@ -32,7 +32,6 @@ func TestEmbeddedAssets(t *testing.T) {
 		"schemas/article.schema.json",
 		"prompts/summary-ja-v1.txt",
 		"prompts/summary-en-v1.txt",
-		"toolchain-requirements.json",
 		"renderer/package.json",
 		"renderer/package-lock.json",
 		"renderer/pnpm-lock.yaml",
