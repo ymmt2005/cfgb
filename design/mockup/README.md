@@ -36,7 +36,7 @@ Regenerate the HTML after editing `render.py`. The script copies `bars.png` and 
 
 Article prose uses a Japanese mincho: Hiragino Mincho, Yu Mincho, then Noto Serif CJK JP. The header, navigation, and headings use a Japanese gothic: Hiragino Sans, Yu Gothic, Meiryo, then Noto Sans CJK JP. Those names come before any generic family so a Chinese face is not chosen for characters such as 図. Latin faces sit after the Japanese ones. Code uses `ui-monospace`. No web fonts are requested.
 
-The reading column is 40rem. On a desktop article the table of contents is a 15rem sticky column; below 860px it becomes a disclosure above the body. The page padding is 1.25rem. Home and list pages keep the same column rather than stretching summaries across the viewport. Vertical rhythm is about 1.15–1.8 inside prose, with section headings separated by roughly 2rem.
+The reading column is 40rem. On a wide article the table of contents is a 15rem sticky column on the left, and a resource list is a 13.5rem sticky column on the right. Below 1220px the contents become a disclosure above the body. Below 960px the resource list moves under the page. The page padding is 1.25rem. Home and list pages keep the same reading column, with the resource list on the right. Vertical rhythm is about 1.15–1.8 inside prose, with section headings separated by roughly 2rem.
 
 The header is the site name, a Japanese/English switch, and the theme and palette dropdowns, then a second row of section links. The current language stays on this page. The other language opens the paired article when one exists, and that locale’s home when it does not. An untranslated article says so in the translation note.
 

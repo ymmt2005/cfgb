@@ -74,7 +74,8 @@
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Source Code Pro", Menlo, Consolas, monospace;
   --measure: 40rem;
   --toc: 15rem;
-  --page: 72rem;
+  --rail: 13.5rem;
+  --page: 78rem;
   --pad: 1.25rem;
 }
 
@@ -551,12 +552,45 @@ h1, h2, h3 { font-weight: 600; line-height: 1.35; }
   font-size: 0.78rem;
 }
 
-.article-layout {
+.frame {
   display: grid;
-  grid-template-columns: minmax(0, var(--measure)) var(--toc);
-  gap: 2.5rem 3rem;
+  grid-template-columns: minmax(0, var(--measure)) var(--rail);
+  gap: 2.75rem 2.5rem;
   align-items: start;
   justify-content: center;
+}
+.rail {
+  position: sticky;
+  top: 6.2rem;
+  font-size: 0.9rem;
+}
+.rail p {
+  margin: 0 0 0.7rem;
+  color: var(--faint);
+  letter-spacing: 0.06em;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+.rail ul { list-style: none; margin: 0; padding: 0; }
+.rail li {
+  margin: 0;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+}
+.rail li:last-child { border-bottom: 1px solid var(--line); }
+.rail a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 650;
+}
+.rail a:hover { color: var(--accent-ink); }
+.rail span {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 450;
+  line-height: 1.4;
 }
 
 .article-title {
@@ -778,10 +812,23 @@ footer.site {
 footer.site .wrap { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 footer.site a { color: var(--muted); }
 
-@media (max-width: 860px) {
-  .article-layout { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1220px) {
+  .frame-article {
+    grid-template-columns: var(--toc) minmax(0, var(--measure)) var(--rail);
+  }
+}
+
+@media (max-width: 1219px) {
   .toc-desktop { display: none; }
   .toc-mobile { display: block; }
+}
+
+@media (max-width: 960px) {
+  .frame { grid-template-columns: minmax(0, 1fr); }
+  .rail { position: static; margin-top: 2.5rem; }
+}
+
+@media (max-width: 860px) {
   .mast { position: static; }
   .mast-row, .tools { justify-content: flex-start; }
   .menu-list { right: auto; left: 0; }

@@ -169,7 +169,31 @@ def chips(locale, topics):
     )
 
 
-def layout(locale, title, body, current, alt_href, description, self_href=None):
+def rail(locale):
+    if locale == "ja":
+        label = "ほかの場所"
+        links = [
+            ("CFGB", "https://github.com/ymmt2005/cfgb", "github.com/ymmt2005/cfgb"),
+            ("サンプル原稿", "https://github.com/ymmt2005/cfgb-example", "github.com/ymmt2005/cfgb-example"),
+            ("pbschema-lens", "https://github.com/ymmt2005/pbschema-lens", "リンクカードの例"),
+            ("RSS", "/ja/feed.xml", "このサイトのフィード"),
+        ]
+    else:
+        label = "Elsewhere"
+        links = [
+            ("CFGB", "https://github.com/ymmt2005/cfgb", "github.com/ymmt2005/cfgb"),
+            ("Example corpus", "https://github.com/ymmt2005/cfgb-example", "github.com/ymmt2005/cfgb-example"),
+            ("pbschema-lens", "https://github.com/ymmt2005/pbschema-lens", "Link-card fixture"),
+            ("RSS", "/en/feed.xml", "Feed for this site"),
+        ]
+    items = "".join(
+        f'<li><a href="{href}">{name}</a><span>{note}</span></li>'
+        for name, href, note in links
+    )
+    return f'<aside class="rail" aria-label="{label}"><p>{label}</p><ul>{items}</ul></aside>'
+
+
+def layout(locale, title, body, current, alt_href, description, self_href=None, toc=""):
     nav = []
     for label, href in NAV[locale]:
         current_attr = ' aria-current="page"' if href == current else ""
@@ -232,8 +256,12 @@ def layout(locale, title, body, current, alt_href, description, self_href=None):
   </div>
 </header>
 <main id="content">
-  <div class="wrap">
+  <div class="wrap {'frame frame-article' if toc else 'frame'}">
+{toc}
+    <div class="frame-main">
 {body}
+    </div>
+    {rail(locale)}
   </div>
 </main>
 <footer class="site"><div class="wrap"><span>CFGB Example · example.invalid</span><span><a href="/{locale}/feed.xml">RSS</a> · <a href="https://github.com/ymmt2005/cfgb">GitHub</a></span></div></footer>
@@ -266,23 +294,22 @@ def article_page(post, prose, toc):
         link_label = "Open translation" if paired else "Japanese home"
     note = f'<p class="translation">{post["alt_note"]} <a href="{post["alt"]}">{link_label}</a></p>'
     mobile = f'<details class="toc-mobile"><summary>{"目次" if locale == "ja" else "Contents"}</summary>{toc}</details>'
-    desktop = f'<nav class="toc toc-desktop" aria-label="{"目次" if locale == "ja" else "Contents"}"><p>{"目次" if locale == "ja" else "Contents"}</p>{toc}</nav>'
+    desktop = ""
+    if 'href="' in toc:
+        desktop = f'<nav class="toc toc-desktop" aria-label="{"目次" if locale == "ja" else "Contents"}"><p>{"目次" if locale == "ja" else "Contents"}</p>{toc}</nav>'
     body = f"""
-<div class="article-layout">
-  <article>
-    <p class="kicker">{post["date"]}</p>
-    <h1 class="article-title">{post["title"]}</h1>
-    <div class="meta-row"><p class="topics">{chips(locale, post["topics"])}</p></div>
-    {note}
-    {mobile}
-    <div class="prose">
+<article>
+  <p class="kicker">{post["date"]}</p>
+  <h1 class="article-title">{post["title"]}</h1>
+  <div class="meta-row"><p class="topics">{chips(locale, post["topics"])}</p></div>
+  {note}
+  {mobile}
+  <div class="prose">
 {prose}
-    </div>
-  </article>
-  {desktop}
-</div>
+  </div>
+</article>
 """
-    return layout(locale, post["title"] + " · CFGB Example", body, "/ja/posts/" if locale == "ja" else "/en/posts/", post["alt"], post["summary"], post["url"])
+    return layout(locale, post["title"] + " · CFGB Example", body, "/ja/posts/" if locale == "ja" else "/en/posts/", post["alt"], post["summary"], post["url"], desktop)
 
 
 def code_block(filename, rows):
