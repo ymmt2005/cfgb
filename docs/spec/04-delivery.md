@@ -55,7 +55,8 @@ consistency/source/runtime checks without a CFGB-specific signature.
 Build uses default validation, which permits future publication timestamps; it
 must still reject missing summaries. Production deploy additionally checks
 publication timestamps from the verified snapshot against the current time and
-requires `main`. A future-dated change can have a private preview while its final
+requires the recorded/current branch to equal `deploy.productionBranch`
+(default `main`). A future-dated change can have a private preview while its final
 `validate --publish` merge check fails. Preview requires a non-production branch.
 Use the trusted environment variables defined in the CLI specification for the
 Cloudflare account, Worker target and upload token. Do not commit credentials or
@@ -128,8 +129,10 @@ Environment; do not assume the automatic Workers Builds setup enforces that gate
    so final required checks must run on that new commit. Never validate one head
    and upload artifacts from another.
 4. Final required checks include default validation, `validate --publish` and
-   build integration checks. Main publication uses the exact successful main
-   artifact. Non-main Workers Builds uses the Preview command and Access gate.
+   build integration checks. Production publication uses the exact successful
+   artifact from `deploy.productionBranch`. Other branches use the Preview
+   command and Access gate. Align Workers Builds' production-branch setting and
+   protected Git branch with this reviewed configuration (default `main`).
 
 Workers Builds owns the timing of deployment, using the separate commands above.
 GitHub checks protect merging; they do not silently gate every branch build.

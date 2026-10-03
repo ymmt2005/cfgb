@@ -20,7 +20,7 @@ use exact content bytes as specified there. Do not normalize artifact output byt
 | `validate [--authoring\|--publish] [--now RFC3339]` | Regular validation by default | Read-only structural and semantic checks |
 | `build [--out DIR]` | Default `dist`; regular validation, embedded fixed toolchain | Generate verified artifact; no upload |
 | `deploy --from DIR` | Verified artifact and production target from environment | Check publication conditions and deploy the same artifact; no rebuild |
-| `preview --from DIR` | Verified artifact and current non-main branch | Create/update a private Worker Preview; no rebuild |
+| `preview --from DIR` | Verified artifact and current non-production branch | Create/update a private Worker Preview; no rebuild |
 | `summarize [ARTICLE...] [--changed-since REF] [--dry-run]` | Explicit selection or changed variants | Generate eligible summaries and sidecars; never automatically commit |
 | `summarize ARTICLE --lang LOCALE --replace-manual` | One explicit variant | Deliberately replace a manual summary; flag never used in CI |
 | `ai eval summary --corpus PATH --candidates PATH --out DIR` | Candidate config and review corpus | Generate anonymized review bundle; do not modify articles |
@@ -116,8 +116,11 @@ modified or wrong-source artifacts. They are not a cryptographic authentication
 boundary against a malicious artifact store, transfer channel or compromised
 deployment environment. Production also validates the publication snapshot with
 current time, including future-date rejection. No source mutation, regeneration
-or re-rendering occurs. `preview` rejects main; `deploy` requires the recorded
-source commit to match main. These checks supplement branch protection.
+or re-rendering occurs. `deploy` requires both the recorded and current source
+branch to equal `deploy.productionBranch` (default `main`); `preview` rejects
+that branch. A wrong branch is `E_DEPLOY_TARGET`, exit 1. The recorded commit
+must match the current checkout; no comparison with the production branch tip
+is required. These checks supplement branch protection.
 
 `CFGB_CF_WORKER_NAME` supplies the target Worker; `CLOUDFLARE_ACCOUNT_ID` and
 `CLOUDFLARE_API_TOKEN` configure the Wrangler adapter. Generate Wrangler config

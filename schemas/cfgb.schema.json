@@ -215,6 +215,19 @@
         }
       },
       "required": []
+    },
+    "deploy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "productionBranch": {
+          "type": "string",
+          "minLength": 1,
+          "default": "main",
+          "description": "Literal Git short branch name. Semantic validation rejects full refs, symbolic HEAD, revision expressions and patterns. Align Workers Builds and branch protection with this setting."
+        }
+      },
+      "required": []
     }
   },
   "required": [

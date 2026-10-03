@@ -18,6 +18,7 @@ open topic/locale maps. Require format assertion for `date-time` and `uri`.
 | `content.linkcards` | Default `src/data/linkcards` |
 | `home.latestPosts` | Default 5, integer 1–50 |
 | `search.provider` | Default/only value `pagefind` |
+| `deploy.productionBranch` | Default `main`; literal Git short branch name, e.g. `master` |
 | `ai.enabled` | Default false |
 | `ai.gateway` | Default/only v1 integration `cloudflare` |
 | `ai.summary` | Map from enabled locales to `{provider,model}`; required when AI enabled |
@@ -27,7 +28,10 @@ open topic/locale maps. Require format assertion for `date-time` and `uri`.
 AI disabled with `summary: {}` is a usable offline configuration. Do not insert
 `TBD` as if it were a real provider/model. Missing model configuration is an
 error only when an AI command is requested or `ai.enabled` is true. No model is
-selected by these specifications. Provider IDs and model IDs are adapter input;
+selected by these specifications. Although an empty `ai.summary` map is structurally
+valid, `ai.enabled: true` requires a provider/model entry for every configured
+locale in semantic validation (`E_PROVIDER_CONFIG`, exit 2). Provider IDs and
+model IDs are adapter input;
 unknown/unsupported IDs fail explicitly without fallback to another provider.
 
 Secrets and Cloudflare account identifiers are environment configuration, not
@@ -53,9 +57,26 @@ Worker identity and policy; hostname-specific coverage is an advanced option.
 
 Relative paths must stay inside the repository after symlink resolution. Topic
 IDs match `[a-z0-9]+(-[a-z0-9]+)*`. Every topic must have exactly the configured
-locale labels, even when it currently has articles in only one locale.
+locale labels, even when it currently has articles in only one locale. JSON Schema
+allows partial/empty topic label maps; semantic validation compares each map
+with the configured locales. An empty map or missing configured label is
+`E_TOPIC`, exit 1, in every validation mode.
 All article topics must be registered. AI may suggest existing topics, never
 create new ones. `site.defaultLocale` must exist; variant locales must be enabled.
+
+`deploy.productionBranch` is optional, including its parent section; the parser
+applies `main` when omitted. Validate its value as a literal Git short branch
+name, not a full ref, symbolic `HEAD`, revision expression or branch pattern.
+Invalid values are configuration failures (`E_DEPLOY_TARGET`, exit 2). Do not
+expand Git shorthand or accept per-command/environment branch overrides.
+Deploy requires recorded/current source branches to equal the configured value;
+Preview rejects that value. A valid branch that fails either command rule is
+`E_DEPLOY_TARGET`, exit 1. The configuration and artifact input hashes bind this
+setting; a change requires rebuilding, not editing a finalized artifact.
+Keep the Workers Builds production-branch setting and protected Git branch
+aligned with this value before enabling automatic builds. Review branch-setting
+changes under the existing trusted configuration/push policy; changing the name
+does not relax that trust boundary.
 
 The [personal configuration example in cfgb-example](https://github.com/ymmt2005/cfgb-example/blob/main/examples/ymmt2005.dev.yaml)
 illustrates different values.

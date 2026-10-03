@@ -266,13 +266,18 @@ and record `provenanceProvider: git`. Never inspect the extracted renderer/uploa
 workspace for branch identity. Detached Git checkouts can build read-only artifacts
 with an unknown branch, but uploads requiring a branch must fail with
 `E_BUILD_SOURCE`, exit 1. Other CI upload pipelines must check out the actual
-reviewed named branch; do not guess from tags or silently assign main.
+reviewed named branch; do not guess from tags or silently assign the configured
+production branch.
 
 Build and upload compare current source identity to the finalized artifact. In the
 same Workers Build require commit, branch and build UUID to agree; retry builds
 have their own UUID/session and build their own artifact. Reject mismatches before
-upload with `E_BUILD_SOURCE`, exit 1. Production requires the recorded/current
-branch to be `main`; Preview requires a non-main branch. Pass the authoritative
+upload with `E_BUILD_SOURCE`, exit 1. Production requires both the recorded and
+current source branch to equal `deploy.productionBranch` (parser default `main`);
+Preview requires a different branch. Wrong-branch attempts fail before upload
+with `E_DEPLOY_TARGET`, exit 1. Commit identity is compared with the current
+checkout, not with the production branch's tip. Align the platform's production
+branch and branch protection with the configured value. Pass the authoritative
 branch to the pinned Wrangler Preview adapter, derive its Preview name using
 the pinned Wrangler naming behavior, and pass that name explicitly with `--name`.
 Do not let Wrangler infer it from detached HEAD or a temporary workspace. Reject

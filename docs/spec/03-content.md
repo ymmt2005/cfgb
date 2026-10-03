@@ -69,6 +69,9 @@ Alias array/item structure is checked by JSON Schema. Duplicate aliases within
 one variant or across variants are semantic errors: `E_ALIAS_DUPLICATE`, exit 1,
 in default, authoring and publish validation. Do not reject duplicates as
 `E_SCHEMA`; structural alias type/path failures remain schema errors.
+A schema-valid alias must begin with its owning variant's `/<locale>/` prefix.
+A cross-locale alias is `E_URL_COLLISION`, exit 1, in every validation mode,
+even when its path does not otherwise exist in the route registry.
 
 Global language links target the same article's counterpart if available;
 otherwise target the other locale home. Only real pairs receive an article-level
@@ -103,6 +106,9 @@ includes SVG as a precise diagram and PNG as an original lossless raster fixture
 OG fallback is a build-time PNG with title/branding and a bundled licensed font
 supporting Japanese; browser web fonts are still unnecessary. OG references must
 resolve to a crawler-compatible PNG/JPEG, rasterizing SVG source if necessary.
+For local assets, including `ogImage`, normalize the path and check article-group
+containment before testing file existence; then check resolved symlink containment.
+An escaping path is `E_LOCAL_PATH`, exit 1, even if the target does not exist.
 
 ## Code, diagrams, theme and TOC
 

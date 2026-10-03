@@ -14,7 +14,7 @@ Initial preparation checks only its structural and referential integrity.
 | Image warnings and local-path isolation | Negative cases + asset inventory | CLI |
 | Cached link card / missing cache fallback | Protobuf URL and IANA URL | CLI + renderer |
 | Monthly ordering and timezone boundary | 2025 and 2026 groups; UTC boundary article | Renderer |
-| Topic IDs and labels | `src/data/topics.yaml` | CLI + renderer |
+| Topic IDs and labels | `src/data/topics.yaml`; schema-valid missing/empty locale labels fail semantic `E_TOPIC` | CLI + renderer |
 | Static, runtime, fallback routes and aliases | `static-routes.json`, `worker-routes.json`, `fallbacks.json`, aliases | CFGB renderer + Worker + Static Assets |
 | Local links and fragment resolution | Cross-article/HTML/reference links | Shared renderer manifest + CLI |
 | 20–30 search cases | `tests/search/queries.yaml` (24 queries) | Actual Pagefind browser search |
@@ -29,12 +29,14 @@ Initial preparation checks only its structural and referential integrity.
 | Authoritative CI provenance | Detached HEAD and official CI-variable/checkout checks | CFGB provenance adapter |
 | Separate build/upload stages | `tests/build-delivery/cases.json`; artifact consistency/source-identity and timestamp gates | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
+| Future-date validation modes | Default/authoring `W_FUTURE_DATE`, exit 0; publish `E_FUTURE_DATE`, exit 1 | CLI |
+| Cross-locale alias rejection | Schema-valid alias in another locale; `E_URL_COLLISION`, exit 1 | CLI |
 | Semantic alias uniqueness | Duplicate arrays in every mode and duplicates across variants; `E_ALIAS_DUPLICATE` after Schema | CLI |
-| Required preview access | `tests/fixtures/configuration/cases.json` | Configuration loader |
+| Configuration defaults and semantics | `tests/fixtures/configuration/cases.json`; preview access, production branch and enabled AI with an empty summary map | Configuration loader |
 | Setup Action and immutable-release verification | [Action contract](09-github-action.md), attestation/platform/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
-| Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
+| Configured production branch | Default `main`, custom `master`, wrong-branch deploy/preview rejection; recorded/current branch identity | CLI + Cloudflare Builds |
 | Configured-blog import and syntax inventory | Synthetic Atom exports (two blogs in this corpus) | Importer |
 | Deterministic migration pairing without AI | Candidate repeatability, absent AI credentials, zero model calls and explicit decisions | Importer |
 | Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, `workers_dev: false`, `preview_urls: true`, `previews: {}` and top-level assets | CFGB release + upload adapter |
@@ -88,10 +90,12 @@ Required extra failure tests in the tool: DNS rebinding/mixed A+AAAA/redirect SS
 YAML duplicate keys, symlink escapes, network timeout/429/retry budgets, invalid AI
 responses, stale PR heads, failures between paired file writes, public preview
 alternate hostname, Atom pagination loops, duplicate IDs, XML external entities,
-unsupported Hatena syntax, ambiguous heading fragments and cross-locale aliases.
+unsupported Hatena syntax and ambiguous heading fragments. Cross-locale alias
+rejection is already locked by a validation mutation.
 
 For acceptance, all original v1 outcomes remain required: Markdown-only authoring,
-image paste, rich rendering/code/TOC, private PR previews, main publication,
+image paste, rich rendering/code/TOC, private PR previews, publication from the
+configured production branch,
 Japanese and locale-specific search, reciprocal translations, automatic lists/
 archives/topics/feed/SEO, reviewed AI summaries, deterministic production content,
 Hatena migration and manual-edit protection, and reusable independent tooling.

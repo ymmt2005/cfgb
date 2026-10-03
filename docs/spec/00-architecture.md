@@ -58,8 +58,8 @@ flowchart TD
   CLI --> AI["AI Gateway during authoring"]
   AI --> PR
   PR --> Preview["Private Worker Preview"]
-  PR --> Main["Reviewed main commit"]
-  Main --> Build["cfgb build: embedded renderer"]
+  PR --> Production["Reviewed production branch commit"]
+  Production --> Build["cfgb build: embedded renderer"]
   Build --> Assets["Workers Static Assets"]
 ```
 
@@ -75,8 +75,9 @@ parsing, migration planning and validation do not require a Cloudflare account.
 - Astro 6 is the selected major baseline; select compatible maintained patch
   versions at implementation time, pin packages and commit `pnpm-lock.yaml` in CFGB.
   Worker Previews requires Wrangler 4.135.0+; pin one tested version in CFGB.
-- Original images live beside articles. Git branches/PRs are drafts; `main`
-  contains published content. No `draft`, `lang`, `id`, or translation ID fields.
+- Original images live beside articles. Git branches/PRs are drafts; the configured
+  `deploy.productionBranch` (default `main`) contains published content. No `draft`,
+  `lang`, `id`, or translation ID fields.
 - An article directory groups locale variants; slugs and publication dates may
   differ by locale. Directory year is organizational, never part of public URLs.
 - Topics are shared IDs with localized labels; no separate tags.
@@ -104,7 +105,7 @@ parsing, migration planning and validation do not require a Cloudflare account.
 6. Only title/body are summary input in v1; input hashing is precisely defined.
 7. Hatena exports can be Markdown, HTML or Hatena syntax. Non-Markdown input
    requires a conversion report and review, not silent reclassification.
-8. Main builds need network for dependency installation/deployment, but never
+8. Production builds need network for dependency installation/deployment, but never
    fetch article content, metadata, remote images or AI-generated text.
 9. Direct pushes to a content repository connected to Workers Builds are limited
    to trusted maintainers and scoped generation bots. External changes arrive as

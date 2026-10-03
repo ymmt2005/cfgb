@@ -11,7 +11,8 @@ AI, and build/delivery. CFGB owns the renderer and Worker implementation and emb
 their sources/configuration/lockfile in its executable. Article repositories hold
 content, assets and blog settings only. Node.js remains a build prerequisite.
 Astro will render internally, Workers Static Assets will serve, and Pagefind will
-search. Git branches/PRs hold drafts; reviewed `main` content is published.
+search. Git branches/PRs hold drafts; reviewed content on `deploy.productionBranch`
+(default `main`) is published.
 Visitors never invoke an LLM.
 
 The [cfgb-action repository](https://github.com/ymmt2005/cfgb-action) owns the
