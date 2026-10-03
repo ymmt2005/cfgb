@@ -35,7 +35,13 @@ under HOME and obtains provenance from official CI variables; see the
 
 The public interface is `cfgb build`, `cfgb deploy` and `cfgb preview`. Builds
 create artifacts, never deploy them. Upload commands consume the same verified
-artifact and do not rebuild. See [delivery](04-delivery.md).
+artifact and do not rebuild. The artifact manifest, hashes and source/session
+checks are deployment-correctness and reproducibility guards, not a cryptographic
+trust boundary for transferred site artifacts. CFGB v1 assumes CI artifact
+storage/transfer and the deployment environment are operator-trusted. This is
+separate from supply-chain verification of CFGB executable releases and from the
+PR/credential trust boundaries. See [delivery](04-delivery.md) and the
+[build runtime contract](10-build-runtime.md).
 
 GitHub automation uses `ymmt2005/cfgb-action` to install and verify the selected
 CLI release and register it on PATH. Workflow `run` steps execute CFGB commands

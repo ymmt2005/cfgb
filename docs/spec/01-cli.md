@@ -106,11 +106,15 @@ builds may record dirty worktrees; remote uploads require a clean checkout match
 the recorded commit and input hashes. Generated/ignored output does not count as
 a source edit. Never include credentials or raw private source exports.
 
-`deploy`/`preview` verify artifact bytes, completed checks, supported versions and
-source provenance before upload. Production also validates the publication
-snapshot with current time, including future-date rejection. No source mutation,
-regeneration or re-rendering occurs. `preview` rejects main; `deploy` requires
-the recorded source commit to match main. These checks supplement branch protection.
+`deploy`/`preview` verify artifact bytes against the recorded hashes, completed
+checks, supported versions and source identity before upload. These are
+deployment-correctness checks: they detect stale, inconsistent, accidentally
+modified or wrong-source artifacts. They are not a cryptographic authentication
+boundary against a malicious artifact store, transfer channel or compromised
+deployment environment. Production also validates the publication snapshot with
+current time, including future-date rejection. No source mutation, regeneration
+or re-rendering occurs. `preview` rejects main; `deploy` requires the recorded
+source commit to match main. These checks supplement branch protection.
 
 `CFGB_CF_WORKER_NAME` supplies the target Worker; `CLOUDFLARE_ACCOUNT_ID` and
 `CLOUDFLARE_API_TOKEN` configure the Wrangler adapter. Generate Wrangler config

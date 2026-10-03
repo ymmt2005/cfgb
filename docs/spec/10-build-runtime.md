@@ -136,7 +136,9 @@ and require it to match the recorded `toolchainSessionId` before resolving the
 workspace. A hash-derived path does not replace exact raw provenance comparison.
 
 Same-build uploads require the original matching session. Missing/corrupt session
-state fails with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. For
+state fails with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. The
+session binding prevents accidental cross-build/session reuse and preserves
+toolchain consistency; it is not a cryptographic artifact-authenticity seal. For
 an artifact intentionally moved outside the original build environment, the CLI
 may recreate only the identical embedded upload toolchain using the same CFGB
 release, after artifact/runtime verification. It must not render, generate content
@@ -152,6 +154,32 @@ manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `pnpmVersion`,
 observed pnpm/Wrangler must match their exact required versions. The selected
 CFGB release's requirements must match the artifact's recorded requirements.
 Altered/incompatible artifact metadata fails with `E_ARTIFACT`, exit 1.
+
+## Artifact verification scope
+
+The artifact manifest, output hashes, source checks and toolchain-session bindings
+are deployment-correctness and reproducibility mechanisms. They establish that
+CFGB is operating on a self-consistent artifact for the expected source/runtime
+context and that upload does not silently rebuild or change its bytes. They do
+not provide cryptographic authentication of a site artifact against a malicious
+artifact store, transfer channel or compromised deployment environment.
+
+CFGB v1 assumes CI artifact storage/transfer and the deployment environment are
+inside the operator's trusted CI boundary. This is appropriate for the site
+artifact, which is deployed by that same operator rather than distributed as a
+trusted executable to third parties. If a deployment environment with upload
+credentials is compromised, an attacker can deploy arbitrary Worker/assets
+regardless of the CFGB manifest, so CFGB does not add a site-artifact signing or
+attestation requirement in v1. Operators that need a stronger provenance model
+may layer an external digest/signature/CI attestation on top; CFGB neither
+requires nor interprets it.
+
+Transferred artifacts are therefore supported without a CFGB-specific external
+attestation. They still undergo the ordinary artifact-byte/hash, source identity,
+publication, runtime-version and target checks, and upload-toolchain recreation
+must leave their bytes unchanged. Supply-chain verification of the CFGB
+executable itself remains a separate security mechanism defined by the release
+and setup-Action contracts.
 
 ## Provenance resolution
 
@@ -191,7 +219,7 @@ with an unknown branch, but uploads requiring a branch must fail with
 `E_BUILD_SOURCE`, exit 1. Other CI upload pipelines must check out the actual
 reviewed named branch; do not guess from tags or silently assign main.
 
-Build and upload compare current source identity to the sealed artifact. In the
+Build and upload compare current source identity to the finalized artifact. In the
 same Workers Build require commit, branch and build UUID to agree; retry builds
 have their own UUID/session and build their own artifact. Reject mismatches before
 upload with `E_BUILD_SOURCE`, exit 1. Production requires the recorded/current
@@ -216,4 +244,4 @@ inputs, not evidence of executed Cloudflare deployment.
 Include non-RFC identifiers and identifiers containing path separators/traversal
 text: preserve the raw manifest value, derive only the lowercase SHA-256 workspace
 component, and never create paths from raw values. Empty identifiers fail source
-validation; different identifiers must not reuse a sealed artifact/session.
+validation; different identifiers must not reuse an artifact/session from another build identity.

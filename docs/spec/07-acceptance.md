@@ -27,7 +27,7 @@ Initial preparation checks only its structural and referential integrity.
 | Pinned Workers Builds bootstrap | Runtime contract; release/digest verification in separate command shells | Build integration |
 | Retained toolchain and runtime validation | Delivery cases; Node/pnpm/Wrangler and session/opaque build-ID mismatch failures and hash-derived path safety | CFGB build/deploy/preview |
 | Authoritative CI provenance | Detached HEAD and official CI-variable/checkout checks | CFGB provenance adapter |
-| Separate build/upload stages | `tests/build-delivery/cases.json`; artifact integrity and timestamp gates | CFGB build/deploy/preview |
+| Separate build/upload stages | `tests/build-delivery/cases.json`; artifact consistency/source-identity and timestamp gates | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
 | Required preview access | `tests/fixtures/configuration/cases.json` | Configuration loader |
 | Setup Action and immutable-release verification | [Action contract](09-github-action.md), attestation/platform/cache failures and subsequent direct CLI execution | `cfgb-action` |
@@ -39,6 +39,14 @@ Initial preparation checks only its structural and referential integrity.
 | Pairing approval and asset deduplication | Migration pairing/category/asset decisions | Importer |
 | Rerun and conflicts | Hatena cases and separate expected conflict reports; unchanged last-applied hash pair | Importer |
 | Independent tool/site versions | Config schema + pinned corpus commit | CLI/release management |
+
+Artifact consistency tests are correctness/reproducibility tests, not a claim
+that CFGB authenticates site artifacts against a malicious CI artifact store,
+transfer channel or compromised deployment environment. Transferred-artifact
+tests assume operator-trusted storage/transport and verify that CFGB does not
+re-render or silently change the artifact while recreating only the upload
+toolchain. CFGB executable release verification and PR/credential isolation are
+separate security concerns.
 
 ## Test execution levels
 

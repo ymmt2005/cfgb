@@ -20,7 +20,7 @@ implementation starts and when upgrading the pinned toolchain.
 
 | Workers Builds setting | Command | Responsibility |
 | --- | --- | --- |
-| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, seal artifact |
+| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, finalize artifact manifest and hashes |
 | Deploy command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" deploy --from dist` | Verify artifact and publication gate; upload production Worker/assets |
 | Preview command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" preview --from dist` | Verify artifact and private-preview gate; upload branch preview |
 
@@ -41,6 +41,16 @@ pinned by the lockfile. The workspace with installed Wrangler survives through
 the same build's upload command and is excluded from the deployable artifact.
 Uploads require a clean source checkout matching the artifact; ignored
 build output is not a source edit. Reject stale, incomplete or altered artifacts.
+
+These artifact checks are a deployment-correctness boundary, not an independent
+security or authenticity boundary. They are intended to catch wrong commits,
+stale outputs, accidental byte changes, incompatible toolchains and unintended
+rebuilds. CFGB v1 assumes CI artifact storage/transfer and the deployment
+environment are operator-trusted. If those are compromised, CFGB does not claim
+that its manifest or hashes prevent arbitrary deployment; an operator may layer
+external artifact attestations on top, but CFGB does not require or interpret
+them. Transferred artifacts remain supported and receive the same
+consistency/source/runtime checks without a CFGB-specific signature.
 
 Build uses default validation, which permits future publication timestamps; it
 must still reject missing summaries. Production deploy additionally checks
@@ -86,6 +96,8 @@ and narrowly scoped automation acting for them. This is a security boundary:
 Workers Builds executes the pushed branch before any later PR approval. Review
 configuration, workflow and tool-version changes before pushing them to an
 automatically built branch. PR branch protection alone is not a deployment gate.
+This boundary concerns who may cause credentialed build/deployment execution; it
+does not turn the artifact manifest/hash checks into a tamper-proof attestation.
 
 External contributors use fork PRs. Fork jobs are read-only, receive no privileged
 credentials and create no automatic preview. A maintainer can review and transfer
