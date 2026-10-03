@@ -36,14 +36,15 @@ not read from articles or PR-controlled scripts:
 | `CFGB_VERSION` | Exact reviewed release tag, e.g. `vX.Y.Z`; no latest/range |
 | `CFGB_SHA256` | Reviewed 64-character lowercase SHA-256 for that executable |
 | `NODE_VERSION` | Exact Node release inside `>=24.15.0 <25` or `>=26.0.0`. Node 24.21.0 is the tested Active LTS. Install npm >= 12 separately; these lines bundle npm 11 |
-| `PNPM_VERSION` | Optional. Exact pnpm version from the release, used only when `CFGB_PACKAGE_MANAGER=pnpm` |
+| `PNPM_VERSION` | Optional. A pnpm release >= 11, used only when `CFGB_PACKAGE_MANAGER=pnpm`. The tested release is recorded in `pnpmVersion` |
 | `SKIP_DEPENDENCY_INSTALL` | `1`; CFGB owns dependency installation outside the content checkout |
 
 Each CFGB release publishes `toolchain-requirements.json` and embeds the same
 requirements. Required fields are `schemaVersion: 1`, `nodeRange` (SemVer range),
 `testedNodeVersion` (exact version satisfying that range), `packageManager`
 (`npm`, the default installer), `npmVersion` (tested npm, at least 12.0.0;
-`build` accepts any npm >= 12.0.0), `pnpmVersion` (exact optional pnpm pin), `wranglerVersion`,
+`build` accepts any npm >= 12.0.0), `pnpmVersion` (tested optional pnpm, at least
+11.0.0; `build` accepts any pnpm >= 11.0.0), `wranglerVersion`,
 `workerCompatibilityDate` (tested Workers runtime date in `YYYY-MM-DD` form),
 `rendererVersion`, `lockfileHash` (SHA-256 of embedded `package-lock.json`) and
 `pnpmLockfileHash` (SHA-256 of embedded `pnpm-lock.yaml`). A compatible Node
@@ -115,8 +116,8 @@ release. Node 26 and newer are accepted. These releases bundle npm 11, so the
 environment also installs npm >= 12. Other environments do the same.
 
 `CFGB_PACKAGE_MANAGER` selects the installer. An empty value or `npm` runs
-`npm ci` and `npm exec`. `pnpm` checks the actual pnpm against exact
-`pnpmVersion`, then runs `pnpm install --frozen-lockfile`. Any other value fails
+`npm ci` and `npm exec`. `pnpm` requires pnpm >= 11.0.0, then runs
+`pnpm install --frozen-lockfile`. pnpm 10 and older are rejected. Any other value fails
 with `E_TOOLCHAIN`, exit 2. The variable is a build-environment setting. It is
 not a field in the content repository's `cfgb.yaml`. Workers Builds sets
 `PNPM_VERSION` only for that optional path. Unsupported or missing runtimes fail
@@ -131,8 +132,10 @@ cache. Reject symlink/path escapes regardless of the hashed component. The
 workspace contains extracted package and lockfile sources, `npm ci` dependencies
 by default (or the frozen pnpm install when selected), including the pinned
 Wrangler, and private session metadata. The renderer `package.json` `allowScripts`
-field permits install scripts for `esbuild`, `sharp`, and `workerd`. Every other
-dependency install script stays blocked. Dependency installation is allowed network access;
+field permits install scripts for `esbuild`, `sharp`, and `workerd`. The pnpm
+path permits the same three packages through `allowBuilds` in
+`pnpm-workspace.yaml`. Every other dependency install script stays blocked.
+Dependency installation is allowed network access;
 content rendering, indexing and integration checks subsequently run offline.
 
 Retain this workspace after `build` returns and through the Deploy/Preview
@@ -173,8 +176,8 @@ manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `packageManager
 `workerCompatibilityDate`, `rendererVersion`, `lockfileHash`, `pnpmLockfileHash`
 and observed `nodeVersion`, `observedNpmVersion` and `observedPnpmVersion`.
 An npm build records the observed npm version and requires npm >= 12.0.0.
-A pnpm build records the observed pnpm version and requires an
-exact `pnpmVersion` match. Observed Wrangler must match its exact required
+A pnpm build records the observed pnpm version and requires pnpm >= 11.0.0.
+Observed Wrangler must match its exact required
 version. The selected
 CFGB release's requirements must match the artifact's recorded requirements.
 Altered/incompatible artifact metadata fails with `E_ARTIFACT`, exit 1.
@@ -312,7 +315,7 @@ not impersonate the new environment's build UUID.
 
 Before relying on this integration, test the bootstrap and separate command shells
 in a disposable Workers Build: exact binary/hash reuse, retained session/Wrangler,
-Node/npm version checks, the optional exact pnpm path, no toolchain files in the artifact, CI detached HEAD,
+Node/npm version checks, the optional pnpm >= 11 path, no toolchain files in the artifact, CI detached HEAD,
 partial/overridden/mismatched provenance, opaque build-ID/session isolation and clean-source
 checks. Test transferred-artifact upload toolchain recreation separately, asserting
 zero renderer calls and identical artifact bytes. Data fixtures are future test

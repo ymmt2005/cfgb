@@ -5,15 +5,13 @@
   "type": "module",
   "engines": {
     "node": ">=24.15.0 <25 || >=26.0.0",
-    "npm": ">=12"
+    "npm": ">=12",
+    "pnpm": ">=11"
   },
   "allowScripts": {
     "esbuild": true,
     "sharp": true,
     "workerd": true
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "sharp", "workerd"]
   },
   "dependencies": {
     "@astrojs/sitemap": "3.7.4",

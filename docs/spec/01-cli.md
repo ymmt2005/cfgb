@@ -91,8 +91,8 @@ remote image fetch or source mutation occurs. Node.js remains required in v1.
 The [build runtime contract](10-build-runtime.md) defines bootstrap, runtime
 requirements, retained toolchain sessions and source-provenance resolution. Build
 checks the actual Node range and requires npm >= 12 before
-installing frozen dependencies. `CFGB_PACKAGE_MANAGER=pnpm` selects the optional
-exact pnpm pin instead. That choice is an environment variable, not a field in
+installing frozen dependencies. `CFGB_PACKAGE_MANAGER=pnpm` selects optional pnpm >= 11
+instead. That choice is an environment variable, not a field in
 the content repository. Its installed Wrangler survives for the same
 build's upload command, outside the content repository and deployable artifact.
 

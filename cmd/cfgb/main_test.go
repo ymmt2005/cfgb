@@ -36,6 +36,7 @@ func TestEmbeddedAssets(t *testing.T) {
 		"renderer/package.json",
 		"renderer/package-lock.json",
 		"renderer/pnpm-lock.yaml",
+		"renderer/pnpm-workspace.yaml",
 		"renderer/astro.config.mjs",
 		"renderer/src/content.config.ts",
 	} {

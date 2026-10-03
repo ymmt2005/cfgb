@@ -5,11 +5,11 @@
   "testedNodeVersion": "24.21.0",
   "packageManager": "npm",
   "npmVersion": "12.2.0",
-  "pnpmVersion": "10.33.3",
+  "pnpmVersion": "12.8.1",
   "wranglerVersion": "4.147.0",
   "workerCompatibilityDate": "2026-09-22",
   "rendererVersion": "0.0.0",
   "astroVersion": "6.4.8",
-  "lockfileHash": "36007d87d2f9862cde851c91365176d67d74e930abea23f34f3b79417cd6bbce",
-  "pnpmLockfileHash": "087f272079a526135b0c6cb5f994b2d414f08763e2d1657ea8294073528477f6"
+  "lockfileHash": "b25656a0af398ccb594a3396240898992c1c181faa0473d4d34bbbe46b0e74ba",
+  "pnpmLockfileHash": "45f96a00a4d829f8214acd8442a4c61b1560e1450d9b751dad1f061b43aa63c5"
 }

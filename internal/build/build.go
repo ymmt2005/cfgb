@@ -24,6 +24,9 @@ import (
 // minimumNpmVersion is the oldest npm whose install scripts are opt-in.
 const minimumNpmVersion = "12.0.0"
 
+// minimumPnpmVersion is the oldest optional pnpm release CFGB accepts.
+const minimumPnpmVersion = "11.0.0"
+
 // ExitError is a command failure with a CFGB exit code.
 type ExitError struct {
 	Code int
@@ -220,11 +223,11 @@ func checkToolchain(req requirements) (toolchainCheck, error) {
 	case "pnpm":
 		pnpm, err := output("pnpm", "-v")
 		if err != nil {
-			return tc, fmt.Errorf("pnpm %s is required", req.PnpmVersion)
+			return tc, fmt.Errorf("pnpm >= %s is required (tested %s)", minimumPnpmVersion, req.PnpmVersion)
 		}
 		pnpm = strings.TrimPrefix(pnpm, "v")
-		if pnpm != req.PnpmVersion {
-			return tc, fmt.Errorf("pnpm %s is required, found %s", req.PnpmVersion, pnpm)
+		if compareVersion(pnpm, minimumPnpmVersion) < 0 {
+			return tc, fmt.Errorf("pnpm >= %s is required (tested %s), found %s", minimumPnpmVersion, req.PnpmVersion, pnpm)
 		}
 		tc.PnpmVersion = pnpm
 	}

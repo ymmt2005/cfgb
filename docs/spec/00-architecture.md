@@ -29,7 +29,7 @@ embed a JS runtime or node_modules.
 Dependency installation may use network; rendering and artifact tests must work
 offline. Renderer implementation and dependencies can change without adding files
 to article repositories. A release records its embedded renderer version and publishes/embeds Node range,
-npm >= 12, the optional exact pnpm pin, Wrangler, the tested Workers compatibility date and lockfile requirements.
+npm >= 12, optional pnpm >= 11, Wrangler, the tested Workers compatibility date and lockfile requirements.
 Retain each external toolchain
 workspace through its upload command. Workers Builds bootstraps the exact binary
 under HOME and obtains provenance from official CI variables; see the

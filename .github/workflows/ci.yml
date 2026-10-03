@@ -24,12 +24,10 @@ jobs:
       - name: Install npm 12
         if: matrix.package-manager == 'npm'
         run: npm install -g npm@12.2.0
-      # pnpm/setup v2 and later install pnpm 11 or newer only. v1.0.0 is the
-      # release that can install the pinned pnpm 10.33.3.
-      - uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1.0.0
+      - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
         if: matrix.package-manager == 'pnpm'
         with:
-          version: "10.33.3"
+          version: "12.8.1"
           install: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

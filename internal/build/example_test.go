@@ -82,11 +82,7 @@ func TestExampleCorpus(t *testing.T) {
 			t.Fatalf("toolchain = %+v", manifest.Toolchain)
 		}
 	case "pnpm":
-		req, err := loadRequirements()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if manifest.Toolchain.PackageManager != "pnpm" || manifest.Toolchain.ObservedPnpmVersion != req.PnpmVersion || manifest.Toolchain.ObservedNpmVersion != "" {
+		if manifest.Toolchain.PackageManager != "pnpm" || !pnpmAtLeast11(manifest.Toolchain.ObservedPnpmVersion) || manifest.Toolchain.ObservedNpmVersion != "" {
 			t.Fatalf("toolchain = %+v", manifest.Toolchain)
 		}
 	default:
@@ -106,9 +102,17 @@ func packageManagerPresent(manager string) bool {
 }
 
 func npmAtLeast12(version string) bool {
-	major, _, _ := strings.Cut(version, ".")
-	n, err := strconv.Atoi(major)
-	return err == nil && n >= 12
+	return versionAtLeast(version, 12)
+}
+
+func pnpmAtLeast11(version string) bool {
+	return versionAtLeast(version, 11)
+}
+
+func versionAtLeast(version string, major int) bool {
+	got, _, _ := strings.Cut(version, ".")
+	n, err := strconv.Atoi(got)
+	return err == nil && n >= major
 }
 
 func exampleRoot(t *testing.T) string {
