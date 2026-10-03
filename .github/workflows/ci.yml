@@ -33,12 +33,20 @@ jobs:
         with:
           repository: ymmt2005/cfgb-example
           path: cfgb-example
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.8.1 # 2026.2.1
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
       - name: Test
         env:
           CFGB_EXAMPLE: ${{ github.workspace }}/cfgb-example
           CFGB_REQUIRE_EXAMPLE: "1"
           CFGB_PACKAGE_MANAGER: ${{ matrix.package-manager }}
         run: go test ./...
+      - name: Staticcheck
+        run: staticcheck ./...
       - name: Format
         run: test -z "$(gofmt -l .)"
 
