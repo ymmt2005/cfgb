@@ -3,10 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import rehypeStringify from "rehype-stringify";
-import remarkParse from "remark-parse";
-import remarkRehype from "remark-rehype";
-import { unified } from "unified";
+import { pathToFileURL } from "node:url";
+import { unified } from "@astrojs/markdown-remark";
 import { resetSiteCache } from "../src/lib/load-site.mjs";
 import { remarkCfgb } from "../src/plugins/remark-cfgb.mjs";
 
@@ -207,13 +205,9 @@ test("markdown parsing keeps rewritten anchor labels inside the anchor", async (
       '<a href="../2026-09-19-protobuf-guide/en.md#field-numbers">Field numbers</a>',
       "",
     ].join("\n");
-    const file = await unified()
-      .use(remarkParse)
-      .use(remarkCfgb)
-      .use(remarkRehype, { allowDangerousHtml: true })
-      .use(rehypeStringify, { allowDangerousHtml: true })
-      .process({ value: markdown, path: sourceFile });
-    const html = String(file);
+    const processor = unified({ gfm: true, remarkPlugins: [remarkCfgb], smartypants: false });
+    const renderer = await processor.createRenderer({ syntaxHighlight: false, gfm: true, smartypants: false });
+    const { code: html } = await renderer.render(markdown, { fileURL: pathToFileURL(sourceFile) });
     const anchor = '<a href="/en/posts/reading-protobuf-schemas/#field-numbers">Field numbers</a>';
     assert.equal(html.split(anchor).length - 1, 2);
     assert.equal(html.includes(anchor.replace(">", "></a>")), false);
