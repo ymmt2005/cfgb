@@ -21,7 +21,7 @@ The header controls are dropdowns labeled only テーマ / Theme and 配色 / Pa
 ## M0-C — foundation started
 
 - Go module `github.com/ymmt2005/cfgb`, toolchain Go 1.27.1. `cfgb version` works. Other commands exit 2.
-- Schemas, prompts, and `toolchain-requirements.json` are embedded.
+- Schemas, prompts, and `toolchain-requirements.json` are embedded. `cfgb.yaml` is parsed with `github.com/goccy/go-yaml` `v1.19.2`. Unknown fields still fail.
 - Renderer dependency pin is Astro `6.4.8` (Astro 7.3.5 is published and is not the v1 baseline), `@astrojs/sitemap` `3.7.4`, `astro-expressive-code` `0.44.2`, Mermaid `12.1.0`, Pagefind `1.5.2`, Wrangler `4.147.0`. The default installer is npm >= 12, tested at `12.2.0`. `allowScripts` permits install scripts for esbuild, sharp, and workerd. pnpm >= 11 remains optional through `CFGB_PACKAGE_MANAGER=pnpm`, tested at `12.8.1`.
 - `workerCompatibilityDate` is `2026-09-22`. It has not been deployed.
 - Corpus tests are not wired yet. The example commit above is the pin to use.

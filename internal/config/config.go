@@ -2,12 +2,13 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml/ast"
 )
 
 // File is the subset of cfgb.yaml the renderer needs.
@@ -44,7 +45,7 @@ type File struct {
 	Security struct {
 		PreviewAccess bool `yaml:"previewAccess"`
 	} `yaml:"security"`
-	Hatena yaml.Node `yaml:"hatena"`
+	Hatena ast.Node `yaml:"hatena"`
 	path   string
 	root   string
 }
@@ -86,12 +87,11 @@ func Load(start string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if strings.HasPrefix(string(raw), "\ufeff") {
+	if bytes.HasPrefix(raw, []byte("\ufeff")) {
 		return nil, fmt.Errorf("cfgb.yaml must be UTF-8 without a BOM")
 	}
 	var cfg File
-	dec := yaml.NewDecoder(strings.NewReader(string(raw)))
-	dec.KnownFields(true)
+	dec := yaml.NewDecoder(bytes.NewReader(raw), yaml.DisallowUnknownField())
 	if err := dec.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("cfgb.yaml: %w", err)
 	}

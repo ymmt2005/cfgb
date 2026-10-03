@@ -2,7 +2,7 @@ module github.com/ymmt2005/cfgb
 
 go 1.27
 
-require gopkg.in/yaml.v3 v3.0.1
+require github.com/goccy/go-yaml v1.19.2
 
 require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
