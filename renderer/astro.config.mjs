@@ -1,6 +1,7 @@
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 import expressiveCode from "astro-expressive-code";
+import { unified } from "@astrojs/markdown-remark";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,8 +61,10 @@ export default defineConfig({
     fallbackPages(corpus),
   ],
   markdown: {
-    gfm: true,
-    remarkPlugins: [remarkCfgb],
+    processor: unified({
+      gfm: true,
+      remarkPlugins: [remarkCfgb],
+    }),
   },
   vite: {
     resolve: {

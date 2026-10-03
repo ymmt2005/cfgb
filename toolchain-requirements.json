@@ -9,7 +9,7 @@
   "wranglerVersion": "4.147.0",
   "workerCompatibilityDate": "2026-09-22",
   "rendererVersion": "0.0.0",
-  "astroVersion": "6.4.8",
-  "lockfileHash": "b25656a0af398ccb594a3396240898992c1c181faa0473d4d34bbbe46b0e74ba",
-  "pnpmLockfileHash": "45f96a00a4d829f8214acd8442a4c61b1560e1450d9b751dad1f061b43aa63c5"
+  "astroVersion": "7.3.5",
+  "lockfileHash": "5ccdad5569df2259c3f926a90d8ba93046d2121e6cd4c32fe83556854b6fd56e",
+  "pnpmLockfileHash": "b1eef7fc6617f7d10b4162b6d1964f671d809c081a5e04f303510ef538b4a338"
 }

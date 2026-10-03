@@ -76,8 +76,8 @@ parsing, migration planning and validation do not require a Cloudflare account.
 - Node.js 24 (Krypton, Active LTS) and Node.js 26 or newer are accepted build
   runtimes. The range is `>=24.15.0 <25 || >=26.0.0`, matching the versions
   npm >= 12 can run. Node 25 is not included.
-- Astro 6 is the selected major baseline; select compatible maintained patch
-  versions at implementation time, pin packages and commit `package-lock.json` in CFGB.
+- Astro 7 is the selected major baseline. The pinned release is 7.3.5.
+  Pin packages and commit `package-lock.json` in CFGB.
   `pnpm-lock.yaml` stays in CFGB for `CFGB_PACKAGE_MANAGER=pnpm`.
   Worker Previews requires Wrangler 4.135.0+; pin one tested version in CFGB.
 - Original images live beside articles. Git branches/PRs are drafts; the configured

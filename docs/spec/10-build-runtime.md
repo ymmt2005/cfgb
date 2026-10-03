@@ -132,9 +132,10 @@ cache. Reject symlink/path escapes regardless of the hashed component. The
 workspace contains extracted package and lockfile sources, `npm ci` dependencies
 by default (or the frozen pnpm install when selected), including the pinned
 Wrangler, and private session metadata. The renderer `package.json` `allowScripts`
-field permits install scripts for `esbuild`, `sharp`, and `workerd`. The pnpm
-path permits the same three packages through `allowBuilds` in
-`pnpm-workspace.yaml`. Every other dependency install script stays blocked.
+field permits install scripts for `esbuild` and `workerd`. The pnpm
+path permits the same two packages through `allowBuilds` in
+`pnpm-workspace.yaml`, and sets `fsevents` to false. sharp 0.35 has no
+install script. Every other dependency install script stays blocked.
 Dependency installation is allowed network access;
 content rendering, indexing and integration checks subsequently run offline.
 
