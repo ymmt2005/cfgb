@@ -139,8 +139,8 @@ workspace. A hash-derived path does not replace exact raw provenance comparison.
 Same-build uploads require the original matching session. Missing/corrupt session
 state fails with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. The
 session binding prevents accidental cross-build/session reuse and preserves
-toolchain consistency; it is not a cryptographic artifact-authenticity seal. For
-an artifact intentionally moved outside the original build environment, the CLI
+toolchain consistency; it does not provide cryptographic authentication of site
+artifacts. For an artifact intentionally moved outside the original build environment, the CLI
 may recreate only the identical embedded upload toolchain using the same CFGB
 release, after artifact/runtime verification. It must not render, generate content
 or alter artifact bytes. This recreation is dependency installation, not a site

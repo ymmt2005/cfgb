@@ -85,10 +85,11 @@ parsing, migration planning and validation do not require a Cloudflare account.
 - Light/dark/system themes, system fonts, no UI framework, local JS bundles.
 - Summaries are reviewed Git content; models remain unselected until evaluation.
 
-## Clarifications needed for an implementable contract
+## Required implementation invariants
 
-1. `validate --authoring` permits an absent summary before generation; regular
-   `validate` requires it. `--publish` additionally rejects future dates. A
+1. `validate --authoring` permits an absent, empty or whitespace-only summary
+   before generation; regular `validate` requires a nonempty summary.
+   `--publish` additionally rejects future dates. A
    pipeline must not reject a new article before its summary job can run.
 2. A public repository exposes PR source even if preview URLs require sign-in.
    Private previews protect rendered access, not public Git content.

@@ -5,7 +5,10 @@ The executable is `cfgb`. Global flags: `--config PATH` (default: nearest ancest
 `--version`. Paths are relative to the configuration directory, never the current
 working directory. Reject unknown keys, duplicate YAML keys, custom YAML tags,
 out-of-root paths and symlink traversal. YAML is parsed as YAML 1.2 with timestamp
-values preserved as strings. Accept UTF-8 without BOM; normalize CRLF for hashes.
+values preserved as strings. Accept UTF-8 without BOM. Hash normalization follows
+the domain contract: [AI summary input](05-ai.md#input-and-output-hashes) normalizes
+body newlines; [migration source/target hashes](06-migration.md#assets-and-restart-safety)
+use exact content bytes as specified there. Do not normalize artifact output bytes.
 
 ## Commands
 
@@ -98,8 +101,8 @@ replacement before publishing new output. Default build validation allows future
 publication dates for previews but requires existing valid summaries.
 
 Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and
-`build-manifest.json` (source commit, CFGB/renderer versions, config/input/output
-hashes, publication metadata snapshot, completed checks, provenance provider,
+`build-manifest.json` (source commit and branch, CFGB/renderer versions,
+config/input/output hashes, publication metadata snapshot, completed checks, provenance provider,
 optional opaque build identifier (`buildUUID`), toolchain session ID and required/observed runtime versions).
 Publication metadata includes article key, locale, slug, summary and timestamps for each variant. Local
 builds may record dirty worktrees; remote uploads require a clean checkout matching
@@ -121,7 +124,9 @@ source commit to match main. These checks supplement branch protection.
 in a disposable upload workspace from the artifact and trusted target settings.
 Its top-level `compatibility_date` comes from release-pinned
 `workerCompatibilityDate`, recorded in the artifact; v1 always generates
-`previews: {}` and top-level assets. See the runtime contract.
+`workers_dev: false`, `preview_urls: true`, `previews: {}` and top-level assets.
+Preview/Version URLs require Access coverage; the production custom domain stays
+public. See the runtime contract.
 Use the retained toolchain session's Wrangler; a temporary upload config does not
 reinstall or lose that toolchain. Workers Builds source commit/branch/build UUID
 come from `WORKERS_CI_COMMIT_SHA`, `WORKERS_CI_BRANCH`, `WORKERS_CI_BUILD_UUID`

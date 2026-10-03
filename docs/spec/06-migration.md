@@ -6,7 +6,7 @@ Test exports in `cfgb-example` are synthetic
 and use reserved `.invalid` origins. No live import or remote modification occurs
 when checking this corpus.
 
-All migration commands, including snapshot, plan, apply and mark-moved, make no
+All migration commands, including inventory, plan, apply and mark-moved, make no
 model calls and neither require nor read AI credentials. Pairing candidates use
 deterministic heuristics; approved human decisions are the only pairing authority.
 
@@ -20,7 +20,8 @@ retry bounded transient failures; checkpoint each page. Disable XML external
 entities/DTD resolution. Never leak credentials to arbitrary asset hosts.
 
 Store raw Atom, original content and formatted HTML with SHA-256 checksums under
-local ignored `.cfgb-work/hatena/`. Snapshot first; plan offline from that snapshot.
+local ignored `.cfgb-work/hatena/`. `cfgb import hatena inventory` captures the
+snapshot first; `cfgb import hatena plan` works offline from that snapshot.
 Reject duplicate source IDs with different bodies, malformed timestamps and
 pagination loops. Report source drafts/preview/paid-content flags and exclude
 them from the publishable plan unless deliberately reviewed; do not accidentally
