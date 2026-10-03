@@ -42,11 +42,22 @@ type Options struct {
 type requirements struct {
 	NodeRange               string `json:"nodeRange"`
 	TestedNodeVersion       string `json:"testedNodeVersion"`
+	PackageManager          string `json:"packageManager"`
+	NpmVersion              string `json:"npmVersion"`
 	PnpmVersion             string `json:"pnpmVersion"`
 	WranglerVersion         string `json:"wranglerVersion"`
 	WorkerCompatibilityDate string `json:"workerCompatibilityDate"`
 	RendererVersion         string `json:"rendererVersion"`
 	LockfileHash            string `json:"lockfileHash"`
+	PnpmLockfileHash        string `json:"pnpmLockfileHash"`
+}
+
+// toolchainCheck is the package manager selected for this build.
+type toolchainCheck struct {
+	Node           string
+	PackageManager string
+	NpmVersion     string
+	PnpmVersion    string
 }
 
 type siteJSON struct {
@@ -83,7 +94,7 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 2, Err: err}
 	}
-	nodeVersion, pnpmVersion, err := checkToolchain(req)
+	tc, err := checkToolchain(req)
 	if err != nil {
 		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}
 	}
@@ -108,17 +119,14 @@ func Run(opts Options) error {
 		return &ExitError{Code: 3, Err: err}
 	}
 	routesPath := filepath.Join(session, "routes.json")
-	fmt.Fprintf(opts.Stdout, "installing renderer dependencies\n")
-	if err := command(rendererDir, opts.Stdout, opts.Stderr, nil, "pnpm", "install", "--frozen-lockfile"); err != nil {
-		return &ExitError{Code: 3, Err: fmt.Errorf("pnpm install: %w", err)}
+	fmt.Fprintf(opts.Stdout, "installing renderer dependencies with %s\n", tc.PackageManager)
+	if err := installRenderer(rendererDir, opts.Stdout, opts.Stderr, tc); err != nil {
+		return &ExitError{Code: 3, Err: err}
 	}
 	env := []string{"CFGB_SITE_JSON=" + sitePath, "CFGB_ROUTES_OUT=" + routesPath}
 	fmt.Fprintf(opts.Stdout, "rendering\n")
-	if err := command(rendererDir, opts.Stdout, opts.Stderr, env, "pnpm", "exec", "astro", "build"); err != nil {
-		return &ExitError{Code: 1, Err: fmt.Errorf("render: %w", err)}
-	}
-	if err := command(rendererDir, opts.Stdout, opts.Stderr, env, "pnpm", "exec", "pagefind", "--site", "dist"); err != nil {
-		return &ExitError{Code: 1, Err: fmt.Errorf("pagefind: %w", err)}
+	if err := renderSite(rendererDir, opts.Stdout, opts.Stderr, env, tc); err != nil {
+		return &ExitError{Code: 1, Err: err}
 	}
 	routes, err := readRoutes(routesPath)
 	if err != nil {
@@ -146,7 +154,7 @@ func Run(opts Options) error {
 	if err := os.WriteFile(filepath.Join(out, "worker", "index.js"), source, 0o644); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	manifest, err := manifestJSON(cfg, req, nodeVersion, pnpmVersion, sessionID(session), routes)
+	manifest, err := manifestJSON(cfg, req, tc, sessionID(session), routes)
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
@@ -169,23 +177,101 @@ func loadRequirements() (requirements, error) {
 	return req, nil
 }
 
-func checkToolchain(req requirements) (string, string, error) {
+func packageManager() (string, error) {
+	switch strings.TrimSpace(os.Getenv("CFGB_PACKAGE_MANAGER")) {
+	case "", "npm":
+		return "npm", nil
+	case "pnpm":
+		return "pnpm", nil
+	default:
+		return "", fmt.Errorf("CFGB_PACKAGE_MANAGER must be npm or pnpm")
+	}
+}
+
+func checkToolchain(req requirements) (toolchainCheck, error) {
+	var tc toolchainCheck
 	node, err := output("node", "-p", "process.versions.node")
 	if err != nil {
-		return "", "", fmt.Errorf("node is required (%s)", req.NodeRange)
+		return tc, fmt.Errorf("node is required (%s)", req.NodeRange)
 	}
 	if !nodeInRange(node, req.NodeRange) {
-		return "", "", fmt.Errorf("node %s is outside %s", node, req.NodeRange)
+		return tc, fmt.Errorf("node %s is outside %s", node, req.NodeRange)
 	}
-	pnpm, err := output("pnpm", "-v")
+	manager, err := packageManager()
 	if err != nil {
-		return "", "", fmt.Errorf("pnpm %s is required", req.PnpmVersion)
+		return tc, err
 	}
-	pnpm = strings.TrimPrefix(pnpm, "v")
-	if pnpm != req.PnpmVersion {
-		return "", "", fmt.Errorf("pnpm %s is required, found %s", req.PnpmVersion, pnpm)
+	tc.Node = node
+	tc.PackageManager = manager
+	switch manager {
+	case "npm":
+		want := parseVersion(req.NpmVersion)[0]
+		if want == 0 {
+			return tc, fmt.Errorf("npmVersion %q is invalid", req.NpmVersion)
+		}
+		npm, err := output("npm", "-v")
+		if err != nil {
+			return tc, fmt.Errorf("npm %d.x is required (tested %s)", want, req.NpmVersion)
+		}
+		npm = strings.TrimPrefix(npm, "v")
+		if parseVersion(npm)[0] != want {
+			return tc, fmt.Errorf("npm %d.x is required (tested %s), found %s", want, req.NpmVersion, npm)
+		}
+		tc.NpmVersion = npm
+	case "pnpm":
+		pnpm, err := output("pnpm", "-v")
+		if err != nil {
+			return tc, fmt.Errorf("pnpm %s is required", req.PnpmVersion)
+		}
+		pnpm = strings.TrimPrefix(pnpm, "v")
+		if pnpm != req.PnpmVersion {
+			return tc, fmt.Errorf("pnpm %s is required, found %s", req.PnpmVersion, pnpm)
+		}
+		tc.PnpmVersion = pnpm
 	}
-	return node, pnpm, nil
+	return tc, nil
+}
+
+func installRenderer(dir string, stdout, stderr io.Writer, tc toolchainCheck) error {
+	switch tc.PackageManager {
+	case "npm":
+		if err := command(dir, stdout, stderr, nil, "npm", "ci"); err != nil {
+			return fmt.Errorf("npm ci: %w", err)
+		}
+	case "pnpm":
+		if err := command(dir, stdout, stderr, []string{"COREPACK_ENABLE_AUTO_PIN=0"}, "pnpm", "install", "--frozen-lockfile"); err != nil {
+			return fmt.Errorf("pnpm install: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported package manager %s", tc.PackageManager)
+	}
+	return nil
+}
+
+func renderSite(dir string, stdout, stderr io.Writer, extra []string, tc toolchainCheck) error {
+	env := extra
+	if tc.PackageManager == "pnpm" {
+		env = append([]string{"COREPACK_ENABLE_AUTO_PIN=0"}, extra...)
+	}
+	switch tc.PackageManager {
+	case "npm":
+		if err := command(dir, stdout, stderr, env, "npm", "exec", "--", "astro", "build"); err != nil {
+			return fmt.Errorf("render: %w", err)
+		}
+		if err := command(dir, stdout, stderr, env, "npm", "exec", "--", "pagefind", "--site", "dist"); err != nil {
+			return fmt.Errorf("pagefind: %w", err)
+		}
+	case "pnpm":
+		if err := command(dir, stdout, stderr, env, "pnpm", "exec", "astro", "build"); err != nil {
+			return fmt.Errorf("render: %w", err)
+		}
+		if err := command(dir, stdout, stderr, env, "pnpm", "exec", "pagefind", "--site", "dist"); err != nil {
+			return fmt.Errorf("pagefind: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported package manager %s", tc.PackageManager)
+	}
+	return nil
 }
 
 func nodeInRange(version, constraint string) bool {
@@ -424,7 +510,7 @@ func publish(out, dist string) error {
 	return os.Rename(staging, out)
 }
 
-func manifestJSON(cfg *config.File, req requirements, nodeVersion, pnpmVersion, session string, routes []string) ([]byte, error) {
+func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, session string, routes []string) ([]byte, error) {
 	commit, branch, dirty := gitState(cfg.Root())
 	manifest := map[string]any{
 		"schemaVersion":      1,
@@ -441,13 +527,17 @@ func manifestJSON(cfg *config.File, req requirements, nodeVersion, pnpmVersion, 
 		"toolchain": map[string]any{
 			"nodeRange":               req.NodeRange,
 			"testedNodeVersion":       req.TestedNodeVersion,
+			"packageManager":          tc.PackageManager,
+			"npmVersion":              req.NpmVersion,
 			"pnpmVersion":             req.PnpmVersion,
 			"wranglerVersion":         req.WranglerVersion,
 			"workerCompatibilityDate": req.WorkerCompatibilityDate,
 			"rendererVersion":         req.RendererVersion,
 			"lockfileHash":            req.LockfileHash,
-			"nodeVersion":             nodeVersion,
-			"observedPnpmVersion":     pnpmVersion,
+			"pnpmLockfileHash":        req.PnpmLockfileHash,
+			"nodeVersion":             tc.Node,
+			"observedNpmVersion":      tc.NpmVersion,
+			"observedPnpmVersion":     tc.PnpmVersion,
 		},
 	}
 	if raw := os.Getenv("WORKERS_CI_BUILD_UUID"); raw != "" {

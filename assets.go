@@ -10,5 +10,5 @@ import "embed"
 //go:embed schemas prompts toolchain-requirements.json
 //go:embed all:renderer/src
 //go:embed all:renderer/public
-//go:embed renderer/package.json renderer/pnpm-lock.yaml renderer/astro.config.mjs renderer/tsconfig.json
+//go:embed renderer/package.json renderer/package-lock.json renderer/pnpm-lock.yaml renderer/astro.config.mjs renderer/tsconfig.json
 var FS embed.FS

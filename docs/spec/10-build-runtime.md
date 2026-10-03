@@ -35,18 +35,21 @@ not read from articles or PR-controlled scripts:
 | --- | --- |
 | `CFGB_VERSION` | Exact reviewed release tag, e.g. `vX.Y.Z`; no latest/range |
 | `CFGB_SHA256` | Reviewed 64-character lowercase SHA-256 for that executable |
-| `NODE_VERSION` | Exact supported Node.js version selected from the release requirements |
-| `PNPM_VERSION` | Exact pnpm version specified by the release |
+| `NODE_VERSION` | Exact supported Node.js version selected from the release requirements. Its bundled npm is the default installer |
+| `PNPM_VERSION` | Optional. Exact pnpm version from the release, used only when `CFGB_PACKAGE_MANAGER=pnpm` |
 | `SKIP_DEPENDENCY_INSTALL` | `1`; CFGB owns dependency installation outside the content checkout |
 
 Each CFGB release publishes `toolchain-requirements.json` and embeds the same
 requirements. Required fields are `schemaVersion: 1`, `nodeRange` (SemVer range),
-`testedNodeVersion` (exact version satisfying that range), `pnpmVersion`,
-`wranglerVersion`, `workerCompatibilityDate` (tested Workers runtime date in
-`YYYY-MM-DD` form), `rendererVersion` and `lockfileHash` (SHA-256 of embedded
-lockfile bytes). A compatible Node range such as `24.x` is illustrative, not an
-already selected runtime. The actual versions are verified when releasing CFGB.
-Wrangler must meet the Preview minimum of 4.135.0.
+`testedNodeVersion` (exact version satisfying that range), `packageManager`
+(`npm`, the default installer), `npmVersion` (tested npm whose major `build`
+accepts), `pnpmVersion` (exact optional pnpm pin), `wranglerVersion`,
+`workerCompatibilityDate` (tested Workers runtime date in `YYYY-MM-DD` form),
+`rendererVersion`, `lockfileHash` (SHA-256 of embedded `package-lock.json`) and
+`pnpmLockfileHash` (SHA-256 of embedded `pnpm-lock.yaml`). A compatible Node
+range such as `24.x` is illustrative, not an already selected runtime. The actual
+versions are verified when releasing CFGB. Wrangler must meet the Preview minimum
+of 4.135.0.
 
 The Build command first downloads the pinned binary into a temporary file,
 verifies the independently configured digest, installs it under
@@ -97,15 +100,23 @@ both environments then verify the same executable bytes. Action callers need no
 platform-specific digest configuration. Other runner targets use different
 executable bytes from the same exact immutable CFGB release.
 
-## Node, pnpm and toolchain workspace
+## Node, npm and toolchain workspace
 
-Node.js is not pinned by a JavaScript package lockfile. Before dependency install,
-`build` checks the actual Node runtime against the embedded `nodeRange` and the
-actual pnpm against exact `pnpmVersion`; it does not trust environment-variable
-values as proof of the installed versions. Workers Builds uses `NODE_VERSION`
-and `PNPM_VERSION` to provision them. Other environments install compatible Node
-and the same pinned pnpm independently. Unsupported/missing runtimes fail with
-`E_TOOLCHAIN`, exit 2, before rendering or upload.
+Node.js is not pinned by a JavaScript package lockfile. npm ships with Node and
+is the default installer. Before dependency install, `build` checks the actual
+Node runtime against the embedded `nodeRange` and the actual npm major against
+`npmVersion`. It does not require an exact npm patch, and it does not trust
+environment-variable values as proof of the installed versions. Workers Builds
+uses `NODE_VERSION` to provision Node; that Node's npm is enough for the default
+path. Other environments install a compatible Node independently.
+
+`CFGB_PACKAGE_MANAGER` selects the installer. An empty value or `npm` runs
+`npm ci` and `npm exec`. `pnpm` checks the actual pnpm against exact
+`pnpmVersion`, then runs `pnpm install --frozen-lockfile`. Any other value fails
+with `E_TOOLCHAIN`, exit 2. The variable is a build-environment setting. It is
+not a field in the content repository's `cfgb.yaml`. Workers Builds sets
+`PNPM_VERSION` only for that optional path. Unsupported or missing runtimes fail
+with `E_TOOLCHAIN`, exit 2, before rendering or upload.
 
 `build` creates a toolchain session outside the content repository. In Workers
 Builds `toolchainSessionId` is the 64-character lowercase hexadecimal SHA-256
@@ -113,9 +124,9 @@ of the exact UTF-8 bytes of `buildUUID`, and its root is
 `$HOME/.cache/cfgb/builds/<sha256(buildUUID)>/`. Never use the raw build identifier
 as a path component. Elsewhere use an opaque random session ID under CFGB's user
 cache. Reject symlink/path escapes regardless of the hashed component. The
-workspace contains extracted package/lockfile sources,
-`pnpm install --frozen-lockfile` dependencies, including the pinned Wrangler, and
-private session metadata. Dependency installation is allowed network access;
+workspace contains extracted package and lockfile sources, `npm ci` dependencies
+by default (or the frozen pnpm install when selected), including the pinned
+Wrangler, and private session metadata. Dependency installation is allowed network access;
 content rendering, indexing and integration checks subsequently run offline.
 
 Retain this workspace after `build` returns and through the Deploy/Preview
@@ -146,14 +157,19 @@ release, after artifact/runtime verification. It must not render, generate conte
 or alter artifact bytes. This recreation is dependency installation, not a site
 rebuild. Record a fresh local session binding; preserve artifact provenance.
 
-Upload rechecks the actual Node/pnpm/Wrangler versions and session integrity.
+Upload rechecks the actual Node version, the package manager used for the build,
+Wrangler and session integrity.
 Within the original session, observed Node must also match the build observation;
 a recreated upload session can use another Node version within the recorded
 supported range, while retaining a separate record of that upload runtime. The
-manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `pnpmVersion`,
-`wranglerVersion`, `workerCompatibilityDate`, `rendererVersion`, `lockfileHash`
-and observed `nodeVersion`;
-observed pnpm/Wrangler must match their exact required versions. The selected
+manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `packageManager`
+(the installer this build used), `npmVersion`, `pnpmVersion`, `wranglerVersion`,
+`workerCompatibilityDate`, `rendererVersion`, `lockfileHash`, `pnpmLockfileHash`
+and observed `nodeVersion`, `observedNpmVersion` and `observedPnpmVersion`.
+An npm build records the observed npm version and requires its major to match
+`npmVersion`. A pnpm build records the observed pnpm version and requires an
+exact `pnpmVersion` match. Observed Wrangler must match its exact required
+version. The selected
 CFGB release's requirements must match the artifact's recorded requirements.
 Altered/incompatible artifact metadata fails with `E_ARTIFACT`, exit 1.
 
@@ -290,7 +306,7 @@ not impersonate the new environment's build UUID.
 
 Before relying on this integration, test the bootstrap and separate command shells
 in a disposable Workers Build: exact binary/hash reuse, retained session/Wrangler,
-Node/pnpm version checks, no toolchain files in the artifact, CI detached HEAD,
+Node/npm version checks, the optional exact pnpm path, no toolchain files in the artifact, CI detached HEAD,
 partial/overridden/mismatched provenance, opaque build-ID/session isolation and clean-source
 checks. Test transferred-artifact upload toolchain recreation separately, asserting
 zero renderer calls and identical artifact bytes. Data fixtures are future test

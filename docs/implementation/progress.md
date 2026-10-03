@@ -22,14 +22,14 @@ The header controls are dropdowns labeled only テーマ / Theme and 配色 / Pa
 
 - Go module `github.com/ymmt2005/cfgb`, toolchain Go 1.27.1. `cfgb version` works. Other commands exit 2.
 - Schemas, prompts, and `toolchain-requirements.json` are embedded.
-- Renderer dependency pin is Astro `6.4.8` (Astro 7.3.5 is published and is not the v1 baseline), `@astrojs/sitemap` `3.7.4`, `astro-expressive-code` `0.44.2`, Mermaid `12.1.0`, Pagefind `1.5.2`, Wrangler `4.147.0`, pnpm `10.33.3`. pnpm 12.8.1 is published; this pin is the version that produced the lockfile here.
+- Renderer dependency pin is Astro `6.4.8` (Astro 7.3.5 is published and is not the v1 baseline), `@astrojs/sitemap` `3.7.4`, `astro-expressive-code` `0.44.2`, Mermaid `12.1.0`, Pagefind `1.5.2`, Wrangler `4.147.0`. The default installer is npm `10.9.7`; any npm 10.x is accepted. pnpm `10.33.3` remains optional through `CFGB_PACKAGE_MANAGER=pnpm`.
 - `workerCompatibilityDate` is `2026-09-22`. It has not been deployed.
 - Corpus tests are not wired yet. The example commit above is the pin to use.
 - Node `22.14.0` is the tested runtime. `nodeRange` is `>=22.12.0 <23`, matching Astro 6.4.8.
 
 ## Phase 1 — renderer and build, started
 
-`cfgb build` extracts the embedded Astro 6 renderer, installs the pinned lockfile, renders the content repository, and runs Pagefind. The artifact is `site/`, `worker/index.js`, and `build-manifest.json`. Article repositories still contain no framework files.
+`cfgb build` extracts the embedded Astro 6 renderer, installs dependencies with `npm ci`, renders the content repository, and runs Pagefind. `CFGB_PACKAGE_MANAGER=pnpm` uses the embedded pnpm lockfile instead. The artifact is `site/`, `worker/index.js`, and `build-manifest.json`. Article repositories still contain no framework files.
 
 The renderer covers locale homes, articles, lists, archives, topics, about, search, feeds, sitemap, robots, alias `_redirects`, and localized 404 pages. Markdown includes GFM footnotes, GitHub alerts, Expressive Code, Mermaid, and cached link cards. The Worker negotiates `/` and `/__locale`. Visitors do not get a palette switch; theme is still system, light, or dark. Full semantic validation, deploy, and preview upload are not implemented yet. CSP still allows inline styles because Expressive Code and the footnote markup need them.
 

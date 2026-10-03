@@ -14,7 +14,7 @@ the intended implementation, not features already delivered in this repository.
 
 The personal site repository is a design target; its existence is not required
 to use the example corpus. The Go CLI discovers `cfgb.yaml`; article repositories
-contain no Astro source/configuration, package.json, pnpm lockfile or Worker code.
+contain no Astro source/configuration, package.json, lockfile or Worker code.
 CFGB owns rendering and delivery. Shared schemas are versioned in CFGB; the example
 repository links to their canonical definitions. Schema changes must review the
 example fixtures too. No runtime database, CMS, accounts, comments, newsletter,
@@ -23,12 +23,13 @@ recommendations, R2, scheduling, or visitor-triggered AI in v1.
 Renderer, Worker, package manifest, dependency lockfile and build checks live in
 CFGB and are embedded in the released Go executable. Builds extract them into a
 disposable workspace and stage a snapshot of configured content without modifying
-its repository. Node.js and the supported pinned package manager remain build
-prerequisites; embedding sources does not embed a JS runtime or node_modules.
+its repository. Node.js and npm remain build prerequisites. pnpm is optional
+and is selected with `CFGB_PACKAGE_MANAGER=pnpm`. Embedding sources does not
+embed a JS runtime or node_modules.
 Dependency installation may use network; rendering and artifact tests must work
 offline. Renderer implementation and dependencies can change without adding files
 to article repositories. A release records its embedded renderer version and publishes/embeds Node range,
-exact pnpm/Wrangler, tested Workers compatibility date and lockfile requirements.
+the tested npm major, the optional exact pnpm pin, Wrangler, the tested Workers compatibility date and lockfile requirements.
 Retain each external toolchain
 workspace through its upload command. Workers Builds bootstraps the exact binary
 under HOME and obtains provenance from official CI variables; see the
@@ -73,7 +74,8 @@ parsing, migration planning and validation do not require a Cloudflare account.
   content routes. `www.ymmt2005.dev` redirects to the apex at the zone/host layer.
 - Go CLI: `cfgb`; configuration: `cfgb.yaml`; generated provenance: `.cfgb.json`.
 - Astro 6 is the selected major baseline; select compatible maintained patch
-  versions at implementation time, pin packages and commit `pnpm-lock.yaml` in CFGB.
+  versions at implementation time, pin packages and commit `package-lock.json` in CFGB.
+  `pnpm-lock.yaml` stays in CFGB for `CFGB_PACKAGE_MANAGER=pnpm`.
   Worker Previews requires Wrangler 4.135.0+; pin one tested version in CFGB.
 - Original images live beside articles. Git branches/PRs are drafts; the configured
   `deploy.productionBranch` (default `main`) contains published content. No `draft`,

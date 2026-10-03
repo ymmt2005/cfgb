@@ -90,8 +90,10 @@ rendering, Pagefind and artifact checks then run offline. No AI, metadata refres
 remote image fetch or source mutation occurs. Node.js remains required in v1.
 The [build runtime contract](10-build-runtime.md) defines bootstrap, runtime
 requirements, retained toolchain sessions and source-provenance resolution. Build
-checks the actual Node range and exact pnpm from release requirements before
-installing frozen dependencies. Its installed Wrangler survives for the same
+checks the actual Node range and npm major from release requirements before
+installing frozen dependencies. `CFGB_PACKAGE_MANAGER=pnpm` selects the optional
+exact pnpm pin instead. That choice is an environment variable, not a field in
+the content repository. Its installed Wrangler survives for the same
 build's upload command, outside the content repository and deployable artifact.
 
 `--out` must resolve inside the repository, outside input content and protected
@@ -142,7 +144,7 @@ unpinned npx download. None of these credentials becomes a visitor-runtime secre
 Diagnostic codes: `E_ARTIFACT` for missing checks/corrupt or unsupported artifacts,
 `E_BUILD_SOURCE` for stale/dirty source, `E_DEPLOY_TARGET` for branch/target errors,
 and `E_PREVIEW_ACCESS` for absent/unverifiable Access coverage. `E_TOOLCHAIN`
-(exit 2) identifies missing/incompatible Node/pnpm/Wrangler or toolchain sessions.
+(exit 2) identifies missing/incompatible Node, npm, optional pnpm, Wrangler or toolchain sessions.
 Publication content failures retain the same `E_*` codes as `validate --publish`. Missing build/upload prerequisites
 are configuration failures (exit 2); remote upload failures use exit 3. Gate
 violations use exit 1. Do not promote/upload a failed artifact.

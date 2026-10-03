@@ -2,20 +2,23 @@ package build
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
 func TestExampleCorpus(t *testing.T) {
-	if _, err := exec.LookPath("node"); err != nil || exec.Command("pnpm", "-v").Run() != nil {
+	if _, err := exec.LookPath("node"); err != nil || exec.Command("npm", "-v").Run() != nil {
 		if os.Getenv("CFGB_REQUIRE_EXAMPLE") == "1" {
-			t.Fatal("node and pnpm are required")
+			t.Fatal("node and npm are required")
 		}
-		t.Skip("node or pnpm is not installed")
+		t.Skip("node or npm is not installed")
 	}
+	t.Setenv("CFGB_PACKAGE_MANAGER", "")
 	root := exampleRoot(t)
 	out := filepath.Join(root, ".cfgb-build-test")
 	os.RemoveAll(out)
@@ -54,6 +57,23 @@ func TestExampleCorpus(t *testing.T) {
 	}
 	if !bytes.Contains(article, []byte("data-footnote-ref")) || !bytes.Contains(article, []byte("id=\"テスト-1\"")) {
 		t.Fatal("japanese showcase is missing the footnote or duplicate heading")
+	}
+	raw, err = os.ReadFile(filepath.Join(out, "build-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Toolchain struct {
+			PackageManager      string `json:"packageManager"`
+			ObservedNpmVersion  string `json:"observedNpmVersion"`
+			ObservedPnpmVersion string `json:"observedPnpmVersion"`
+		} `json:"toolchain"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Toolchain.PackageManager != "npm" || !strings.HasPrefix(manifest.Toolchain.ObservedNpmVersion, "10.") || manifest.Toolchain.ObservedPnpmVersion != "" {
+		t.Fatalf("toolchain = %+v", manifest.Toolchain)
 	}
 }
 

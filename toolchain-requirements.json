@@ -3,10 +3,13 @@
   "goVersion": "1.27.1",
   "nodeRange": ">=22.12.0 <23",
   "testedNodeVersion": "22.14.0",
+  "packageManager": "npm",
+  "npmVersion": "10.9.7",
   "pnpmVersion": "10.33.3",
   "wranglerVersion": "4.147.0",
   "workerCompatibilityDate": "2026-09-22",
   "rendererVersion": "0.0.0",
   "astroVersion": "6.4.8",
-  "lockfileHash": "087f272079a526135b0c6cb5f994b2d414f08763e2d1657ea8294073528477f6"
+  "lockfileHash": "c381dde7a1fb9b92c7f1e4bfd74d14c3689f4e68709f99d076fb431ab6c73549",
+  "pnpmLockfileHash": "087f272079a526135b0c6cb5f994b2d414f08763e2d1657ea8294073528477f6"
 }

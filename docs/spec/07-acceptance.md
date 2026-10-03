@@ -25,7 +25,7 @@ Initial preparation checks only its structural and referential integrity.
 | No runtime/build-time AI/content fetching | Network-denied build after installation | CFGB build |
 | Framework-free content repositories | No Astro/Worker/package files added; embedded toolchain extraction | CFGB build |
 | Pinned Workers Builds bootstrap | Runtime contract; release/digest verification in separate command shells | Build integration |
-| Retained toolchain and runtime validation | Delivery cases; Node/pnpm/Wrangler and session/opaque build-ID mismatch failures and hash-derived path safety | CFGB build/deploy/preview |
+| Retained toolchain and runtime validation | Delivery cases; Node/npm/Wrangler, the optional pnpm path, and session/opaque build-ID mismatch failures and hash-derived path safety | CFGB build/deploy/preview |
 | Authoritative CI provenance | Detached HEAD and official CI-variable/checkout checks | CFGB provenance adapter |
 | Separate build/upload stages | `tests/build-delivery/cases.json`; artifact consistency/source-identity and timestamp gates | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |

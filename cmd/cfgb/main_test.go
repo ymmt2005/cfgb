@@ -34,6 +34,8 @@ func TestEmbeddedAssets(t *testing.T) {
 		"prompts/summary-en-v1.txt",
 		"toolchain-requirements.json",
 		"renderer/package.json",
+		"renderer/package-lock.json",
+		"renderer/pnpm-lock.yaml",
 		"renderer/astro.config.mjs",
 		"renderer/src/content.config.ts",
 	} {
