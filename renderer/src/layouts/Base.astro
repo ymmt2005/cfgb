@@ -1,4 +1,5 @@
 ---
+import { languageDestination } from "../lib/locale-link.mjs";
 import { absolute, loadSite, ui } from "../lib/load-site.mjs";
 
 interface Props {
@@ -28,11 +29,7 @@ const {
 const { site, routes } = loadSite();
 const copy = ui[locale] || ui.en;
 const other = Object.keys(site.locales).find((item) => item !== locale) || "";
-const otherPath = other
-  ? routes.has(swapLocale(path, locale, other))
-    ? swapLocale(path, locale, other)
-    : `/${other}/`
-  : "";
+const otherDestination = languageDestination({ path, locale, other, alternatePath, untranslated, routes });
 const canonical = absolute(site, path);
 const pageTitle = path === `/${locale}/` ? site.title : `${title} · ${site.title}`;
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
@@ -46,10 +43,6 @@ const nav = [
   [copy.search, `/${locale}/search/`],
   [copy.about, `/${locale}/about/`],
 ];
-function swapLocale(route: string, from: string, to: string) {
-  if (route === `/${from}/` || route.startsWith(`/${from}/`)) return `/${to}/${route.slice(from.length + 2)}`;
-  return `/${to}/`;
-}
 function localeChoice(lang: string, destination: string) {
   return `/__locale?lang=${encodeURIComponent(lang)}&next=${encodeURIComponent(destination)}`;
 }
@@ -90,7 +83,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
       <div class="tools">
         <nav class="locales" aria-label={copy.language}>
           <a href={localeChoice(locale, path)} aria-current="true" hreflang={locale}>{site.locales[locale].label}</a>
-          {other && <a href={localeChoice(other, alternatePath || otherPath)} hreflang={other}>{site.locales[other].label}</a>}
+          {other && <a href={localeChoice(other, otherDestination)} hreflang={other}>{site.locales[other].label}</a>}
         </nav>
         <div class="menu">
           <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">{copy.theme}</button>

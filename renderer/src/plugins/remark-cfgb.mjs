@@ -36,7 +36,7 @@ export function remarkCfgb() {
         node.url = rewriteLink(node.url, source, byFile);
       }
       if (node.type === "image" && node.url) {
-        node.url = rewriteImage(node.url, source);
+        node.url = rewriteImage(node.url, source, { markdownImage: true });
       }
     });
   };
@@ -200,12 +200,25 @@ function encodeAssetSegment(segment) {
   }
 }
 
-function rewriteImage(url, source) {
+function assetScope(source) {
+  const normalized = source.replaceAll("\\", "/");
+  const article = normalized.match(/posts\/(\d{4})\/([^/]+)\/[^/]+\.md$/);
+  if (article) return `${article[1]}/${article[2]}`;
+  if (/\/home\/[^/]+\.md$/.test(normalized)) return "home";
+  if (/\/pages\/about\/[^/]+\.md$/.test(normalized)) return "about";
+  if (/\/aside\/[^/]+\.md$/.test(normalized)) return "aside";
+  return "";
+}
+
+function rewriteImage(url, source, options = {}) {
   if (!url.startsWith("./assets/") || !source) return url;
   const { path, suffix } = splitUrl(url);
-  const match = source.replaceAll("\\", "/").match(/posts\/(\d{4})\/([^/]+)\/[^/]+\.md$/);
-  if (!match || !path.startsWith("./assets/")) return url;
+  const scope = assetScope(source);
+  if (!scope || !path.startsWith("./assets/")) return url;
+  // Home, about, and aside Markdown images stay on Astro's image pipeline.
+  // Links and raw HTML use the published prose asset instead.
+  if (options.markdownImage && !scope.includes("/")) return url;
   const name = path.slice("./assets/".length);
   const encoded = name.split("/").map(encodeAssetSegment).join("/");
-  return `/media/${match[1]}/${match[2]}/${encoded}${suffix}`;
+  return `/media/${scope}/${encoded}${suffix}`;
 }

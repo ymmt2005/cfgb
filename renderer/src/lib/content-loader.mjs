@@ -39,6 +39,7 @@ export function cfgbLoader(name, entries) {
           filePath: path.relative(fileURLToPath(context.config.root), entry.file),
           digest: context.generateDigest(entry.body ?? ""),
           rendered,
+          assetImports: rendered.metadata.imagePaths,
         });
       }
     },

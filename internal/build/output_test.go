@@ -625,6 +625,38 @@ func TestDirectorySymlinksKeepMedia(t *testing.T) {
 	}
 }
 
+func TestProseAssetsArePublished(t *testing.T) {
+	cfg, repo := testRepo(t)
+	content := filepath.Join(repo, "src", "content")
+	files := map[string]string{
+		filepath.Join(content, "home", "assets", "portrait.svg"):           "home",
+		filepath.Join(content, "pages", "about", "assets", "portrait.svg"): "about",
+		filepath.Join(content, "aside", "assets", "note.svg"):              "aside",
+	}
+	for name, body := range files {
+		if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(name, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	media := t.TempDir()
+	if err := stageMedia(cfg, media); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []struct{ path, body string }{
+		{"home/portrait.svg", "home"},
+		{"about/portrait.svg", "about"},
+		{"aside/note.svg", "aside"},
+	} {
+		raw, err := os.ReadFile(filepath.Join(media, item.path))
+		if err != nil || string(raw) != item.body {
+			t.Fatalf("%s = %q, %v", item.path, raw, err)
+		}
+	}
+}
+
 func testRepo(t *testing.T) (*config.File, string) {
 	t.Helper()
 	repo := t.TempDir()

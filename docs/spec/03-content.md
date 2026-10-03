@@ -86,7 +86,9 @@ A cross-locale alias is `E_URL_COLLISION`, exit 1, in every validation mode,
 even when its path does not otherwise exist in the route registry.
 
 Global language links target the same article's counterpart if available;
-otherwise target the other locale home. Only real pairs receive an article-level
+otherwise target the other locale home. The switch uses that translation group.
+An untranslated article still links to the other locale home when a different
+group uses the same slug. Only real pairs receive an article-level
 translation notice and reciprocal `hreflang`. Each pair member uses its own
 canonical and its own summary/dates. Do not pretend untranslated content has an
 alternate. Other translated page pairs have reciprocal locale links. Root may
@@ -124,10 +126,13 @@ embed must be consistent with the final CSP/privacy policy.
 
 Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images
 and supplies dimensions/responsive delivery. External images remain external
-without build-time downloads and appear in migration/privacy reports. A Markdown
-or raw HTML link or image to `./assets/...` is rewritten to the published
-`/media/<year>/<article>/` path. Existing percent-escapes are not encoded again,
-and any query or fragment stays on that URL. Local SVG
+without build-time downloads and appear in migration/privacy reports. An article
+Markdown image, raw HTML image, or link to `./assets/...` is rewritten to the
+published `/media/<year>/<article>/` path. Home, about, and aside links
+and raw HTML images use `/media/home/`, `/media/about/`, and `/media/aside/`.
+Markdown images in those prose files stay on Astro's image pipeline, which
+records the image imports and emits the processed file. Existing percent-escapes
+are not encoded again, and any query or fragment stays on a rewritten URL. Local SVG
 is used as an image, not blindly injected as trusted inline markup. The example
 includes SVG as a precise diagram and PNG as an original lossless raster fixture.
 OG fallback is a build-time PNG with title/branding and a bundled licensed font

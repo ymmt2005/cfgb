@@ -669,6 +669,22 @@ func stageMedia(cfg *config.File, dest string) error {
 	if err != nil {
 		return err
 	}
+	if err := stageArticleMedia(root, content, dest); err != nil {
+		return err
+	}
+	for _, item := range []struct{ dir, name string }{
+		{"home/assets", "home"},
+		{"pages/about/assets", "about"},
+		{"aside/assets", "aside"},
+	} {
+		if err := copyOptionalAssets(root, joinRoot(content, item.dir), filepath.Join(dest, item.name)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func stageArticleMedia(root *os.Root, content, dest string) error {
 	posts, err := root.OpenRoot(joinRoot(content, "posts"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -708,7 +724,7 @@ func stageMedia(cfg *config.File, dest string) error {
 			if err != nil {
 				return err
 			}
-			err = copyArticleAssets(group, filepath.Join(dest, year.Name(), key.Name()))
+			err = copyOptionalAssets(group, "assets", filepath.Join(dest, year.Name(), key.Name()))
 			group.Close()
 			if err != nil {
 				return err
@@ -718,8 +734,8 @@ func stageMedia(cfg *config.File, dest string) error {
 	return nil
 }
 
-func copyArticleAssets(group *os.Root, dest string) error {
-	info, err := group.Stat("assets")
+func copyOptionalAssets(root *os.Root, name, dest string) error {
+	info, err := root.Stat(name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -729,7 +745,7 @@ func copyArticleAssets(group *os.Root, dest string) error {
 	if !info.IsDir() {
 		return nil
 	}
-	assets, err := group.OpenRoot("assets")
+	assets, err := root.OpenRoot(name)
 	if err != nil {
 		return err
 	}

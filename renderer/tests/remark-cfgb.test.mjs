@@ -321,3 +321,56 @@ test("asset paths rewrite when the source path uses Windows separators", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("prose links and raw HTML publish assets while Markdown images stay local", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "cfgb-remark-prose-"));
+  try {
+    const home = path.join(dir, "content", "home");
+    const about = path.join(dir, "content", "pages", "about");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(about, { recursive: true });
+    const homeFile = path.join(home, "ja.md");
+    const aboutFile = path.join(about, "en.md");
+    writeFileSync(homeFile, "Home\n");
+    writeFileSync(aboutFile, "About\n");
+    mkdirSync(path.join(dir, "linkcards"));
+    const metadataPath = path.join(dir, "metadata.json");
+    writeFileSync(metadataPath, JSON.stringify({ topics: {}, posts: [], prose: [] }));
+    const sitePath = path.join(dir, "site.json");
+    writeFileSync(
+      sitePath,
+      JSON.stringify({
+        title: "Example",
+        baseUrl: "https://example.invalid",
+        defaultLocale: "ja",
+        timezone: "UTC",
+        locales: { ja: { label: "日本語" }, en: { label: "English" } },
+        contentRoot: path.join(dir, "content"),
+        topicsFile: path.join(dir, "topics.yaml"),
+        linkcardsDir: path.join(dir, "linkcards"),
+        metadataFile: metadataPath,
+        latestPosts: 5,
+      }),
+    );
+    process.env.CFGB_SITE_JSON = sitePath;
+    resetSiteCache();
+    const children = [
+      { type: "image", url: "./assets/portrait.svg", alt: "Markdown portrait" },
+      { type: "html", value: '<img src="./assets/portrait.svg?v=1#view" alt="Raw HTML portrait">' },
+      { type: "link", url: "./assets/portrait.svg", children: [{ type: "text", value: "Markdown asset link" }] },
+      { type: "html", value: '<a href="./assets/portrait.svg">Raw HTML asset link</a>' },
+    ];
+    const homeTree = { type: "root", children: structuredClone(children) };
+    remarkCfgb()(homeTree, { path: homeFile });
+    assert.equal(homeTree.children[0].url, "./assets/portrait.svg");
+    assert.equal(homeTree.children[1].value, '<img src="/media/home/portrait.svg?v=1#view" alt="Raw HTML portrait">');
+    assert.equal(homeTree.children[2].url, "/media/home/portrait.svg");
+    assert.equal(homeTree.children[3].value, '<a href="/media/home/portrait.svg">Raw HTML asset link</a>');
+    const aboutTree = { type: "root", children: structuredClone(children) };
+    remarkCfgb()(aboutTree, { path: aboutFile });
+    assert.equal(aboutTree.children[0].url, "./assets/portrait.svg");
+    assert.equal(aboutTree.children[2].url, "/media/about/portrait.svg");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
