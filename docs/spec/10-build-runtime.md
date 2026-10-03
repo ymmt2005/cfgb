@@ -128,9 +128,12 @@ Builds `toolchainSessionId` is the 64-character lowercase hexadecimal SHA-256
 of the exact UTF-8 bytes of `buildUUID`, and its root is
 `$HOME/.cache/cfgb/builds/<sha256(buildUUID)>/`. Never use the raw build identifier
 as a path component. Elsewhere use an opaque random session ID under CFGB's user
-cache. The session directory is mode `0700`, including when that deterministic
-directory already exists. Reject symlink/path escapes regardless of the hashed
-component. The workspace contains extracted package and lockfile sources, `npm ci` dependencies
+cache. Open that cache directory as an `os.Root` and create, refresh, and remove
+the session only through it. A symlink that leaves the cache is rejected. A symlink
+that stays inside the cache is followed; the caller-configured cache location is
+the root. The session directory is mode `0700`, including when that deterministic
+directory already exists, and a symlink at the session directory itself is rejected.
+The workspace contains extracted package and lockfile sources, `npm ci` dependencies
 by default (or the frozen pnpm install when selected), including the pinned
 Wrangler, and private session metadata. The renderer `package.json` `allowScripts`
 field permits install scripts for `esbuild` and `workerd`. The pnpm

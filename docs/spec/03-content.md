@@ -105,7 +105,10 @@ list without JavaScript. A reference with no definition is `E_LINK_BROKEN`.
 Omit a definition that nothing references. Leave footnote syntax inside code
 fences unchanged. Process Markdown via AST, including reference
 links and raw HTML attributes. Parse those attributes with an HTML syntax tree,
-including unquoted values, and do not rewrite text inside HTML comments. Local links to `../other-key/ja.md#heading` resolve
+including unquoted values, and do not rewrite text inside HTML comments. Replace
+the attribute value in the original tag text. An opening tag stays an opening tag,
+so the visible label remains inside the anchor when Markdown splits the tag from
+its text. Local links to `../other-key/ja.md#heading` resolve
 through the route registry; root-relative internal URLs must also resolve.
 Fragment checks use the renderer's actual heading IDs, including duplicates and
 non-Latin headings. Go validation uses a shared heading-manifest adapter or the

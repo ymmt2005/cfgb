@@ -4,7 +4,7 @@ The executable is `cfgb`. Global flags: `--config PATH` (default: nearest ancest
 `cfgb.yaml`, stopping at repository root), `--format text|json`, `--no-color`,
 `--version`. Paths are relative to the configuration directory, never the current
 working directory. Reject unknown keys, duplicate YAML keys, custom YAML tags,
-out-of-root paths and symlink traversal. YAML is parsed as YAML 1.2 with timestamp
+out-of-root paths and symlink escapes. YAML is parsed as YAML 1.2 with timestamp
 values preserved as strings. Accept UTF-8 without BOM. Hash normalization follows
 the domain contract: [AI summary input](05-ai.md#input-and-output-hashes) normalizes
 body newlines; [migration source/target hashes](06-migration.md#assets-and-restart-safety)
@@ -110,9 +110,9 @@ there, then moved into `<out>`. Success is reported only after that complete
 artifact is in place. A failed build removes the incomplete directory. This
 invocation deletes only the staging directory it created; a sibling `<out>.tmp`
 is left alone. A missing link-card directory is an empty cache. Repository-relative inputs are read through `os.Root` on the
-repository. Article assets are read through a child root of that article's
+repository, including `cfgb.yaml`. Article assets are read through a child root of that article's
 `assets` directory. Symlinks and `..` that stay inside the applicable root are
-copied. Escapes fail at the rooted open, which keeps the build inside its
+followed. Escapes fail at the rooted open, which keeps the build inside its
 inputs. Default build validation allows future
 publication dates for previews but requires existing valid summaries.
 
@@ -122,8 +122,10 @@ config/input/output hashes, publication metadata snapshot, completed checks, pro
 optional opaque build identifier (`buildUUID`), toolchain session ID and required/observed runtime versions).
 Publication metadata includes article key, locale, slug, summary and timestamps for each variant. Local
 builds may record dirty worktrees; remote uploads require a clean checkout matching
-the recorded commit and input hashes. Generated/ignored output does not count as
-a source edit. Never include credentials or raw private source exports.
+the recorded commit and input hashes. Generated output does not count as
+a source edit. The selected `--out` directory is left out of that check, including
+when it is unignored and already present before the build. A real article or
+configuration edit is still dirty. Never include credentials or raw private source exports.
 
 `deploy`/`preview` verify artifact bytes against the recorded hashes, completed
 checks, supported versions and source identity before upload. These are

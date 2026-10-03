@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/goccy/go-yaml/ast"
@@ -44,6 +45,47 @@ func TestLoadRejectsUnknownField(t *testing.T) {
 	writeConfig(t, dir, minimalConfig+"\npalette: dusk\n")
 	if _, err := Load(dir); err == nil {
 		t.Fatal("unknown field was accepted")
+	}
+}
+
+func TestLoadFollowsInRootConfigSymlink(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Replace(minimalConfig, "CFGB Example", "Linked", 1)
+	if err := os.WriteFile(filepath.Join(dir, "site.yaml"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("site.yaml", filepath.Join(dir, "cfgb.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Site.Title != "Linked" {
+		t.Fatalf("title = %s", cfg.Site.Title)
+	}
+}
+
+func TestLoadRejectsConfigSymlinkEscape(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	body := strings.Replace(minimalConfig, "CFGB Example", "External", 1)
+	if err := os.WriteFile(filepath.Join(outside, "cfgb.yaml"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(outside, "cfgb.yaml"), filepath.Join(dir, "cfgb.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(dir); err == nil {
+		t.Fatal("external cfgb.yaml was read")
 	}
 }
 

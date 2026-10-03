@@ -83,7 +83,7 @@ func Load(start string) (*File, error) {
 	if file == "" {
 		return nil, fmt.Errorf("cfgb.yaml not found")
 	}
-	raw, err := os.ReadFile(file)
+	raw, err := readConfig(repo, file)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +116,28 @@ func Load(start string) (*File, error) {
 	cfg.path = file
 	cfg.root = repo
 	return &cfg, nil
+}
+
+// readConfig reads cfgb.yaml through a root at the repository. Symlinks that
+// stay inside that root are followed. A symlink that leaves the repository fails.
+func readConfig(repo, file string) ([]byte, error) {
+	root, err := os.OpenRoot(repo)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	rel, err := filepath.Rel(repo, file)
+	if err != nil {
+		return nil, err
+	}
+	if !filepath.IsLocal(rel) {
+		return nil, fmt.Errorf("cfgb.yaml escapes the repository")
+	}
+	raw, err := root.ReadFile(filepath.ToSlash(rel))
+	if err != nil {
+		return nil, fmt.Errorf("cfgb.yaml: %w", err)
+	}
+	return raw, nil
 }
 
 func repositoryRoot(start string) string {

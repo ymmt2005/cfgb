@@ -154,6 +154,126 @@ func TestSessionDirIsPrivate(t *testing.T) {
 	}
 }
 
+func TestCacheAncestorSymlinkStaysInCache(t *testing.T) {
+	cache := t.TempDir()
+	outside := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cache)
+	t.Setenv("WORKERS_CI_BUILD_UUID", "existing-session")
+	sum := sha256.Sum256([]byte("existing-session"))
+	id := hex.EncodeToString(sum[:])
+	escaped := filepath.Join(outside, "builds", id)
+	if err := os.MkdirAll(filepath.Join(escaped, "renderer"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(escaped, "renderer", "keep.txt"), []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(cache, "cfgb")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sessionDir(); err == nil {
+		t.Fatal("cache symlink escaped")
+	}
+	if err := prepareSession(escaped); err == nil {
+		t.Fatal("removal left the cache")
+	}
+	raw, err := os.ReadFile(filepath.Join(escaped, "renderer", "keep.txt"))
+	if err != nil || string(raw) != "keep" {
+		t.Fatalf("escaped session = %q, %v", raw, err)
+	}
+}
+
+func TestInRootCacheSymlinkIsUsable(t *testing.T) {
+	cache := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cache)
+	t.Setenv("WORKERS_CI_BUILD_UUID", "inside-session")
+	if err := os.MkdirAll(filepath.Join(cache, "inside"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cache, "inside", "keep.txt"), []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("inside", filepath.Join(cache, "cfgb")); err != nil {
+		t.Fatal(err)
+	}
+	dir, err := sessionDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o700 {
+		t.Fatalf("mode = %o", info.Mode().Perm())
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "renderer"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "renderer", "old.txt"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareSession(dir); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "renderer", "old.txt")); !os.IsNotExist(err) {
+		t.Fatal("session refresh left the previous renderer")
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(cache, "inside", "keep.txt"))
+	if err != nil || string(raw) != "keep" {
+		t.Fatalf("cache sibling = %q, %v", raw, err)
+	}
+}
+
+func TestGeneratedOutputIsNotSourceDirty(t *testing.T) {
+	repo := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=cfgb", "GIT_AUTHOR_EMAIL=cfgb@example.com", "GIT_COMMITTER_NAME=cfgb", "GIT_COMMITTER_EMAIL=cfgb@example.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", args, err, out)
+		}
+	}
+	git("init")
+	article := filepath.Join(repo, "article.md")
+	if err := os.WriteFile(article, []byte("source\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "article.md")
+	git("commit", "-m", "source")
+	out := filepath.Join(repo, "site-out")
+	writeOutput := func() {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(out, "site"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(out, "site", "index.html"), []byte("page"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(out, "build-manifest.json"), []byte("{}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeOutput()
+	if _, _, dirty := gitState(repo, out); dirty {
+		t.Fatal("unignored custom output counted as a source edit")
+	}
+	writeOutput()
+	if _, _, dirty := gitState(repo, out); dirty {
+		t.Fatal("existing custom output counted as a source edit")
+	}
+	if err := os.WriteFile(article, []byte("edited\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, dirty := gitState(repo, out); !dirty {
+		t.Fatal("source edit was recorded as clean")
+	}
+}
+
 func TestRootedInputsRejectEscapes(t *testing.T) {
 	cfg, repo := testRepo(t)
 	content := filepath.Join(repo, "src", "content")

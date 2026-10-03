@@ -178,7 +178,7 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	manifest, err := manifestJSON(cfg, req, tc, sessionID(session), routes)
+	manifest, err := manifestJSON(cfg, req, tc, sessionID(session), routes, out)
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
@@ -364,23 +364,17 @@ func sessionDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cache, err := os.UserCacheDir()
+	root, cache, err := openCache()
 	if err != nil {
 		return "", err
 	}
-	parent := filepath.Join(cache, "cfgb", "builds")
-	if err := os.MkdirAll(parent, 0o755); err != nil {
+	defer root.Close()
+	const parent = "cfgb/builds"
+	if err := root.MkdirAll(parent, 0o755); err != nil {
 		return "", err
 	}
-	parentInfo, err := os.Lstat(parent)
-	if err != nil {
-		return "", err
-	}
-	if parentInfo.Mode()&os.ModeSymlink != 0 {
-		return "", fmt.Errorf("toolchain session parent is a symlink")
-	}
-	dir := filepath.Join(parent, id)
-	info, err := os.Lstat(dir)
+	rel := parent + "/" + id
+	info, err := root.Lstat(rel)
 	if err != nil && !os.IsNotExist(err) {
 		return "", err
 	}
@@ -391,14 +385,30 @@ func sessionDir() (string, error) {
 		return "", fmt.Errorf("toolchain session is not a directory")
 	}
 	if os.IsNotExist(err) {
-		if err := os.Mkdir(dir, 0o700); err != nil {
+		if err := root.Mkdir(rel, 0o700); err != nil {
 			return "", err
 		}
 	}
+	dir := filepath.Join(cache, "cfgb", "builds", id)
 	if err := tightenDir(dir); err != nil {
 		return "", err
 	}
 	return dir, nil
+}
+
+// openCache opens the user cache directory. That directory is the session root:
+// a symlink the caller configured as the cache is the root, and operations below
+// it stay inside it.
+func openCache() (*os.Root, string, error) {
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return nil, "", err
+	}
+	root, err := os.OpenRoot(cache)
+	if err != nil {
+		return nil, "", err
+	}
+	return root, cache, nil
 }
 
 func tightenDir(dir string) error {
@@ -412,9 +422,20 @@ func tightenDir(dir string) error {
 
 // prepareSession removes the per-build trees inside a retained session.
 // The session directory itself stays for a later deploy or preview.
+// Removal goes through the cache root, so a symlink that leaves the cache is not a deletion target.
 func prepareSession(session string) error {
+	root, cache, err := openCache()
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	rel, err := filepath.Rel(filepath.Clean(cache), filepath.Clean(session))
+	if err != nil || rel == "." || !filepath.IsLocal(rel) {
+		return fmt.Errorf("toolchain session escapes the cache")
+	}
+	rel = filepath.ToSlash(rel)
 	for _, name := range []string{"renderer", "snapshot"} {
-		if err := os.RemoveAll(filepath.Join(session, name)); err != nil {
+		if err := root.RemoveAll(rel + "/" + name); err != nil {
 			return err
 		}
 	}
@@ -795,8 +816,8 @@ func isArticleYear(name string) bool {
 	return true
 }
 
-func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, session string, routes []string) ([]byte, error) {
-	commit, branch, dirty := gitState(cfg.Root())
+func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, session string, routes []string, out string) ([]byte, error) {
+	commit, branch, dirty := gitState(cfg.Root(), out)
 	manifest := map[string]any{
 		"schemaVersion":      1,
 		"cfgbVersion":        version.Version,
@@ -831,13 +852,18 @@ func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, session
 	return json.MarshalIndent(manifest, "", "  ")
 }
 
-func gitState(repo string) (string, string, bool) {
+func gitState(repo, out string) (string, string, bool) {
 	commit, err := output("git", "-C", repo, "rev-parse", "HEAD")
 	if err != nil {
 		return "", "", true
 	}
 	branch, _ := output("git", "-C", repo, "rev-parse", "--abbrev-ref", "HEAD")
-	status, _ := output("git", "-C", repo, "status", "--porcelain")
+	args := []string{"-C", repo, "status", "--porcelain", "--", "."}
+	rel, relErr := filepath.Rel(filepath.Clean(repo), filepath.Clean(out))
+	if relErr == nil && filepath.IsLocal(rel) {
+		args = append(args, ":(exclude)"+filepath.ToSlash(rel))
+	}
+	status, _ := output("git", args...)
 	return commit, branch, strings.TrimSpace(status) != ""
 }
 

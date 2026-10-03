@@ -55,7 +55,9 @@ The setting is an assertion, not automatic creation of Access policies. Default
 protection uses Worker-level previews-only `preview_worker` Access with verified
 Worker identity and policy; hostname-specific coverage is an advanced option.
 
-Relative paths must stay inside the repository after symlink resolution. Topic
+`cfgb.yaml` is read through an `os.Root` opened at the repository. A symlink that
+stays inside the repository is followed. A symlink that leaves the repository is
+rejected. Relative paths must stay inside the repository after symlink resolution. Topic
 IDs match `[a-z0-9]+(-[a-z0-9]+)*`. Every topic must have exactly the configured
 locale labels, even when it currently has articles in only one locale. JSON Schema
 allows partial/empty topic label maps; semantic validation compares each map

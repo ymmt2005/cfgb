@@ -138,8 +138,9 @@ func TestExampleCorpus(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if bytes.Contains(rendered, []byte(rawLink)) || !bytes.Contains(rendered, []byte(`href="/en/posts/reading-protobuf-schemas/#field-numbers"`)) {
-			t.Fatal("raw HTML article link was not rewritten")
+		const rewritten = `<a href="/en/posts/reading-protobuf-schemas/#field-numbers">Field numbers</a>`
+		if bytes.Contains(rendered, []byte(rawLink)) || !bytes.Contains(rendered, []byte(rewritten)) {
+			t.Fatal("raw HTML article link was not rewritten inside its anchor")
 		}
 	}
 	article, err := os.ReadFile(filepath.Join(out, "site", "ja", "posts", "markdown-showcase", "index.html"))

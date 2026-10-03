@@ -1,5 +1,5 @@
 import path from "node:path";
-import { parseFragment, serialize } from "parse5";
+import { parseFragment } from "parse5";
 import { cardKey, loadSite } from "../lib/load-site.mjs";
 
 const alerts = {
@@ -90,21 +90,55 @@ function markAlert(node) {
 }
 
 function rewriteHtml(value, source, byFile) {
-  const fragment = parseFragment(value);
-  let changed = false;
+  const fragment = parseFragment(value, { sourceCodeLocationInfo: true });
+  const edits = [];
   walkElements(fragment, (node) => {
+    const locations = node.sourceCodeLocation?.attrs;
+    if (!locations) return;
     for (const attr of node.attrs || []) {
       const name = attr.name.toLowerCase();
       if (name !== "href" && name !== "src") continue;
       const next = name === "src" ? rewriteImage(attr.value, source) : rewriteLink(attr.value, source, byFile);
-      if (next !== attr.value) {
-        attr.value = next;
-        changed = true;
-      }
+      if (next === attr.value) continue;
+      const range = attributeValueRange(value, locations[name]);
+      if (!range) continue;
+      edits.push({ start: range.start, end: range.end, value: encodeAttributeValue(next, range.quote) });
     }
   });
-  if (!changed) return value;
-  return serialize(fragment);
+  if (edits.length === 0) return value;
+  edits.sort((a, b) => b.start - a.start);
+  let out = value;
+  for (const edit of edits) out = out.slice(0, edit.start) + edit.value + out.slice(edit.end);
+  return out;
+}
+
+// attributeValueRange locates the value inside one attribute. The span from
+// parse5 covers the whole attribute, including its name and quotes.
+function attributeValueRange(source, loc) {
+  if (!loc) return null;
+  const raw = source.slice(loc.startOffset, loc.endOffset);
+  const eq = raw.indexOf("=");
+  if (eq < 0) return null;
+  let i = eq + 1;
+  while (i < raw.length && " \t\n\r\f".includes(raw[i])) i++;
+  if (i >= raw.length) return null;
+  const quote = raw[i];
+  if (quote === '"' || quote === "'") {
+    const end = raw.lastIndexOf(quote);
+    if (end <= i) return null;
+    return { start: loc.startOffset + i + 1, end: loc.startOffset + end, quote };
+  }
+  return { start: loc.startOffset + i, end: loc.endOffset, quote: "" };
+}
+
+function encodeAttributeValue(value, quote) {
+  if (quote !== '"' && quote !== "'") {
+    if (value !== "" && !/[\s"'=<>`]/.test(value)) return value.replaceAll("&", "&amp;");
+    quote = '"';
+    return `"${value.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"`;
+  }
+  const escaped = value.replaceAll("&", "&amp;").replaceAll(quote, quote === '"' ? "&quot;" : "&apos;");
+  return escaped;
 }
 
 function walkElements(node, visit) {
