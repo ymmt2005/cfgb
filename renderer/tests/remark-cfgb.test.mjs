@@ -125,6 +125,9 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
         { type: "link", url: "./assets/diagram.png#detail", children: [{ type: "text", value: "diagram" }] },
         { type: "definition", identifier: "fig", url: "./assets/figures/one.png?x=1" },
         { type: "html", value: '<a href="./assets/a b.png?download=1#y">asset</a>' },
+        { type: "link", url: "./assets/a%20b.png?download=1#detail", children: [{ type: "text", value: "download" }] },
+        { type: "image", url: "./assets/diagram.svg?v=1#view", alt: "Diagram" },
+        { type: "html", value: '<img src="./assets/a%20b.png?x=1#y" alt="encoded">' },
       ],
     };
     remarkCfgb()(tree, { path: sourceFile });
@@ -153,6 +156,12 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
     assert.equal(
       tree.children[8].value,
       '<a href="/media/2026/2026-09-20-markdown-showcase/a%20b.png?download=1#y">asset</a>',
+    );
+    assert.equal(tree.children[9].url, "/media/2026/2026-09-20-markdown-showcase/a%20b.png?download=1#detail");
+    assert.equal(tree.children[10].url, "/media/2026/2026-09-20-markdown-showcase/diagram.svg?v=1#view");
+    assert.equal(
+      tree.children[11].value,
+      '<img src="/media/2026/2026-09-20-markdown-showcase/a%20b.png?x=1#y" alt="encoded">',
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -219,6 +228,14 @@ test("markdown parsing keeps rewritten anchor labels inside the anchor", async (
       "",
       '<a href="../2026-09-19-protobuf-guide/en.md#field-numbers">Field numbers</a>',
       "",
+      "[download](./assets/a%20b.png?download=1#detail)",
+      "",
+      "![diagram](./assets/diagram.svg?v=1#view)",
+      "",
+      '<img src="./assets/a%20b.png?x=1#y" alt="encoded">',
+      "",
+      '<a href="./assets/a%20b.png">file</a>',
+      "",
     ].join("\n");
     const processor = unified({ gfm: true, remarkPlugins: [remarkCfgb], smartypants: false });
     const renderer = await processor.createRenderer({ syntaxHighlight: false, gfm: true, smartypants: false });
@@ -226,6 +243,13 @@ test("markdown parsing keeps rewritten anchor labels inside the anchor", async (
     const anchor = '<a href="/en/posts/reading-protobuf-schemas/#field-numbers">Field numbers</a>';
     assert.equal(html.split(anchor).length - 1, 2);
     assert.equal(html.includes(anchor.replace(">", "></a>")), false);
+    const media = "/media/2026/2026-09-20-markdown-showcase";
+    assert.equal(html.includes(`${media}/a%2520b.png`), false);
+    assert.equal(html.includes("diagram.svg%23view"), false);
+    assert.equal(html.includes(`${media}/a%20b.png?download=1#detail`), true);
+    assert.equal(html.includes(`${media}/diagram.svg?v=1#view`), true);
+    assert.equal(html.includes(`${media}/a%20b.png?x=1#y`), true);
+    assert.equal(html.includes(`${media}/a%20b.png">file</a>`), true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

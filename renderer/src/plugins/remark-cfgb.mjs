@@ -181,11 +181,9 @@ function splitUrl(url) {
 }
 
 function rewriteLink(url, source, byFile) {
+  const media = rewriteImage(url, source);
+  if (media !== url) return media;
   const { path: pathPart, suffix } = splitUrl(url);
-  if (pathPart.startsWith("./assets/")) {
-    const media = rewriteImage(pathPart, source);
-    if (media !== pathPart) return `${media}${suffix}`;
-  }
   if (!pathPart.endsWith(".md")) return url;
   if (!source) return url;
   const resolved = path.resolve(path.dirname(source), pathPart);
@@ -194,10 +192,20 @@ function rewriteLink(url, source, byFile) {
   return `${target.url}${suffix}`;
 }
 
+function encodeAssetSegment(segment) {
+  try {
+    return encodeURIComponent(decodeURIComponent(segment));
+  } catch {
+    return encodeURIComponent(segment);
+  }
+}
+
 function rewriteImage(url, source) {
   if (!url.startsWith("./assets/") || !source) return url;
+  const { path, suffix } = splitUrl(url);
   const match = source.replaceAll("\\", "/").match(/posts\/(\d{4})\/([^/]+)\/[^/]+\.md$/);
-  if (!match) return url;
-  const name = url.slice("./assets/".length);
-  return `/media/${match[1]}/${match[2]}/${name.split("/").map(encodeURIComponent).join("/")}`;
+  if (!match || !path.startsWith("./assets/")) return url;
+  const name = path.slice("./assets/".length);
+  const encoded = name.split("/").map(encodeAssetSegment).join("/");
+  return `/media/${match[1]}/${match[2]}/${encoded}${suffix}`;
 }

@@ -125,8 +125,9 @@ embed must be consistent with the final CSP/privacy policy.
 Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images
 and supplies dimensions/responsive delivery. External images remain external
 without build-time downloads and appear in migration/privacy reports. A Markdown
-or raw HTML link to `./assets/...` is rewritten to the published
-`/media/<year>/<article>/` path, and any query or fragment stays on that URL. Local SVG
+or raw HTML link or image to `./assets/...` is rewritten to the published
+`/media/<year>/<article>/` path. Existing percent-escapes are not encoded again,
+and any query or fragment stays on that URL. Local SVG
 is used as an image, not blindly injected as trusted inline markup. The example
 includes SVG as a precise diagram and PNG as an original lossless raster fixture.
 OG fallback is a build-time PNG with title/branding and a bundled licensed font
