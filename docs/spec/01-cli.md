@@ -130,8 +130,9 @@ optional opaque build identifier (`buildUUID`), toolchain workspace basename and
 Publication metadata includes article key, locale, slug, summary and timestamps for each variant. Local
 builds may record dirty worktrees; remote uploads require a clean checkout matching
 the recorded commit and input hashes. Generated output does not count as
-a source edit. The selected `--out` directory is left out of that check, including
-when it is unignored and already present before the build. A real article or
+a source edit. The selected `--out` directory is left out of that check as a literal path,
+including when its name contains a Git pathspec metacharacter and when it is
+unignored and already present before the build. A real article or
 configuration edit is still dirty. A `git status` query that fails is recorded as
 dirty while a commit and branch that were already read stay in the manifest.
 Never include credentials or raw private source exports.

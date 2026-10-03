@@ -768,7 +768,7 @@ func gitState(repo, out string) (string, string, bool) {
 	args := []string{"-C", repo, "status", "--porcelain", "--", "."}
 	rel, relErr := filepath.Rel(filepath.Clean(repo), filepath.Clean(out))
 	if relErr == nil && filepath.IsLocal(rel) {
-		args = append(args, ":(exclude)"+filepath.ToSlash(rel))
+		args = append(args, ":(top,literal,exclude)"+filepath.ToSlash(rel))
 	}
 	status, err := output("git", args...)
 	if err != nil {

@@ -273,6 +273,38 @@ func TestGeneratedOutputIsNotSourceDirty(t *testing.T) {
 	}
 }
 
+func TestLiteralOutputNameStaysExcluded(t *testing.T) {
+	repo := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=cfgb", "GIT_AUTHOR_EMAIL=cfgb@example.com", "GIT_COMMITTER_NAME=cfgb", "GIT_COMMITTER_EMAIL=cfgb@example.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", args, err, out)
+		}
+	}
+	git("init")
+	article := filepath.Join(repo, "article.md")
+	if err := os.WriteFile(article, []byte("source\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "article.md")
+	git("commit", "-m", "source")
+	out := filepath.Join(repo, "*")
+	if err := os.MkdirAll(filepath.Join(out, "site"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(out, "site", "index.html"), []byte("page"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(article, []byte("edited\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, dirty := gitState(repo, out); !dirty {
+		t.Fatal("output named * hid the edited article")
+	}
+}
+
 func TestGitStatusFailureIsDirty(t *testing.T) {
 	repo := t.TempDir()
 	git := func(args ...string) {
