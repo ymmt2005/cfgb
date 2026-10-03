@@ -89,7 +89,15 @@ use `x-default`; unpaired articles must not invent a language alternate.
 ## Markdown and images
 
 Use GFM (tables, task lists, strikeout, autolinks) plus footnotes and GitHub alerts
-NOTE/TIP/IMPORTANT/WARNING/CAUTION. Process Markdown via AST, including reference
+NOTE/TIP/IMPORTANT/WARNING/CAUTION. Footnotes use `[^id]` references and
+`[^id]: definition` lines, as provided by the pinned `remark-gfm` footnote
+extension. Keep that extension enabled. Place the definitions at the end of the
+article body, numbered by first reference. Each reference links to its
+definition, and each definition links back to every reference that uses it. The
+same id keeps one number. Render inline Markdown inside a definition. Show the
+list without JavaScript. A reference with no definition is `E_LINK_BROKEN`.
+Omit a definition that nothing references. Leave footnote syntax inside code
+fences unchanged. Process Markdown via AST, including reference
 links and raw HTML attributes. Local links to `../other-key/ja.md#heading` resolve
 through the route registry; root-relative internal URLs must also resolve.
 Fragment checks use the renderer's actual heading IDs, including duplicates and
