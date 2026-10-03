@@ -18,9 +18,9 @@ use exact content bytes as specified there. Do not normalize artifact output byt
 | `translate ARTICLE --to en --slug SLUG` | Article key, not ambiguous title | Create missing variant in same group; copy topics/title as placeholders; empty body and summary; never overwrite or translate with AI |
 | `prepare [ARTICLE...] [--offline] [--refresh-links] [--dry-run]` | All variants if no selection | Report assets; fetch missing link cards unless offline; no LLM or commits |
 | `validate [--authoring\|--publish] [--now RFC3339]` | Regular validation by default | Read-only structural and semantic checks |
-| `build [--out DIR]` | Default `dist`; regular validation, embedded fixed toolchain | Generate verified artifact; no upload |
-| `deploy --from DIR` | Verified artifact and production target from environment | Check publication conditions and deploy the same artifact; no rebuild |
-| `preview --from DIR` | Verified artifact and current non-production branch | Create/update a private Worker Preview; no rebuild |
+| `build [--out DIR]` | Default `dist`; regular validation, embedded fixed toolchain | Generate the site artifact; no upload |
+| `deploy --from DIR` | Supplied artifact and the current invocation's production target | Check publication conditions and deploy that artifact; no rebuild |
+| `preview --from DIR` | Supplied artifact and the current invocation's non-production branch | Create/update a private Worker Preview; no rebuild |
 | `summarize [ARTICLE...] [--changed-since REF] [--dry-run]` | Explicit selection or changed variants | Generate eligible summaries and sidecars; never automatically commit |
 | `summarize ARTICLE --lang LOCALE --replace-manual` | One explicit variant | Deliberately replace a manual summary; flag never used in CI |
 | `ai eval summary --corpus PATH --candidates PATH --out DIR` | Candidate config and review corpus | Generate anonymized review bundle; do not modify articles |
@@ -89,7 +89,7 @@ custom executable build scripts. `build` creates a fresh workspace with
 configured content, parses article front matter and
 `topics.yaml` with `goccy/go-yaml`, and installs pinned dependencies. The
 manifest records `filepath.Base` of that directory as `toolchainSessionId`.
-`buildUUID` stays separate provenance and does not name the workspace. A failed
+`buildUUID` stays separate diagnostic metadata and does not name the workspace. A failed
 build removes the workspace it created. A successful build retains it until
 upload completion, upload failure, or disposal of the build environment. Deploy
 and preview, which are not implemented here, resolve it as
@@ -97,7 +97,7 @@ and preview, which are not implemented here, resolve it as
 directory. Rendering, Pagefind and artifact checks then run offline. No AI, metadata refresh,
 remote image fetch or source mutation occurs. Node.js remains required in v1.
 The [build runtime contract](10-build-runtime.md) defines bootstrap, runtime
-requirements, retained toolchain sessions and source-provenance resolution. Build
+requirements, retained toolchain sessions and diagnostic source metadata. Build
 checks the actual Node range and requires npm >= 12 before
 installing frozen dependencies. `CFGB_PACKAGE_MANAGER=pnpm` selects optional pnpm >= 11
 instead. That choice is an environment variable, not a field in
@@ -124,31 +124,37 @@ inputs. Default build validation allows future
 publication dates for previews but requires existing valid summaries.
 
 Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and
-`build-manifest.json` (source commit and branch, CFGB/renderer versions,
-config/input/output hashes, publication metadata snapshot, completed checks, provenance provider,
-optional opaque build identifier (`buildUUID`), toolchain workspace basename and required/observed runtime versions).
-Publication metadata includes article key, locale, slug, summary and timestamps for each variant. Local
-builds may record dirty worktrees; remote uploads require a clean checkout matching
-the recorded commit and input hashes. Generated output does not count as
-a source edit. The selected `--out` directory is left out of that check as a literal path,
+`build-manifest.json`. The manifest records CFGB and renderer versions, the
+toolchain workspace basename, required and observed runtime versions, completed
+checks, and the publication snapshot. That snapshot lists each variant's article
+key, locale, slug, summary, and timestamps, so production deploy can apply the
+current-time future-date rule. Source commit, source branch, the opaque build
+identifier (`buildUUID`), provenance provider, and a dirty-worktree flag are
+optional diagnostics. Build records each value the checkout or CI environment
+supplies, including a Workers Builds branch on a detached checkout. A missing
+value, a dirty worktree, or a difference between a diagnostic and the current
+checkout still produces a successful build. Generated output stays out of the
+dirty record. The selected `--out` directory is omitted as a literal path,
 including when its name contains a Git pathspec metacharacter and when it is
 unignored and already present before the build. A real article or
-configuration edit is still dirty. A `git status` query that fails is recorded as
+configuration edit is still recorded as dirty. A `git status` query that fails is recorded as
 dirty while a commit and branch that were already read stay in the manifest.
+The manifest carries no configuration, input, or output hashes.
 Never include credentials or raw private source exports.
 
-`deploy`/`preview` verify artifact bytes against the recorded hashes, completed
-checks, supported versions and source identity before upload. These are
-deployment-correctness checks: they detect stale, inconsistent, accidentally
-modified or wrong-source artifacts. They are not a cryptographic authentication
-boundary against a malicious artifact store, transfer channel or compromised
-deployment environment. Production also validates the publication snapshot with
-current time, including future-date rejection. No source mutation, regeneration
-or re-rendering occurs. `deploy` requires both the recorded and current source
+`deploy` and `preview` check required files, artifact-format compatibility,
+completed checks, and the runtime versions needed to run the supported Wrangler.
+They upload the supplied artifact, including bytes an operator edited after the
+build. CFGB does not rebuild the site and does not change those bytes.
+Production also validates the publication snapshot against the current time,
+including future-date rejection. `deploy` requires the current invocation's
 branch to equal `deploy.productionBranch` (default `main`); `preview` rejects
-that branch. A wrong branch is `E_DEPLOY_TARGET`, exit 1. The recorded commit
-must match the current checkout; no comparison with the production branch tip
-is required. These checks supplement branch protection.
+that branch. A wrong branch is `E_DEPLOY_TARGET`, exit 1. The guard uses this
+invocation's branch. A diagnostic commit, branch, or build identifier in the
+artifact may differ from the current checkout and from the production branch
+tip. These checks supplement branch protection. CFGB treats CI artifact storage,
+transfer, and the deployment environment as operator-trusted. Verification of
+the CFGB executable remains the release and setup-Action contract.
 
 `CFGB_CF_WORKER_NAME` supplies the target Worker; `CLOUDFLARE_ACCOUNT_ID` and
 `CLOUDFLARE_API_TOKEN` configure the Wrangler adapter. Generate Wrangler config
@@ -159,16 +165,18 @@ Its top-level `compatibility_date` comes from release-pinned
 Preview/Version URLs require Access coverage; the production custom domain stays
 public. See the runtime contract.
 Use the retained toolchain session's Wrangler; a temporary upload config does not
-reinstall or lose that toolchain. Workers Builds source commit/branch/build UUID
-come from `WORKERS_CI_COMMIT_SHA`, `WORKERS_CI_BRANCH`, `WORKERS_CI_BUILD_UUID`
-and must match the original checkout and artifact as defined in the runtime
-contract. Read-only Access verification uses `CFGB_CF_ACCESS_API_TOKEN`.
+reinstall or lose that toolchain. When `WORKERS_CI_COMMIT_SHA`,
+`WORKERS_CI_BRANCH`, or `WORKERS_CI_BUILD_UUID` is available, record it as
+diagnostic metadata, including a branch name on a detached checkout. A missing
+or differing value leaves the build and the upload successful. Read-only Access
+verification uses `CFGB_CF_ACCESS_API_TOKEN`.
 Preserve the original branch when creating a Preview; the temporary workspace
 must not change its identity. Use CFGB's pinned Wrangler dependency, never an
 unpinned npx download. None of these credentials becomes a visitor-runtime secret.
 
-Diagnostic codes: `E_ARTIFACT` for missing checks/corrupt or unsupported artifacts,
-`E_BUILD_SOURCE` for stale/dirty source, `E_DEPLOY_TARGET` for branch/target errors,
+Diagnostic codes: `E_ARTIFACT` for a missing required file, a corrupt artifact, or
+an unsupported runtime requirement such as `workerCompatibilityDate`,
+`E_DEPLOY_TARGET` for branch/target errors,
 and `E_PREVIEW_ACCESS` for absent/unverifiable Access coverage. `E_TOOLCHAIN`
 (exit 2) identifies missing/incompatible Node, npm, optional pnpm, Wrangler or toolchain sessions.
 Publication content failures retain the same `E_*` codes as `validate --publish`. Missing build/upload prerequisites

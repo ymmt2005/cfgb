@@ -43,7 +43,7 @@ by the migration contract. `CFGB_CF_WORKER_NAME`, `CLOUDFLARE_ACCOUNT_ID` and
 `CFGB_CF_ACCESS_API_TOKEN` is the separate read-only Access inspection token for
 preview preflight. `CFGB_VERSION`, `CFGB_SHA256`, `NODE_VERSION`, `PNPM_VERSION`
 and `SKIP_DEPENDENCY_INSTALL` are trusted Workers Builds bootstrap settings;
-`WORKERS_CI_*` provenance variables remain platform-managed. These settings
+`WORKERS_CI_*` variables remain platform-managed diagnostic metadata. These settings
 belong to the build environment, not site YAML or runtime Worker variables.
 See the [build runtime contract](10-build-runtime.md). `.env.example` contains
 names only.
@@ -71,10 +71,10 @@ applies `main` when omitted. Validate its value as a literal Git short branch
 name, not a full ref, symbolic `HEAD`, revision expression or branch pattern.
 Invalid values are configuration failures (`E_DEPLOY_TARGET`, exit 2). Do not
 expand Git shorthand or accept per-command/environment branch overrides.
-Deploy requires recorded/current source branches to equal the configured value;
+Deploy requires the current invocation's branch to equal the configured value;
 Preview rejects that value. A valid branch that fails either command rule is
-`E_DEPLOY_TARGET`, exit 1. The configuration and artifact input hashes bind this
-setting; a change requires rebuilding, not editing a finalized artifact.
+`E_DEPLOY_TARGET`, exit 1. The branch recorded in an artifact is diagnostic.
+Changing this setting applies on the next invocation.
 Keep the Workers Builds production-branch setting and protected Git branch
 aligned with this value before enabling automatic builds. Review branch-setting
 changes under the existing trusted configuration/push policy; changing the name

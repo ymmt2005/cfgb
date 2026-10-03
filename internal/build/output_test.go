@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ymmt2005/cfgb/internal/config"
+	"github.com/ymmt2005/cfgb/internal/frontmatter"
 )
 
 func TestOutputDirRejectsInputs(t *testing.T) {
@@ -205,7 +206,7 @@ func TestManifestSessionIDIsBasename(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(workspace) })
-	raw, err := manifestJSON(cfg, requirements{}, toolchainCheck{}, workspace, []string{"/ja/"}, filepath.Join(repo, "dist"))
+	raw, err := manifestJSON(cfg, requirements{}, toolchainCheck{}, workspace, []string{"/ja/"}, filepath.Join(repo, "dist"), frontmatter.Index{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,6 +225,107 @@ func TestManifestSessionIDIsBasename(t *testing.T) {
 	}
 	if manifest.BuildUUID != "opaque/id" {
 		t.Fatalf("buildUUID = %s", manifest.BuildUUID)
+	}
+}
+
+func TestManifestRecordsOptionalDiagnostics(t *testing.T) {
+	cfg, repo := testRepo(t)
+	workspace, err := newWorkspace()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(workspace) })
+	index := frontmatter.Index{Posts: []frontmatter.Post{
+		{
+			ArticleKey: "2026-09-20-markdown-showcase",
+			Locale:     "ja",
+			Data: map[string]any{
+				"slug":        "markdown-showcase",
+				"publishedAt": "2026-09-20T00:00:00Z",
+				"summary":     "構文",
+				"updatedAt":   "2026-09-21T00:00:00Z",
+			},
+		},
+		{
+			ArticleKey: "2026-09-19-protobuf-guide",
+			Locale:     "en",
+			Data: map[string]any{
+				"slug":        "reading-protobuf-schemas",
+				"publishedAt": "2026-09-19T00:00:00Z",
+			},
+		},
+	}}
+	clearCI := func() {
+		t.Setenv("WORKERS_CI", "")
+		t.Setenv("WORKERS_CI_COMMIT_SHA", "")
+		t.Setenv("WORKERS_CI_BRANCH", "")
+		t.Setenv("WORKERS_CI_BUILD_UUID", "")
+	}
+	decode := func() map[string]any {
+		t.Helper()
+		raw, err := manifestJSON(cfg, requirements{}, toolchainCheck{}, workspace, nil, filepath.Join(repo, "dist"), index)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var manifest map[string]any
+		if err := json.Unmarshal(raw, &manifest); err != nil {
+			t.Fatal(err)
+		}
+		return manifest
+	}
+
+	clearCI()
+	plain := decode()
+	if _, ok := plain["sourceCommit"]; ok {
+		t.Fatalf("sourceCommit = %v", plain["sourceCommit"])
+	}
+	if plain["dirty"] != true {
+		t.Fatalf("dirty = %v", plain["dirty"])
+	}
+	pubs, _ := plain["publications"].([]any)
+	if len(pubs) != 2 {
+		t.Fatalf("publications = %#v", plain["publications"])
+	}
+	first, _ := pubs[0].(map[string]any)
+	if first["articleKey"] != "2026-09-19-protobuf-guide" || first["publishedAt"] != "2026-09-19T00:00:00Z" || first["slug"] != "reading-protobuf-schemas" {
+		t.Fatalf("first publication = %#v", first)
+	}
+	second, _ := pubs[1].(map[string]any)
+	if second["summary"] != "構文" || second["updatedAt"] != "2026-09-21T00:00:00Z" {
+		t.Fatalf("second publication = %#v", second)
+	}
+
+	t.Setenv("WORKERS_CI", "1")
+	t.Setenv("WORKERS_CI_COMMIT_SHA", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	partial := decode()
+	if partial["sourceCommit"] != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || partial["provenanceProvider"] != "workers-builds" {
+		t.Fatalf("partial = %#v", partial)
+	}
+	if _, ok := partial["sourceBranch"]; ok {
+		t.Fatalf("sourceBranch = %v", partial["sourceBranch"])
+	}
+	if _, ok := partial["buildUUID"]; ok {
+		t.Fatalf("buildUUID = %v", partial["buildUUID"])
+	}
+
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=cfgb", "GIT_AUTHOR_EMAIL=cfgb@example.com", "GIT_COMMITTER_NAME=cfgb", "GIT_COMMITTER_EMAIL=cfgb@example.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", args, err, out)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(repo, "article.md"), []byte("source\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "article.md")
+	git("commit", "-m", "source")
+	t.Setenv("WORKERS_CI_BRANCH", "post/test")
+	t.Setenv("WORKERS_CI_BUILD_UUID", "../build/opaque\\segment")
+	mismatched := decode()
+	if mismatched["sourceCommit"] != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || mismatched["sourceBranch"] != "post/test" || mismatched["buildUUID"] != "../build/opaque\\segment" {
+		t.Fatalf("mismatched = %#v", mismatched)
 	}
 }
 

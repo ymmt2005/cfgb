@@ -20,22 +20,25 @@ implementation starts and when upgrading the pinned toolchain.
 
 | Workers Builds setting | Command | Responsibility |
 | --- | --- | --- |
-| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, finalize artifact manifest and hashes |
-| Deploy command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" deploy --from dist` | Verify artifact and publication gate; upload production Worker/assets |
-| Preview command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" preview --from dist` | Verify artifact and private-preview gate; upload branch preview |
+| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, write the artifact manifest |
+| Deploy command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" deploy --from dist` | Check required files, runtime compatibility, and the publication gate; upload the supplied production Worker/assets |
+| Preview command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" preview --from dist` | Check required files, runtime compatibility, and the private-preview gate; upload the supplied branch preview |
 
 The build command never uploads or invokes a deployment command. Deploy and
-preview consume the same verified build artifact without rebuilding. Neither
+preview consume the supplied build artifact without rebuilding. Neither
 command generates summaries, fetches link cards, or imports Hatena content.
 After dependency installation, rendering and indexing must work with network
 access denied. Assets, content and link metadata all come from Git.
 
 The artifact contains `site/`, `worker/index.js` and `build-manifest.json`. The
-manifest records source commit and branch, CFGB/schema/toolchain versions,
-configuration and input/output hashes, successful build checks, publication
-metadata, toolchain requirements/observations, session identity and provenance
-provider. Workers Builds supplies authoritative source commit/branch/build UUID;
-compare commit with checkout HEAD and retain the UUID for tracing. npm >= 12 is
+manifest records CFGB, schema, and toolchain versions, successful build checks,
+the publication snapshot, toolchain requirements and observations, and the
+workspace basename. Source commit, branch, build UUID, and provenance provider
+are optional diagnostics. Workers Builds supplies those values when they are
+present, including a branch name for a detached checkout. A missing or differing
+value stays in the manifest only as a diagnostic and leaves the command
+successful. The manifest carries no configuration, input, or output hashes.
+npm >= 12 is
 the default installer. `NODE_VERSION` must be Node 24.15.0 or newer on the Node
 24 line, or Node 26.0.0 or newer. Node 25 is outside that set. These releases
 bundle npm 11, so the build environment installs npm >= 12 separately. `PNPM_VERSION` applies only when `CFGB_PACKAGE_MANAGER=pnpm`, and that pnpm must be >= 11.
@@ -45,23 +48,23 @@ the lockfile. The workspace is a fresh `cfgb-build-*` directory. Its basename is
 upload command, which finds the directory by joining `os.TempDir()` with that
 basename, and the workspace is excluded from the deployable artifact. Upload
 removes the workspace when it finishes or fails.
-Uploads require a clean source checkout matching the artifact; ignored
-build output is not a source edit. Reject stale, incomplete or altered artifacts.
+Upload accepts the supplied artifact, including one from a dirty checkout and
+one whose site bytes were edited after the build. Generated output stays out of
+the dirty record. CFGB uploads those bytes without rebuilding or changing them.
+Required files, artifact format, and the runtime versions needed for Wrangler
+remain checks.
 
-These artifact checks are a deployment-correctness boundary, not an independent
-security or authenticity boundary. They are intended to catch wrong commits,
-stale outputs, accidental byte changes, incompatible toolchains and unintended
-rebuilds. CFGB v1 assumes CI artifact storage/transfer and the deployment
-environment are operator-trusted. If those are compromised, CFGB does not claim
-that its manifest or hashes prevent arbitrary deployment; an operator may layer
-external artifact attestations on top, but CFGB does not require or interpret
-them. Transferred artifacts remain supported and receive the same
-consistency/source/runtime checks without a CFGB-specific signature.
+CFGB v1 treats CI artifact storage, transfer, and the deployment environment as
+operator-trusted. The operator may publish an artifact they edited after the
+build. An external digest or CI attestation may accompany that artifact; CFGB
+does not require or interpret one for site files. Transferred artifacts use the
+same required-file, runtime, publication, and target checks. Verification of the
+CFGB executable remains the release and setup-Action contract.
 
 Build uses default validation, which permits future publication timestamps; it
-must still reject missing summaries. Production deploy additionally checks
-publication timestamps from the verified snapshot against the current time and
-requires the recorded/current branch to equal `deploy.productionBranch`
+must still reject missing summaries. Production deploy checks
+publication timestamps from the artifact snapshot against the current time. The
+current invocation's branch must equal `deploy.productionBranch`
 (default `main`). A future-dated change can have a private preview while its final
 `validate --publish` merge check fails. Preview requires a non-production branch.
 Use the trusted environment variables defined in the CLI specification for the
@@ -81,8 +84,8 @@ The configured production origin is canonical. For an apex deployment, redirect
 the alternate production workers.dev origin through the explicit config setting.
 Preview URLs remain enabled independently and are protected by Access; Version
 URLs enabled by the same `preview_urls` setting are included in that coverage.
-Do not redirect previews to production. Check deployed source-commit metadata and retain platform rollback
-to the last good Worker version. Runtime has no AI or Hatena credentials.
+Do not redirect previews to production. Deployed source-commit metadata is
+diagnostic. Retain platform rollback to the last good Worker version. Runtime has no AI or Hatena credentials.
 
 ## GitHub Action setup
 
@@ -111,8 +114,8 @@ and narrowly scoped automation acting for them. This is a security boundary:
 Workers Builds executes the pushed branch before any later PR approval. Review
 configuration, workflow and tool-version changes before pushing them to an
 automatically built branch. PR branch protection alone is not a deployment gate.
-This boundary concerns who may cause credentialed build/deployment execution; it
-does not turn the artifact manifest/hash checks into a tamper-proof attestation.
+This boundary concerns who may cause credentialed build/deployment execution.
+Site artifacts are uploaded as the operator supplied them.
 
 External contributors use fork PRs. Fork jobs are read-only, receive no privileged
 credentials and create no automatic preview. A maintainer can review and transfer
@@ -132,11 +135,12 @@ Environment; do not assume the automatic Workers Builds setup enforces that gate
    Commit the generated diff using a scoped GitHub App token. Do not assume
    `GITHUB_TOKEN`-generated activity automatically reruns checks.
 3. Guard against stale heads and bot loops. A generated commit changes the head,
-   so final required checks must run on that new commit. Never validate one head
-   and upload artifacts from another.
+   so final required checks must run on that new commit. Uploading an artifact
+   does not require its recorded commit to equal that head.
 4. Final required checks include default validation, `validate --publish` and
-   build integration checks. Production publication uses the exact successful
-   artifact from `deploy.productionBranch`. Other branches use the Preview
+   build integration checks. Production publication uploads the artifact supplied
+   by the build when the current invocation's branch equals
+   `deploy.productionBranch`. Other branches use the Preview
    command and Access gate. Align Workers Builds' production-branch setting and
    protected Git branch with this reviewed configuration (default `main`).
 

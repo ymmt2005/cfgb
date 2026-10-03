@@ -11,7 +11,7 @@ when implementation begins and pinned in that repository.
 - [Pagefind multilingual search](https://pagefind.app/docs/multilingual/): language-specific indexes and Extended support for Japanese.
 - [Pagefind API](https://pagefind.app/docs/api/): real result-data retrieval for search acceptance.
 - [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/): separate Build, Deploy and Preview commands, official `WORKERS_CI_*` variables (which can be overridden).
-- [Workers Builds event subscriptions](https://developers.cloudflare.com/workers/ci-cd/builds/event-subscriptions/): examples use prefixed build identifiers; CFGB stores those values as opaque `buildUUID` provenance and does not use them as workspace paths.
+- [Workers Builds event subscriptions](https://developers.cloudflare.com/workers/ci-cd/builds/event-subscriptions/): examples use prefixed build identifiers; CFGB stores those values as an opaque diagnostic `buildUUID` and does not use them as workspace paths.
 - [Workers Builds image](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/): `NODE_VERSION`, `PNPM_VERSION`, dependency-install override and runner platform.
 - [Workers Builds branches](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/): production versus Preview builds and current preview command.
 - [Worker Previews](https://developers.cloudflare.com/workers/previews/): Wrangler 4.135.0+ minimum; branch/deployment URLs are public unless Access protects them.

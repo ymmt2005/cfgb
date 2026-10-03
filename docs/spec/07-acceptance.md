@@ -26,8 +26,8 @@ Initial preparation checks only its structural and referential integrity.
 | Framework-free content repositories | No Astro/Worker/package files added; embedded toolchain extraction | CFGB build |
 | Pinned Workers Builds bootstrap | Runtime contract; release/digest verification in separate command shells | Build integration |
 | Retained toolchain and runtime validation | Delivery cases; Node/npm/Wrangler, the optional pnpm path, a fresh workspace per build, and basename session IDs that are not derived from the build identifier | CFGB build/deploy/preview |
-| Authoritative CI provenance | Detached HEAD and official CI-variable/checkout checks | CFGB provenance adapter |
-| Separate build/upload stages | `tests/build-delivery/cases.json`; artifact consistency/source-identity and timestamp gates | CFGB build/deploy/preview |
+| Diagnostic CI metadata | Detached HEAD records an available CI branch; a missing or differing commit, branch, or build ID stays successful | CFGB build |
+| Separate build/upload stages | `tests/build-delivery/cases.json`; supplied-artifact upload, publication timestamps, and the current-branch gate | CFGB build/deploy/preview |
 | Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
 | Future-date validation modes | Default/authoring `W_FUTURE_DATE`, exit 0; publish `E_FUTURE_DATE`, exit 1 | CLI |
 | Cross-locale alias rejection | Schema-valid alias in another locale; `E_URL_COLLISION`, exit 1 | CLI |
@@ -36,7 +36,7 @@ Initial preparation checks only its structural and referential integrity.
 | Setup Action and immutable-release verification | [Action contract](09-github-action.md), attestation/platform/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
-| Configured production branch | Default `main`, custom `master`, wrong-branch deploy/preview rejection; recorded/current branch identity | CLI + Cloudflare Builds |
+| Configured production branch | Default `main`, custom `master`, wrong-branch deploy/preview rejection; the current invocation's branch | CLI + Cloudflare Builds |
 | Configured-blog import and syntax inventory | Synthetic Atom exports (two blogs in this corpus) | Importer |
 | Deterministic migration pairing without AI | Candidate repeatability, absent AI credentials, zero model calls and explicit decisions | Importer |
 | Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, `workers_dev: false`, `preview_urls: true`, `previews: {}` and top-level assets | CFGB release + upload adapter |
@@ -45,13 +45,12 @@ Initial preparation checks only its structural and referential integrity.
 | Rerun and conflicts | Hatena cases and separate expected conflict reports; unchanged last-applied hash pair | Importer |
 | Independent tool/site versions | Config schema + pinned corpus commit | CLI/release management |
 
-Artifact consistency tests are correctness/reproducibility tests, not a claim
-that CFGB authenticates site artifacts against a malicious CI artifact store,
-transfer channel or compromised deployment environment. Transferred-artifact
-tests assume operator-trusted storage/transport and verify that CFGB does not
-re-render or silently change the artifact while recreating only the upload
-toolchain. CFGB executable release verification and PR/credential isolation are
-separate security concerns.
+Upload tests check required files, runtime compatibility, publication timestamps,
+the current branch, and Access. A dirty checkout, an edited site artifact, or a
+difference in recorded commit, branch, or build ID stays successful.
+Transferred-artifact tests recreate only the upload toolchain and leave the
+supplied bytes unchanged. CFGB executable release verification and PR/credential
+isolation are separate security concerns.
 
 ## Test execution levels
 

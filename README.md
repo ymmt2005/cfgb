@@ -37,7 +37,7 @@ and GitHub release attestation. It is also at the documentation-only stage.
 | [Acceptance](docs/spec/07-acceptance.md) | Traceable implementation gates and fixture semantics |
 | [References](docs/spec/08-references.md) | Primary platform documentation reviewed for the design |
 | [GitHub Action](docs/spec/09-github-action.md) | CLI setup Action, inputs/outputs, versions and installation contract |
-| [Build runtime](docs/spec/10-build-runtime.md) | Workers Builds bootstrap, Node/npm/Wrangler lifecycle and authoritative provenance |
+| [Build runtime](docs/spec/10-build-runtime.md) | Workers Builds bootstrap, Node/npm/Wrangler lifecycle, and diagnostic build metadata |
 
 [JSON Schemas](schemas/) define machine-readable structural contracts. Semantic
 validation rules in the specifications also apply. The [example repository](https://github.com/ymmt2005/cfgb-example)

@@ -170,7 +170,7 @@ func Run(opts Options) error {
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	manifest, err := manifestJSON(cfg, req, tc, workspace, routes, out)
+	manifest, err := manifestJSON(cfg, req, tc, workspace, routes, out, index)
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
@@ -910,20 +910,30 @@ func isArticleYear(name string) bool {
 	return true
 }
 
-func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, workspace string, routes []string, out string) ([]byte, error) {
+func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, workspace string, routes []string, out string, index frontmatter.Index) ([]byte, error) {
 	commit, branch, dirty := gitState(cfg.Root(), out)
+	ciCommit := os.Getenv("WORKERS_CI_COMMIT_SHA")
+	ciBranch := os.Getenv("WORKERS_CI_BRANCH")
+	rawBuildID := os.Getenv("WORKERS_CI_BUILD_UUID")
+	workers := os.Getenv("WORKERS_CI") != "" || ciCommit != "" || ciBranch != "" || rawBuildID != ""
+	if ciCommit != "" {
+		commit = ciCommit
+	}
+	if ciBranch != "" {
+		branch = ciBranch
+	}
+	if branch == "HEAD" {
+		branch = ""
+	}
 	manifest := map[string]any{
 		"schemaVersion":      1,
 		"cfgbVersion":        version.Version,
 		"rendererVersion":    req.RendererVersion,
 		"toolchainSessionId": filepath.Base(workspace),
-		"source": map[string]any{
-			"commit": commit,
-			"branch": branch,
-			"dirty":  dirty,
-		},
-		"checks": []string{"render", "pagefind"},
-		"routes": routes,
+		"dirty":              dirty,
+		"publications":       publicationSnapshot(index),
+		"checks":             []string{"render", "pagefind"},
+		"routes":             routes,
 		"toolchain": map[string]any{
 			"nodeRange":               req.NodeRange,
 			"testedNodeVersion":       req.TestedNodeVersion,
@@ -940,10 +950,57 @@ func manifestJSON(cfg *config.File, req requirements, tc toolchainCheck, workspa
 			"observedPnpmVersion":     tc.PnpmVersion,
 		},
 	}
-	if raw := os.Getenv("WORKERS_CI_BUILD_UUID"); raw != "" {
-		manifest["buildUUID"] = raw
+	if commit != "" {
+		manifest["sourceCommit"] = commit
+	}
+	if branch != "" {
+		manifest["sourceBranch"] = branch
+	}
+	switch {
+	case workers:
+		manifest["provenanceProvider"] = "workers-builds"
+	case commit != "" || branch != "":
+		manifest["provenanceProvider"] = "git"
+	}
+	if rawBuildID != "" {
+		manifest["buildUUID"] = rawBuildID
 	}
 	return json.MarshalIndent(manifest, "", "  ")
+}
+
+func publicationSnapshot(index frontmatter.Index) []map[string]any {
+	pubs := make([]map[string]any, 0, len(index.Posts))
+	for _, post := range index.Posts {
+		item := map[string]any{
+			"articleKey":  post.ArticleKey,
+			"locale":      post.Locale,
+			"slug":        stringValue(post.Data["slug"]),
+			"publishedAt": stringValue(post.Data["publishedAt"]),
+		}
+		if summary, ok := post.Data["summary"].(string); ok {
+			item["summary"] = summary
+		}
+		if updated, ok := post.Data["updatedAt"].(string); ok {
+			item["updatedAt"] = updated
+		}
+		pubs = append(pubs, item)
+	}
+	sort.Slice(pubs, func(i, j int) bool {
+		leftKey, _ := pubs[i]["articleKey"].(string)
+		rightKey, _ := pubs[j]["articleKey"].(string)
+		if leftKey != rightKey {
+			return leftKey < rightKey
+		}
+		leftLocale, _ := pubs[i]["locale"].(string)
+		rightLocale, _ := pubs[j]["locale"].(string)
+		return leftLocale < rightLocale
+	})
+	return pubs
+}
+
+func stringValue(value any) string {
+	text, _ := value.(string)
+	return text
 }
 
 func gitState(repo, out string) (string, string, bool) {

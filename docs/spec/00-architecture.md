@@ -32,16 +32,16 @@ to article repositories. A release records its embedded renderer version and pub
 npm >= 12, optional pnpm >= 11, Wrangler, the tested Workers compatibility date and lockfile requirements.
 Retain each external toolchain
 workspace through its upload command. Workers Builds bootstraps the exact binary
-under HOME and obtains provenance from official CI variables; see the
+under HOME. Available CI variables are recorded as diagnostic build metadata; see the
 [build runtime contract](10-build-runtime.md).
 
 The public interface is `cfgb build`, `cfgb deploy` and `cfgb preview`. Builds
-create artifacts, never deploy them. Upload commands consume the same verified
-artifact and do not rebuild. The artifact manifest, hashes and source/session
-checks are deployment-correctness and reproducibility guards, not a cryptographic
-trust boundary for transferred site artifacts. CFGB v1 assumes CI artifact
-storage/transfer and the deployment environment are operator-trusted. This is
-separate from supply-chain verification of CFGB executable releases and from the
+create artifacts and do not deploy them. Upload commands consume the supplied
+artifact and do not rebuild. Required files, runtime compatibility, the
+publication snapshot, the current invocation's branch, and Access are the upload
+checks. Source commit, branch, and build ID are diagnostics. CFGB v1 treats CI
+artifact storage, transfer, and the deployment environment as operator-trusted.
+This is separate from supply-chain verification of CFGB executable releases and from the
 PR/credential trust boundaries. See [delivery](04-delivery.md) and the
 [build runtime contract](10-build-runtime.md).
 
