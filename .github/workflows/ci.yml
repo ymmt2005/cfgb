@@ -11,23 +11,36 @@ jobs:
       fail-fast: false
       matrix:
         node: ["24.21.0", "26.10.0"]
-    name: test (Node ${{ matrix.node }})
+        package-manager: ["npm", "pnpm"]
+    name: test (Node ${{ matrix.node }}, ${{ matrix.package-manager }})
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.27.1"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
       - name: Install npm 12
+        if: matrix.package-manager == 'npm'
         run: npm install -g npm@12.2.0
-      - uses: actions/checkout@v4
+      # pnpm/setup v2 and later install pnpm 11 or newer only. v1.0.0 is the
+      # release that can install the pinned pnpm 10.33.3.
+      - uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1.0.0
+        if: matrix.package-manager == 'pnpm'
+        with:
+          version: "10.33.3"
+          install: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ymmt2005/cfgb-example
           path: cfgb-example
       - name: Test
-        run: CFGB_EXAMPLE="${GITHUB_WORKSPACE}/cfgb-example" CFGB_REQUIRE_EXAMPLE=1 go test ./...
+        env:
+          CFGB_EXAMPLE: ${{ github.workspace }}/cfgb-example
+          CFGB_REQUIRE_EXAMPLE: "1"
+          CFGB_PACKAGE_MANAGER: ${{ matrix.package-manager }}
+        run: go test ./...
       - name: Format
         run: test -z "$(gofmt -l .)"
 

@@ -13,13 +13,16 @@ import (
 )
 
 func TestExampleCorpus(t *testing.T) {
-	if _, err := exec.LookPath("node"); err != nil || exec.Command("npm", "-v").Run() != nil {
-		if os.Getenv("CFGB_REQUIRE_EXAMPLE") == "1" {
-			t.Fatal("node and npm are required")
-		}
-		t.Skip("node or npm is not installed")
+	manager := strings.TrimSpace(os.Getenv("CFGB_PACKAGE_MANAGER"))
+	if manager == "" {
+		manager = "npm"
 	}
-	t.Setenv("CFGB_PACKAGE_MANAGER", "")
+	if _, err := exec.LookPath("node"); err != nil || !packageManagerPresent(manager) {
+		if os.Getenv("CFGB_REQUIRE_EXAMPLE") == "1" {
+			t.Fatalf("node and %s are required", manager)
+		}
+		t.Skipf("node or %s is not installed", manager)
+	}
 	root := exampleRoot(t)
 	out := filepath.Join(root, ".cfgb-build-test")
 	os.RemoveAll(out)
@@ -73,8 +76,32 @@ func TestExampleCorpus(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.Toolchain.PackageManager != "npm" || !npmAtLeast12(manifest.Toolchain.ObservedNpmVersion) || manifest.Toolchain.ObservedPnpmVersion != "" {
-		t.Fatalf("toolchain = %+v", manifest.Toolchain)
+	switch manager {
+	case "npm":
+		if manifest.Toolchain.PackageManager != "npm" || !npmAtLeast12(manifest.Toolchain.ObservedNpmVersion) || manifest.Toolchain.ObservedPnpmVersion != "" {
+			t.Fatalf("toolchain = %+v", manifest.Toolchain)
+		}
+	case "pnpm":
+		req, err := loadRequirements()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if manifest.Toolchain.PackageManager != "pnpm" || manifest.Toolchain.ObservedPnpmVersion != req.PnpmVersion || manifest.Toolchain.ObservedNpmVersion != "" {
+			t.Fatalf("toolchain = %+v", manifest.Toolchain)
+		}
+	default:
+		t.Fatalf("CFGB_PACKAGE_MANAGER = %s", manager)
+	}
+}
+
+func packageManagerPresent(manager string) bool {
+	switch manager {
+	case "npm":
+		return exec.Command("npm", "-v").Run() == nil
+	case "pnpm":
+		return exec.Command("pnpm", "-v").Run() == nil
+	default:
+		return false
 	}
 }
 
