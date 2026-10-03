@@ -30,3 +30,17 @@ jobs:
         run: CFGB_EXAMPLE="${GITHUB_WORKSPACE}/cfgb-example" CFGB_REQUIRE_EXAMPLE=1 go test ./...
       - name: Format
         run: test -z "$(gofmt -l .)"
+
+  # The single status check to require in a ruleset. A skipped job is reported
+  # as success, so this stays skipped unless a needed job fails or is cancelled,
+  # and then it runs and fails. Add every new job to needs.
+  required:
+    name: required
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: ${{ cancelled() || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'failure') }}
+    steps:
+      - name: Fail because an upstream job failed
+        run: |
+          echo "::error::A CI job failed or was cancelled."
+          exit 1
