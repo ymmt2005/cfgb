@@ -6,17 +6,20 @@ Inc.
 
 **Status: design and specifications only. The CLI and site are not implemented.**
 
-The Go authoring tool will manage Markdown, validation, migration and optional
-authoring-time AI. Astro will render the site, Workers Static Assets will serve
-it, and Pagefind will search it. Git branches/PRs hold drafts; reviewed `main`
-content is published. Visitors never invoke an LLM.
+The Go tool will manage Markdown, validation, migration, optional authoring-time
+AI, and build/delivery. CFGB owns the renderer and Worker implementation and embeds
+their sources/configuration/lockfile in its executable. Article repositories hold
+content, assets and blog settings only. Node.js remains a build prerequisite.
+Astro will render internally, Workers Static Assets will serve, and Pagefind will
+search. Git branches/PRs hold drafts; reviewed `main` content is published.
+Visitors never invoke an LLM.
 
 ## Implementation specifications
 
 | Document | Scope |
 | --- | --- |
 | [Architecture](docs/spec/00-architecture.md) | Responsibilities, settled choices and implementation phases |
-| [CLI](docs/spec/01-cli.md) | Commands, flags, validation modes, diagnostics and safe writes |
+| [CLI](docs/spec/01-cli.md) | Authoring/build/delivery commands, validation modes, diagnostics and safe writes |
 | [Configuration](docs/spec/02-configuration.md) | `cfgb.yaml`, defaults and schema versioning |
 | [Content and rendering](docs/spec/03-content.md) | Frontmatter, identity, routes, Markdown, search and SEO |
 | [Delivery](docs/spec/04-delivery.md) | GitHub PR preparation and Cloudflare production/private previews |

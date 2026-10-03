@@ -15,21 +15,25 @@ Initial preparation checks only its structural and referential integrity.
 | Cached link card / missing cache fallback | Protobuf URL and IANA URL | CLI + renderer |
 | Monthly ordering and timezone boundary | 2025 and 2026 groups; UTC boundary article | Renderer |
 | Topic IDs and labels | `src/data/topics.yaml` | CLI + renderer |
-| All static routes, aliases and collisions | Golden route/alias files, mutations | CLI + renderer |
+| Static, runtime, fallback routes and aliases | `static-routes.json`, `worker-routes.json`, `fallbacks.json`, aliases | CFGB renderer + Worker + Static Assets |
 | Local links and fragment resolution | Cross-article/HTML/reference links | Shared renderer manifest + CLI |
 | 20–30 search cases | `tests/search/queries.yaml` (24 queries) | Actual Pagefind browser search |
 | Locale isolation and filters | Each query has locale; topic/year cases | Pagefind |
 | SEO, RSS, OG and sitemap | Locale pairs + explicit/fallback OG | Renderer integration tests |
 | AI lifecycle and human edit preservation | `tests/ai/lifecycle.json` | CLI with fake provider |
 | AI quality and provider selection | `tests/ai/summary-corpus.yaml` | Live evaluation + human review |
-| No runtime/build-time AI/content fetching | Network-denied build after installation | Site build |
+| No runtime/build-time AI/content fetching | Network-denied build after installation | CFGB build |
+| Framework-free content repositories | No Astro/Worker/package files added; embedded toolchain extraction | CFGB build |
+| Separate build/upload stages | `tests/build-delivery/cases.json`; artifact integrity and timestamp gates | CFGB build/deploy/preview |
+| Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
+| Required preview access | `tests/fixtures/configuration/cases.json` | Configuration loader |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Anonymous denied / authorized successful | Cloudflare integration |
 | Main-only production publication | Commit metadata / branch protection | Cloudflare Builds |
-| Two-blog import and syntax inventory | Synthetic Atom exports | Importer |
+| Configured-blog import and syntax inventory | Synthetic Atom exports (two blogs in this corpus) | Importer |
 | Complete map before link rewriting | Migration expected map and forward link | Importer |
 | Pairing approval and asset deduplication | Migration pairing/category/asset decisions | Importer |
-| Rerun and conflicts | `tests/fixtures/hatena/cases.json` | Importer |
+| Rerun and conflicts | Hatena cases and separate expected conflict reports; unchanged last-applied hash pair | Importer |
 | Independent tool/site versions | Config schema + pinned corpus commit | CLI/release management |
 
 ## Test execution levels
@@ -38,10 +42,10 @@ Initial preparation checks only its structural and referential integrity.
    target hashes and summary lifecycle expectations with temporary tooling. Do not
    treat this as implementation acceptance.
 2. During CLI implementation: copy each mutation onto a fresh positive tree, run
-   the real `cfgb validate` in the specified mode, and require the expected error
-   code. Keep fixtures out of normal content discovery. Do not compare full English
+   the real `cfgb validate` in the specified mode, and require the expected error or warning
+   code and exit status. Keep fixtures out of normal content discovery. Do not compare full English
    diagnostics; additional independent diagnostics are permitted.
-3. During site implementation: render all positives, inspect desktop/mobile in
+3. During CFGB renderer implementation: render all positives, inspect desktop/mobile in
    both themes and with JS disabled. Assert no unexpected remote requests. Check
    code-copy keyboard behavior and accessible diagrams/TOC. Validate XML and HTML
    metadata and all emitted internal URLs/anchors.

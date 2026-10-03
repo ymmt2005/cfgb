@@ -7,15 +7,30 @@ the intended implementation, not features already delivered in this repository.
 
 | Repository | Responsibility |
 | --- | --- |
-| `ymmt2005/cfgb` (tool repository) | Go CLI, schemas, embedded prompts, import/validation/AI libraries |
-| `ymmt2005/cfgb-example` | Synthetic sample content and acceptance contract; later an example site |
-| `ymmt2005/ymmt2005.dev` (intended site repository) | Personal content, Astro renderer, Worker and deployment configuration |
+| `ymmt2005/cfgb` (tool repository) | Go CLI, embedded renderer/Worker sources, dependency lockfile, schemas, prompts, migration/AI and build/deployment adapters |
+| `ymmt2005/cfgb-example` | Synthetic article sources, assets, blog configuration and acceptance fixtures |
+| `ymmt2005/ymmt2005.dev` (intended content repository) | Personal article sources, assets and blog configuration |
 
 The personal site repository is a design target; its existence is not required
-to use the example corpus. The Go CLI discovers `cfgb.yaml` and does not import
-site-specific TypeScript. Rendering belongs to the site. Shared schemas are versioned in CFGB; the example repository links to their
-canonical definitions. Schema changes must review the example fixtures too. No runtime database, CMS, accounts, comments, newsletter,
+to use the example corpus. The Go CLI discovers `cfgb.yaml`; article repositories
+contain no Astro source/configuration, package.json, pnpm lockfile or Worker code.
+CFGB owns rendering and delivery. Shared schemas are versioned in CFGB; the example
+repository links to their canonical definitions. Schema changes must review the
+example fixtures too. No runtime database, CMS, accounts, comments, newsletter,
 recommendations, R2, scheduling, or visitor-triggered AI in v1.
+
+Renderer, Worker, package manifest, dependency lockfile and build checks live in
+CFGB and are embedded in the released Go executable. Builds extract them into a
+disposable workspace and stage a snapshot of configured content without modifying
+its repository. Node.js and the supported pinned package manager remain build
+prerequisites; embedding sources does not embed a JS runtime or node_modules.
+Dependency installation may use network; rendering and artifact tests must work
+offline. Renderer implementation and dependencies can change without adding files
+to article repositories. A release records its embedded renderer version.
+
+The public interface is `cfgb build`, `cfgb deploy` and `cfgb preview`. Builds
+create artifacts, never deploy them. Upload commands consume the same verified
+artifact and do not rebuild. See [delivery](04-delivery.md).
 
 ```mermaid
 flowchart TD
@@ -25,7 +40,7 @@ flowchart TD
   AI --> PR
   PR --> Preview["Private Worker Preview"]
   PR --> Main["Reviewed main commit"]
-  Main --> Build["Astro and Pagefind"]
+  Main --> Build["cfgb build: embedded renderer"]
   Build --> Assets["Workers Static Assets"]
 ```
 
@@ -39,7 +54,8 @@ parsing, migration planning and validation do not require a Cloudflare account.
   content routes. `www.ymmt2005.dev` redirects to the apex at the zone/host layer.
 - Go CLI: `cfgb`; configuration: `cfgb.yaml`; generated provenance: `.cfgb.json`.
 - Astro 6 is the selected major baseline; select compatible maintained patch
-  versions at implementation time, pin packages and commit `pnpm-lock.yaml`.
+  versions at implementation time, pin packages and commit `pnpm-lock.yaml` in CFGB.
+  Worker Previews requires Wrangler 4.135.0+; pin one tested version in CFGB.
 - Original images live beside articles. Git branches/PRs are drafts; `main`
   contains published content. No `draft`, `lang`, `id`, or translation ID fields.
 - An article directory groups locale variants; slugs and publication dates may
@@ -57,9 +73,10 @@ parsing, migration planning and validation do not require a Cloudflare account.
    pipeline must not reject a new article before its summary job can run.
 2. A public repository exposes PR source even if preview URLs require sign-in.
    Private previews protect rendered access, not public Git content.
-3. Static Assets alone cannot negotiate `Accept-Language`. A small Worker handles
-   `/`, missing paths, and explicit locale preference changes; articles remain
-   pre-rendered files. No visitor AI or application database is introduced.
+3. A small Worker handles `/` and explicit locale preference changes at
+   `/__locale`. Other requests use Static Assets, including nearest-directory
+   localized 404 pages. If an asset miss invokes the Worker, it delegates to
+   `ASSETS.fetch`; it does not select a fallback itself.
 4. Root locale redirects are temporary and non-cacheable. Article canonical URLs
    always use configured origin, never an incoming Host header.
 5. AI ownership is checked before staleness. A human-edited summary must survive
@@ -69,16 +86,21 @@ parsing, migration planning and validation do not require a Cloudflare account.
    requires a conversion report and review, not silent reclassification.
 8. Main builds need network for dependency installation/deployment, but never
    fetch article content, metadata, remote images or AI-generated text.
+9. Direct pushes to a content repository connected to Workers Builds are limited
+   to trusted maintainers and scoped generation bots. External changes arrive as
+   fork PRs; they do not automatically receive credentialed builds or previews.
+10. Migration manifests record successful applications only. Source/target hash
+    pairs stay unchanged on conflict; separate reports contain observations.
 
 ## Implementation sequence
 
 | Phase | Deliverable | Exit gate |
 | --- | --- | --- |
-| 1 | Astro locale routes and renderer | Positive corpus renders correctly, including no-JS fallback |
-| 2 | Pagefind, Worker and private previews | Search corpus passes; anonymous preview access blocked |
+| 1 | Embedded renderer and `cfgb build` in CFGB | Corpus renders without framework files in article repositories |
+| 2 | Search, Worker and deploy/preview adapters in CFGB | Search corpus passes; anonymous preview access blocked |
 | 3 | Go authoring and validation | Schemas, diagnostics, link cards and editor paste contracts pass |
 | 4 | AI adapter and ownership | All state transitions pass; blind evaluation approved |
-| 5 | Hatena importer | Two-source inventory and restart/conflict tests pass |
+| 5 | Hatena importer | Configured-source inventory and restart/conflict tests pass |
 | 6 | Personal cutover | Real corpus checks, canonical/feeds/redirects and visual review |
 
 See [acceptance](07-acceptance.md) for the complete traceability matrix. The

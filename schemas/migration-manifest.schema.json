@@ -43,12 +43,6 @@
           "targetHash": {
             "type": "string",
             "pattern": "^sha256:[0-9a-f]{64}$"
-          },
-          "status": {
-            "enum": [
-              "applied",
-              "conflict"
-            ]
           }
         },
         "required": [
@@ -58,8 +52,7 @@
           "sourceHash",
           "articleKey",
           "targetUrl",
-          "targetHash",
-          "status"
+          "targetHash"
         ]
       }
     }
@@ -67,5 +60,6 @@
   "required": [
     "schemaVersion",
     "entries"
-  ]
+  ],
+  "description": "Successful applications only. sourceHash and targetHash describe the same last successful application and are never updated on conflict."
 }

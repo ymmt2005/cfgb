@@ -1,121 +1,174 @@
-# GitHub and Cloudflare delivery contract
+# GitHub and Cloudflare delivery
 
-This is the intended deployment specification, not an active workflow. Neither
-repository contains active CI/deployment implementation at this stage. No
-Cloudflare resource or secret is created.
+This is the v1 implementation contract, not an implemented deployment workflow.
+Git is the source of truth; AI runs only during authoring. The content repository
+contains Markdown, data, assets and CFGB configuration. CFGB owns and embeds the
+Astro renderer, Worker, dependency lockfile and tool configuration. Builds extract
+these into a disposable workspace; they never scaffold framework files into the
+content repository. Node.js is a documented build prerequisite.
 
-## Production
+## Workers Builds command boundaries
 
-In the personal repository, pin Node/pnpm, Astro, Expressive Code, Pagefind Extended,
-Mermaid and Wrangler to tested versions, and pin the CFGB binary release/checksum.
-Commit the pnpm lockfile. The production branch is `main`:
+Install a reviewed, pinned CFGB release in the trusted build environment. CFGB
+pins its renderer dependencies and Wrangler in its embedded lockfile; Worker
+Previews require Wrangler **4.135.0 or newer**. Verify platform compatibility when
+implementation starts and when upgrading the pinned toolchain.
 
-```sh
-pnpm install --frozen-lockfile
-cfgb validate --publish
-pnpm exec astro build
-pnpm exec pagefind --site dist
-pnpm run test:integration
-pnpm exec wrangler deploy
-```
+| Workers Builds setting | Command | Responsibility |
+| --- | --- | --- |
+| Build command | `cfgb build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, seal artifact |
+| Deploy command | `cfgb deploy --from dist` | Verify artifact and publication gate; upload production Worker/assets |
+| Preview command | `cfgb preview --from dist` | Verify artifact and private-preview gate; upload branch preview |
 
-`test:integration` is a required implementation script, not provided by this
-content-only repository. Network content generation is forbidden after dependency
-installation. Rendering must succeed with network denied, including remote image
-handling and OG generation. Summaries and link cards must already be committed.
-Cloudflare Workers Builds owns deployment; avoid a second competing deploy job
-in GitHub Actions. Pin the same toolchain in both check and deploy environments.
+The build command never uploads or invokes a deployment command. Deploy and
+preview consume the same verified build artifact without rebuilding. Neither
+command generates summaries, fetches link cards, or imports Hatena content.
+After dependency installation, rendering and indexing must work with network
+access denied. Assets, content and link metadata all come from Git.
 
-The apex is canonical. Configure the `www` redirect at the host/zone layer while
-preserving path/query. Disable or redirect the alternate production workers.dev
-origin. Do not redirect previews to production. Emit artifact metadata with the
-source commit; check it after deployment and retain rollback to the last good
-Worker version. Runtime has no AI credentials or Hatena credentials.
+The artifact contains `site/`, `worker/index.js` and `build-manifest.json`. The
+manifest records source commit and branch, CFGB/schema/toolchain versions,
+configuration and input/output hashes, successful build checks and publication
+metadata. Uploads require a clean source checkout matching the artifact; ignored
+build output is not a source edit. Reject stale, incomplete or altered artifacts.
 
-## PR preparation and final checks
+Build uses default validation, which permits future publication timestamps; it
+must still reject missing summaries. Production deploy additionally checks
+publication timestamps from the verified snapshot against the current time and
+requires `main`. A future-dated change can have a private preview while its final
+`validate --publish` merge check fails. Preview requires a non-production branch.
+Use the trusted environment variables defined in the CLI specification for the
+Cloudflare account, Worker target and upload token. Do not commit credentials or
+account-specific deployment configuration. CFGB generates temporary Wrangler
+configuration for the reviewed deployment target; authors do not run Astro,
+Pagefind or Wrangler directly.
 
-1. Read-only `pull_request` checks run with `contents: read`, no secrets, and
-   credentials not persisted in checkout. Run `validate --authoring` first.
-2. For trusted same-repository content branches, run the pinned CFGB binary to
-   prepare missing metadata/summaries. Treat article text as data, and use trusted
-   base-branch configuration/prompts in the credentialed job. Config/workflow/tool
-   changes require review; never execute PR scripts in this job.
-3. Re-read the PR head SHA before writing. Only allow generated changes to selected
-   variants' `summary`, `.cfgb.json`, and link-card cache files. Commit only if
-   changed and push normally; never force-push over author edits. Concurrent head
-   changes cancel preparation and rerun it against the new head.
-4. Use a dedicated GitHub App installation token for the bot push, scoped to the
-   repository with contents write. This ensures follow-up checks can run on the
-   generated head. Do not assume `GITHUB_TOKEN` pushes automatically rerun CI.
-5. Final `content-validation` runs regular `cfgb validate` on that latest head,
-   builds Astro/Pagefind, and executes route/render/search tests without secrets.
-   A missing summary therefore fails the final gate until prepared by bot or human.
-6. Workers Builds creates a Preview for the branch. Configure build validation
-   before `pnpm exec wrangler preview`, and report the preview URL for the exact
-   head. Older builds may fail while summary generation is pending; only the
-   latest head's successful checks permit merge.
+The configured production origin is canonical. For an apex deployment, redirect
+`www` at the host/zone layer while preserving path/query, and disable or redirect
+the alternate production workers.dev origin. Do not redirect previews to
+production. Check deployed source-commit metadata and retain platform rollback
+to the last good Worker version. Runtime has no AI or Hatena credentials.
 
-Use concurrency groups per PR and cancel stale runs. Preparation is idempotent;
-unchanged bot output must end the loop. A provider failure leaves files unchanged
-and reports retryable failure. Do not trigger generation solely on bot identity:
-eligibility is determined from hashes and content diff.
+## Trust boundary and PR lifecycle
 
-Fork PRs get no secrets, no privileged preparation and no automatic credentialed
-deployment. A missing summary must be supplied by the contributor or prepared on
-a maintainer-owned reviewed branch. Never use `pull_request_target` to execute
-fork code with secrets. Require trusted build approval for untrusted configuration
-changes, including same-repo branches; membership alone is not a security boundary.
+Direct pushes to any same-repository branch are restricted to trusted maintainers
+and narrowly scoped automation acting for them. This is a security boundary:
+Workers Builds executes the pushed branch before any later PR approval. Review
+configuration, workflow and tool-version changes before pushing them to an
+automatically built branch. PR branch protection alone is not a deployment gate.
 
-Branch protection requires `content-validation` and the actual observed Cloudflare
-preview check context (do not guess its display name). Both must refer to the
-latest head. Require review after generated diffs as appropriate. There is no
-independent time scheduler to publish future dates.
+External contributors use fork PRs. Fork jobs are read-only, receive no privileged
+credentials and create no automatic preview. A maintainer can review and transfer
+a change to a trusted same-repository branch before previewing it. If untrusted
+same-repository push access is needed later, change this trust model first and
+use a gated deployment pipeline, such as GitHub Actions with a protected
+Environment; do not assume the automatic Workers Builds setup enforces that gate.
 
-## Private preview requirements
+1. Run read-only `validate --authoring` checks on the PR head with `contents: read`,
+   no secrets and no persisted checkout credentials. Non-string summaries
+   remain schema errors; missing/empty summaries are warnings in this mode.
+2. For trusted authoring automation, use a reviewed pinned CFGB release and
+   trusted configuration. Generate only eligible summaries; protect human edits.
+   Use trusted base-branch configuration/prompts, never PR scripts. Restrict writes
+   to selected variants' summaries, sidecars and link-card caches. Re-read the head
+   before writing, cancel on concurrent changes, and push normally without force.
+   Commit the generated diff using a scoped GitHub App token. Do not assume
+   `GITHUB_TOKEN`-generated activity automatically reruns checks.
+3. Guard against stale heads and bot loops. A generated commit changes the head,
+   so final required checks must run on that new commit. Never validate one head
+   and upload artifacts from another.
+4. Final required checks include default validation, `validate --publish` and
+   build integration checks. Main publication uses the exact successful main
+   artifact. Non-main Workers Builds uses the Preview command and Access gate.
 
-Cloudflare's current Worker Previews use `wrangler preview`; existing setups may
-still use version URLs and need a deliberate migration. Choose the new Preview
-model for a new site. Preview and production settings are separate.
+Workers Builds owns the timing of deployment, using the separate commands above.
+GitHub checks protect merging; they do not silently gate every branch build.
+Require `content-validation` and the actually observed Cloudflare preview check
+context on the latest head; do not guess its display name. Use per-PR concurrency
+and cancel stale jobs. Provider failures preserve files; unchanged bot output ends
+the loop. Require review of generated diffs as appropriate. No independent time
+scheduler publishes future timestamps. Never execute fork code with secrets via
+`pull_request_target`.
+Cloudflare upload credentials and AI credentials belong to separate, least-scope
+trusted jobs. Content files and PR-controlled configuration cannot choose tokens,
+provider endpoints or deployment targets outside the trusted allowlist.
 
-Previews are public by default. `security.previewAccess: true` is an assertion
-checked by deployment acceptance, not a magical YAML access-control switch.
-Configure Cloudflare Access before the first draft preview. Cover the branch URL,
-deployment-specific URL and any alternate workers.dev/custom host. Check that an
-anonymous request cannot fetch HTML, images, feeds or Pagefind chunks through any
-host. A service-token authenticated check must succeed. Fail preview readiness if
-an alternate public hostname bypasses Access. Noindex is not authentication.
-Keep production public and separate from the preview policy. Clean up closed PR
-previews; do not rely on URL obscurity. Public Git still makes PR source readable.
+## Mandatory private preview
 
-## Request handling
+`security.previewAccess` is `true` in v1, including when omitted. `false` is a
+configuration error, not an option for a public preview. The setting asserts a
+requirement; it does not automatically provision Cloudflare Access policies.
 
-Use Workers Static Assets with a minimal Worker, `ASSETS` binding and selective
-Worker-first handling of `/` and `/__locale`. Asset misses invoke the Worker for
-localized 404s. Do not use SPA fallback. Implementation must verify this routing
-against its pinned Wrangler/compatibility date.
+Before uploading, verify that the reviewed Access configuration covers every
+preview hostname the operation can expose, including branch, deployment and
+alternate Worker preview URLs. An Access policy on the production domain alone
+is insufficient. Missing coverage or inability to verify it fails the preview
+command before upload. Do not print an unprotected URL as a ready preview.
 
-At `/`, choose supported locale by valid preference cookie, then parsed weighted
-`Accept-Language` (primary language matching, q=0 excluded), then default. Return
-302 to `/<locale>/` with `Cache-Control: private, no-store` and appropriate `Vary`.
-No cookie is set merely by negotiation. The header selector uses a GET link to
-`/__locale?lang=...&next=...`; accept only an enabled locale and a local route from
-the route registry in that locale (otherwise its home). Set `cfgb_locale` with
-Path=/, Secure, HttpOnly, SameSite=Lax, Max-Age=31536000, return 303/no-store.
-This supports no-JS use and prevents open redirects. Locale URLs are never
-redirected based on browser preference.
+After upload, check that anonymous requests are denied and authorized requests
+succeed for HTML, images, feeds and Pagefind assets on every exposed hostname.
+Report readiness only after these checks pass. If post-upload verification fails,
+attempt to disable/remove the new preview where supported, return failure and
+report cleanup failure separately. The pre-upload gate remains mandatory.
+Production is public; preview visibility never changes canonical URLs or makes
+content committed to public Git private. Clean up previews for closed PRs;
+noindex and URL obscurity are not access control. Credentials and private drafts must not
+be committed to a public content repository.
 
-For a missing `/ja/...` or `/en/...`, fetch the matching prebuilt fallback HTML
-internally and return it with status 404, not 200. Other missing paths return a
-bilingual 404. Preserve HEAD semantics, and never serve article HTML for missing
-assets. Fallback pages contain localized search and home links.
+## Locale Worker and Static Assets
 
-`_headers` sets nosniff, strict-origin-when-cross-origin, DENY framing and disabled
-camera/microphone/geolocation for assets. The Worker must set the same applicable
-headers on its own redirects/errors; `_headers` does not cover those responses.
-`_redirects` implements validated article aliases. Security headers/CSP on Worker
-responses and alias behavior need explicit integration tests.
+CFGB's embedded Worker handles only locale negotiation. Generated Wrangler
+configuration uses selective `run_worker_first` for `/` and `/__locale`, binds
+`ASSETS`, sets `html_handling = "auto-trailing-slash"` and
+`not_found_handling = "404-page"`. All other requests use Static Assets routing;
+if a miss reaches Worker code it delegates to `ASSETS.fetch(request)`.
 
-Finalize CSP after enumerating Astro/Expressive Code/Mermaid inline scripts/styles
-and migrated embeds. Prefer build-generated script hashes and local sources; do
-not assume a strict policy works without browser testing. No external JS/font CDN,
-tracking cookies or analytics by default. Analytics is an explicit future opt-in.
+- `/` is a runtime route, with no generated root `index.html`. It returns a **302**
+  redirect to `/<locale>/`: valid locale cookie first, then supported
+  `Accept-Language` ranges by descending quality (exclude `q=0`), then configured
+  default locale. Preserve deterministic tie handling. Emit `Cache-Control:
+  private, no-store` and `Vary: Cookie, Accept-Language` so negotiation is not
+  shared-cached. No cookie is set merely by negotiation. Locale URLs are never
+  redirected according to browser preference.
+- `GET /__locale?lang=ja|en&next=<local-path>` validates a supported locale, sets
+  the `cfgb_locale` cookie and returns **303**. Cookie attributes are `Secure`,
+  `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age=31536000`. Reject unsupported
+  methods/locales; invalid or absent `next` falls back to the selected locale
+  home. Accept only a same-site absolute path beginning with a single `/`;
+  reject schemes, network-path URLs, backslashes and control characters. Require
+  the path to resolve to a local route registered in the selected locale;
+  otherwise use its home. The header selector uses GET links and works without JS.
+  These responses also use `Cache-Control: no-store`.
+- Static Assets resolves localized 404 pages using the nearest generated
+  `/ja/404.html`, `/en/404.html` or bilingual `/404.html`, returning **404**.
+  Fallback pages contain localized home and search links. Do not implement a
+  second Worker locale-404 algorithm or SPA fallback.
+
+Test browser navigation separately from fetch/curl requests. Static Assets'
+non-navigation miss behavior can reach the Worker; `ASSETS.fetch` must preserve
+its response and status. Missing images or scripts must not become successful
+HTML pages. Verify HEAD returns the correct status and headers without a body.
+
+`tests/expected/static-routes.json` lists emitted public routes, including feeds,
+search and sitemap resources. `worker-routes.json` describes runtime endpoints;
+`fallbacks.json` describes generated 404 assets and miss behavior. Alias redirects
+are separate. Runtime endpoints, error pages, aliases and search pages are not
+article canonical URLs and are excluded from the sitemap as specified in the
+content contract. Preview metadata always uses configured production canonical
+origin, never the temporary preview origin.
+
+## Headers and browser behavior
+
+CFGB generates `_headers` for static responses and `_redirects` for approved
+same-site aliases. Worker redirects/errors set their own headers; static
+`_headers` does not apply to them. Set nosniff, strict-origin-when-cross-origin,
+DENY framing and disabled camera/microphone/geolocation. Apply a CSP consistent with local fonts,
+assets, code-copy, Pagefind and Mermaid behavior; no content-time remote scripts
+or fonts. Specify permitted inline-script/style handling during renderer
+implementation, prefer generated script hashes, and test both themes, keyboard
+access and no-JS fallbacks. No tracking cookies or analytics by default; analytics
+is a future explicit opt-in.
+
+Cloudflare Access enforcement and ordinary cache/security headers are separate
+checks. Validate all exposed preview hosts rather than assuming asset, feed or
+search URLs inherit protection from the first HTML request.

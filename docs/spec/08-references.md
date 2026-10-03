@@ -5,13 +5,15 @@ support platform integration points; exact dependency versions must be verified
 when implementation begins and pinned in that repository.
 
 - [Astro Markdown](https://docs.astro.build/en/guides/markdown-content/): Markdown pipeline and heading information.
-- [Expressive Code installation](https://expressive-code.com/installation/): Astro integration; code rendering remains a site responsibility.
+- [Expressive Code installation](https://expressive-code.com/installation/): Astro integration; code rendering belongs to the renderer owned by CFGB.
 - [VS Code Markdown](https://code.visualstudio.com/docs/languages/markdown): paste/drop destination configuration. Cursor compatibility requires a manual check.
 - [Pagefind multilingual search](https://pagefind.app/docs/multilingual/): language-specific indexes and Extended support for Japanese.
 - [Pagefind API](https://pagefind.app/docs/api/): real result-data retrieval for search acceptance.
+- [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/): separate Build, Deploy and Preview commands.
 - [Workers Builds branches](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/): production versus Preview builds and current preview command.
-- [Worker Previews](https://developers.cloudflare.com/workers/previews/): branch/deployment URLs; previews are public unless Access protects them.
+- [Worker Previews](https://developers.cloudflare.com/workers/previews/): Wrangler 4.135.0+ minimum; branch/deployment URLs are public unless Access protects them.
 - [Static Assets Worker routing](https://developers.cloudflare.com/workers/static-assets/routing/worker-script/): selective Worker-first routing and ASSETS binding.
+- [Static site generation routing](https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/): hierarchical `404-page` fallback and 404 status.
 - [Static Assets headers](https://developers.cloudflare.com/workers/static-assets/headers/): static `_headers`; Worker responses need their own headers.
 - [Static Assets redirects](https://developers.cloudflare.com/workers/static-assets/redirects/): `_redirects` for same-site aliases.
 - [GitHub token behavior](https://docs.github.com/en/actions/concepts/security/github_token): do not assume token-generated activity reruns checks without approval.

@@ -15,6 +15,9 @@ values preserved as strings. Accept UTF-8 without BOM; normalize CRLF for hashes
 | `translate ARTICLE --to en --slug SLUG` | Article key, not ambiguous title | Create missing variant in same group; copy topics/title as placeholders; empty body and summary; never overwrite or translate with AI |
 | `prepare [ARTICLE...] [--offline] [--refresh-links] [--dry-run]` | All variants if no selection | Report assets; fetch missing link cards unless offline; no LLM or commits |
 | `validate [--authoring\|--publish] [--now RFC3339]` | Regular validation by default | Read-only structural and semantic checks |
+| `build [--out DIR]` | Default `dist`; regular validation, embedded fixed toolchain | Generate verified artifact; no upload |
+| `deploy --from DIR` | Verified artifact and production target from environment | Check publication conditions and deploy the same artifact; no rebuild |
+| `preview --from DIR` | Verified artifact and current non-main branch | Create/update a private Worker Preview; no rebuild |
 | `summarize [ARTICLE...] [--changed-since REF] [--dry-run]` | Explicit selection or changed variants | Generate eligible summaries and sidecars; never automatically commit |
 | `summarize ARTICLE --lang LOCALE --replace-manual` | One explicit variant | Deliberately replace a manual summary; flag never used in CI |
 | `ai eval summary --corpus PATH --candidates PATH --out DIR` | Candidate config and review corpus | Generate anonymized review bundle; do not modify articles |
@@ -38,13 +41,17 @@ the date at publication. `translate` uses the current branch, sets a new locale
 publication date, does not copy source aliases, ogImage or generated ownership,
 and requires author review of title and summary. Translation tooling is v1
 scaffolding only; `--ai` is reserved, not accepted.
+Both commands write `summary: ""`, not a bare `summary:` key (parsed as null).
+Empty content is scaffolding, not input for an AI summary; refuse generation from
+an empty/whitespace-only body without writing a summary or ownership record.
 
 ## Validation modes
 
 | Rule | `--authoring` | default | `--publish` |
 | --- | --- | --- | --- |
 | Invalid schema/topic/path/date/URL/asset/link | Error | Error | Error |
-| Missing or empty summary | Warning | Error | Error |
+| Missing, empty or whitespace-only summary | Warning | Error | Error |
+| Summary null, numeric or another non-string value | Error | Error | Error |
 | Valid future `publishedAt` | Warning | Warning | Error |
 | Summary outside recommended length | Warning | Warning | Warning |
 | Unknown generated sidecar version | Error | Error | Error |
@@ -55,6 +62,56 @@ scaffolding only; `--ai` is reserved, not accepted.
 does not override the clock. `updatedAt >= publishedAt`; publication requires
 both timestamps not later than now. Warnings do not become errors implicitly.
 Default `validate` is the final PR content gate after summary generation.
+
+The article Schema permits omitted/empty summary structurally in all modes; its
+newline constraint still applies to present strings. After structure checks, a
+summary is missing when absent or empty after trimming Unicode White_Space
+characters. Emit `W_SUMMARY_REQUIRED` in authoring and `E_SUMMARY_REQUIRED`
+otherwise, without a second length warning for that field. Non-string values
+fail with `E_SCHEMA` in every mode. Other required fields are not relaxed.
+
+## Build and delivery
+
+CFGB owns the embedded renderer, Worker, lockfile and artifact integration checks.
+Content repositories require no package.json, Astro files, Wrangler files or
+custom executable build scripts. `build` extracts implementation files to a
+disposable workspace, stages configured content and installs pinned dependencies;
+rendering, Pagefind and artifact checks then run offline. No AI, metadata refresh,
+remote image fetch or source mutation occurs. Node.js remains required in v1.
+
+`--out` must resolve inside the repository, outside input content and protected
+Git/configuration paths. Refuse a nonempty directory unless recognized as a prior
+CFGB artifact; never recursively delete an unowned directory. Stage a complete
+replacement before publishing new output. Default build validation allows future
+publication dates for previews but requires existing valid summaries.
+
+Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and
+`build-manifest.json` (source commit, CFGB/renderer versions, config/input/output
+hashes, publication metadata snapshot and completed checks). Publication metadata
+includes article key, locale, slug, summary and timestamps for each variant. Local
+builds may record dirty worktrees; remote uploads require a clean checkout matching
+the recorded commit and input hashes. Generated/ignored output does not count as
+a source edit. Never include credentials or raw private source exports.
+
+`deploy`/`preview` verify artifact bytes, completed checks, supported versions and
+source provenance before upload. Production also validates the publication
+snapshot with current time, including future-date rejection. No source mutation,
+regeneration or re-rendering occurs. `preview` rejects main; `deploy` requires
+the recorded source commit to match main. These checks supplement branch protection.
+
+`CFGB_CF_WORKER_NAME` supplies the target Worker; `CLOUDFLARE_ACCOUNT_ID` and
+`CLOUDFLARE_API_TOKEN` configure the Wrangler adapter. Generate Wrangler config
+in a disposable upload workspace from the artifact and trusted target settings.
+Preserve the original branch when creating a Preview; the temporary workspace
+must not change its identity. Use CFGB's pinned Wrangler dependency, never an
+unpinned npx download. None of these credentials becomes a visitor-runtime secret.
+
+Diagnostic codes: `E_ARTIFACT` for missing checks/corrupt or unsupported artifacts,
+`E_BUILD_SOURCE` for stale/dirty source, `E_DEPLOY_TARGET` for branch/target errors,
+and `E_PREVIEW_ACCESS` for absent Access coverage. Publication content failures
+retain the same `E_*` codes as `validate --publish`. Missing build/upload prerequisites
+are configuration failures (exit 2); remote upload failures use exit 3. Gate
+violations use exit 1. Do not promote/upload a failed artifact.
 
 ## Errors and output
 

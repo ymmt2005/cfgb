@@ -177,8 +177,9 @@
       "additionalProperties": false,
       "properties": {
         "previewAccess": {
-          "type": "boolean",
-          "default": true
+          "const": true,
+          "default": true,
+          "description": "Private previews are mandatory in v1; omission also means true. Actual Access policy provisioning is external."
         }
       },
       "required": []

@@ -10,8 +10,10 @@ The filename supplies locale. An article group has one or both enabled locales
 and shared `assets/`; `.cfgb.json` is optional. A stray `fr.md`, nested variant,
 or duplicate locale is an error. Discovery excludes `tests`, docs and examples.
 
-Publication frontmatter requires `title`, `slug`, `publishedAt`, `topics`,
-`summary`; optionally `updatedAt`, `ogImage`, `aliases`. No other keys.
+Frontmatter structure requires `title`, `slug`, `publishedAt`, `topics`.
+`summary` is structurally optional and may be empty during authoring. Default
+validation and publication require a nonempty summary as a semantic rule.
+Optionally `updatedAt`, `ogImage`, `aliases`. No other keys.
 `slug` is lowercase ASCII letters/digits separated by single hyphens, unique
 within locale. `publishedAt`/`updatedAt` are RFC3339 strings with explicit zone;
 quote them in YAML. `topics` is a nonempty unique array. `summary` is plain text,
@@ -37,12 +39,19 @@ from article feeds/search. Their relative assets are scoped to their directory.
 
 ## URLs and ordering
 
-Generate `/`, and for each enabled locale:
+Serve `/` as a runtime locale-negotiation route; do not generate an index page.
+Generate static content for each enabled locale:
 `/<locale>/`, `/posts/`, `/posts/<slug>/`, `/archive/`,
 `/archive/<YYYY>/<MM>/`, `/topics/<topic>/`, `/search/`, `/about/`, `/feed.xml`
 (all after the locale prefix). Generate `/sitemap-index.xml` and `/robots.txt`.
 Generate localized `/<locale>/404.html` and bilingual `/404.html` as internal
-fallback assets, not indexable articles. Empty locale archives/home lists remain
+fallback assets, not indexable articles. Static Assets chooses the nearest
+directory fallback with status 404. `/__locale` is a runtime preference route.
+Fixtures separate `static-routes.json` (ordinary static content),
+`worker-routes.json` (runtime behavior), `fallbacks.json` (404 assets/misses) and
+`aliases.json` (redirects). Fallback assets and runtime preference endpoints are
+excluded from canonical lists/search/feeds/sitemap. Root can be an x-default
+alternate but is not an indexable generated page. Empty locale archives/home lists remain
 valid. Monthly/topic pages exist only where that locale has matching articles.
 Default lists are unpaginated in v1. Latest = descending publication instant,
 then ascending article key as a deterministic tie break. `updatedAt` never

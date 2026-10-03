@@ -1,7 +1,8 @@
 # Hatena migration algorithm
 
-Production sources are `https://ymmt.hatenablog.com` (ja) and
-`https://ymmt2005.hatenablog.com` (en). Test exports in `cfgb-example` are synthetic
+Migration sources are the configured `hatena.blogs` entries and their locales.
+Support one or multiple configured blogs; no personal origin is hard-coded.
+Test exports in `cfgb-example` are synthetic
 and use reserved `.invalid` origins. No live import or remote modification occurs
 when checking this corpus.
 
@@ -29,7 +30,7 @@ without comparing rendered output. Raw snapshots are not committed by default.
 
 ## Planning before writes
 
-1. Inventory both blogs completely and compute source-body hashes over exact UTF-8
+1. Inventory all configured blogs completely and compute source-body hashes over exact UTF-8
    content bytes as returned by XML decoding (no newline normalization).
 2. Propose topics from categories one-to-one, then review multilingual label
    merges. Store approved category-to-topic mappings; don't invent topics using AI.
@@ -68,22 +69,39 @@ separate explicit large-asset limit (25 MiB); report oversized sources for revie
 
 `migration/hatena/manifest.json` is committed provenance. Each entry records
 `sourceId`, `sourceUrl`, `locale`, `sourceHash`, `articleKey`, `targetUrl`,
-`targetHash`, and `status`. `targetHash` hashes exact last-written target Markdown
-bytes, including frontmatter. Per-variant sidecars repeat import identity/hash,
+and `targetHash`. Only successfully applied entries are recorded; there is no
+status/conflict entry. `sourceHash` is the source body used in the last successful
+application; `targetHash` hashes the exact target Markdown written by that same
+application, including frontmatter. Update the pair together only after success.
+Never replace either hash with a newly observed source/target during a conflict.
+Per-variant sidecars repeat import identity/hash,
 not private raw source snapshots. Missing source entries never imply deletion.
+
+Conflicts are written to a separate report under `.cfgb-work/hatena/`, conforming
+to `migration-conflicts.schema.json`. New unowned target collisions create no
+manifest entry. Conflicts on previously applied entries preserve their complete
+last-success record and sidecar. Report `observedSourceHash`, optional
+`observedTargetHash` (absent if the target is missing), optional
+`proposedTargetHash`, and the prior `lastAppliedSourceHash`/`lastAppliedTargetHash`
+pair when available. Omit both last-applied fields for unowned targets. These
+observations/proposals never establish ownership or authorize replacement.
+Record a reason and identity for each conflict. Partial progress can record
+unrelated successful entries but must preserve every conflicting baseline.
 
 | Rerun condition | Behavior |
 | --- | --- |
 | Source unchanged and target matches last target hash | Skip, byte-identical no-op |
 | Source unchanged but target edited by human | Preserve target; report local edit |
 | Source changed and target still matches last write | Produce replacement plan, apply after review |
-| Source changed and target also edited | Conflict; preserve target and emit proposal |
-| New source but target path occupied without matching provenance | Conflict, never overwrite |
+| Source changed and target also edited | Conflict; preserve target and prior manifest/hash pair; emit separate report/proposal |
+| New source but target path occupied without matching provenance | Conflict, never overwrite or create a manifest/ownership entry |
 | Partial prior apply | Resume from journal; verify every existing target before continuing |
 
 Perform changes in a clean worktree, stage/journal each transaction, then atomic
 rename and manifest update. Keep enough preconditions to recover between a target
-write and a manifest write. A fresh manifest alone must never claim old target
+write and a manifest write. Recovery must verify journal preconditions before
+recording a successful paired baseline; otherwise preserve the prior record and
+report a conflict. A fresh manifest alone must never claim old target
 ownership. Applying the same reviewed plan twice must not alter bytes or dates.
 
 ## Old-site notices and cutover

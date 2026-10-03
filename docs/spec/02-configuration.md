@@ -21,7 +21,7 @@ open topic/locale maps. Require format assertion for `date-time` and `uri`.
 | `ai.enabled` | Default false |
 | `ai.gateway` | Default/only v1 integration `cloudflare` |
 | `ai.summary` | Map from enabled locales to `{provider,model}`; required when AI enabled |
-| `security.previewAccess` | Default true; release gate, not an access-policy provisioning switch |
+| `security.previewAccess` | Only allowed value true; omission means true; preview release gate, not policy provisioning |
 | `hatena.blogs` | Optional array `{url,locale}`; normalized unique origins |
 
 AI disabled with `summary: {}` is a usable offline configuration. Do not insert
@@ -34,7 +34,14 @@ Secrets and Cloudflare account identifiers are environment configuration, not
 committed YAML: `CFGB_CF_ACCOUNT_ID`, `CFGB_CF_GATEWAY_ID`, `CFGB_CF_AIG_TOKEN`,
 and optional provider credentials as described in the AI contract. Never pass
 secrets on the CLI or embed them in diagnostics. Hatena credentials are covered
-by the migration contract. `.env.example` contains names only.
+by the migration contract. `CFGB_CF_WORKER_NAME`, `CLOUDFLARE_ACCOUNT_ID` and
+`CLOUDFLARE_API_TOKEN` configure uploads; they are not visitor-runtime secrets.
+`.env.example` contains names only.
+
+CFGB applies defaults in its parser; JSON Schema default annotations do not
+populate missing configuration. In v1, `security.previewAccess: false` is an
+error. Omission of the field or parent section still requires private previews.
+The setting is an assertion, not automatic creation of Access policies.
 
 Relative paths must stay inside the repository after symlink resolution. Topic
 IDs match `[a-z0-9]+(-[a-z0-9]+)*`. Every topic must have exactly the configured
@@ -42,7 +49,8 @@ locale labels, even when it currently has articles in only one locale.
 All article topics must be registered. AI may suggest existing topics, never
 create new ones. `site.defaultLocale` must exist; variant locales must be enabled.
 
-Production overlay `examples/ymmt2005.dev.yaml` illustrates different values.
+The [personal configuration example in cfgb-example](https://github.com/ymmt2005/cfgb-example/blob/main/examples/ymmt2005.dev.yaml)
+illustrates different values.
 It is a complete alternate config, not an implicit merge mechanism. To use it,
 copy it to the personal repository root as `cfgb.yaml`; relative paths resolve
 from that root. The example repository retains a reserved non-routable origin.
@@ -50,11 +58,12 @@ from that root. The example repository retains a reserved non-routable origin.
 ## Schema inventory
 
 - `cfgb.schema.json`: site configuration.
-- `article.schema.json`: publication frontmatter; authoring permits omitted/empty summary.
+- `article.schema.json`: article frontmatter structure; omitted/empty summary is structurally valid, with mode-specific semantic requirements.
 - `topics.schema.json`: localized topic master.
 - `sidecar.schema.json`: AI and import provenance per variant.
 - `linkcard.schema.json`: committed fetch metadata.
-- `migration-manifest.schema.json`: source/target identity and restart state.
+- `migration-manifest.schema.json`: paired source/target identity for successful applications only; no conflict status.
+- `migration-conflicts.schema.json`: separate conflict observations/proposals, never ownership records.
 
 Schema versions are not CLI release numbers. Unsupported newer versions fail
 with a clear upgrade diagnostic. Breaking upgrades are explicit migrations with

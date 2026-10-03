@@ -33,8 +33,10 @@
     },
     "summary": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "^[^\\r\\n]+$"
+      "description": "Structurally optional/empty during authoring. Semantic validation requires a non-whitespace summary in default and publish modes.",
+      "not": {
+        "pattern": "[\\r\\n]"
+      }
     },
     "ogImage": {
       "type": "string",
@@ -53,7 +55,6 @@
     "title",
     "slug",
     "publishedAt",
-    "topics",
-    "summary"
+    "topics"
   ]
 }
