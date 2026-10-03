@@ -572,7 +572,7 @@ def main():
   Review --&gt; Draft</code></pre>
 <p>An inline <a href="https://www.iana.org/domains/reserved">ordinary link</a> stays a link. This standalone URL has no cache and must fall back to a hyperlink:</p>
 <p><a href="https://www.iana.org/domains/reserved">https://www.iana.org/domains/reserved</a></p>
-<p>Footnotes are supported.<a href="#fn-one" id="fnref-one">[1]</a></p>
+<p>脚注に対応しています。<sup class="footnote-ref"><a href="#fn-one" id="fnref-one">1</a></sup></p>
 <h2 id="補足">補足</h2>
 <p><a href="/ja/posts/protobuf-schema-guide/#フィールド番号">Protocol Buffers の記事</a>へ戻ります。</p>
 <h2 id="補足-2">補足</h2>
@@ -587,7 +587,7 @@ def main():
 <p>差分の確認と表示の確認は役割が異なります。パソコンで読めても、幅の狭い画面ではコードブロックがページ全体を押し広げることがあります。暗いテーマで図の文字が背景に埋もれることもあります。本文が同じでも表示条件が違えば確認すべき点は変わります。</p>
 <h2 id="このレビューで残ったこと">このレビューで残ったこと</h2>
 <p>この架空のレビューでは、機能の数よりも境界を明確にすることを優先しました。生成する処理と配信する処理、人間の編集と機械が管理する出力、原稿の公開範囲とプレビューの公開範囲をそれぞれ分けています。</p>
-<aside class="footnotes"><ol><li id="fn-one">A local note, not an external request. <a href="#fnref-one">↩</a></li></ol></aside>
+<section class="footnotes" aria-label="脚注"><ol><li id="fn-one"><p>外部への依頼ではなく、この記事の注です。</p><a class="footnote-back" href="#fnref-one" aria-label="本文の参照へ戻る">↩</a></li></ol></section>
 """
     write("ja/posts/markdown-showcase/index.html", article_page(showcase, prose, toc))
 
@@ -602,6 +602,8 @@ def main():
 <pre class="mermaid-source"><code>flowchart TD
   Draft --&gt; Review --&gt; Publish</code></pre>
 <p>Switching language returns to <a href="/ja/posts/markdown-showcase/">the Japanese article</a>, not to a translated slug of this URL.</p>
+<p>Footnotes are supported.<sup class="footnote-ref"><a href="#fn-one" id="fnref-one">1</a></sup></p>
+<section class="footnotes" aria-label="Footnotes"><ol><li id="fn-one"><p>A local note, not an external request.</p><a class="footnote-back" href="#fnref-one" aria-label="Back to reference">↩</a></li></ol></section>
 """
     write("en/posts/markdown-rendering-showcase/index.html", article_page(en_show, en_prose, en_toc))
 

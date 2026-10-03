@@ -18,7 +18,7 @@ Open `http://127.0.0.1:4173/ja/`.
 | Locale choice for `/` | `/` |
 | Japanese home | `/ja/` |
 | English home | `/en/` |
-| Long article | `/ja/posts/markdown-showcase/` |
+| Long article, including a footnote | `/ja/posts/markdown-showcase/` |
 | Link card and mixed prose | `/ja/posts/protobuf-schema-guide/` |
 | Untranslated language switch | `/ja/posts/post-quantum-notes/` |
 | Post list | `/ja/posts/` |

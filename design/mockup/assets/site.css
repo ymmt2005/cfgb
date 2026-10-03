@@ -762,6 +762,12 @@ th { color: var(--muted); font-weight: 600; }
 .card-title { display: block; margin: 0.15rem 0; font-weight: 650; }
 .card-desc { display: block; color: var(--muted); font-size: 0.92rem; }
 
+.footnote-ref {
+  font-size: 0.72em;
+  line-height: 0;
+  margin-left: 0.12em;
+}
+.footnote-ref a { text-decoration: none; }
 .footnotes {
   margin-top: 2.5rem;
   padding-top: 0.8rem;
@@ -769,6 +775,10 @@ th { color: var(--muted); font-weight: 600; }
   color: var(--muted);
   font-size: 0.92rem;
 }
+.footnotes ol { margin: 0.4rem 0 0; padding-left: 1.4rem; }
+.footnotes li { margin: 0.35rem 0; }
+.footnotes p { display: inline; margin: 0; }
+.footnote-back { margin-left: 0.35rem; text-decoration: none; }
 .mermaid-source { margin-top: 0.4rem; color: var(--muted); font-size: 0.85rem; }
 html.js .mermaid-source { display: none; }
 
