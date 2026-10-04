@@ -207,6 +207,53 @@ locales:
     label: 日本語
 `
 
+func TestDiscoveryDoesNotSkipBrokenConfigurationEntries(t *testing.T) {
+	t.Parallel()
+	for _, kind := range []string{"directory", "symlink loop", "dangling symlink"} {
+		t.Run(kind, func(t *testing.T) {
+			repo := t.TempDir()
+			writeConfig(t, repo, minimalConfig)
+			if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			dir := filepath.Join(repo, "nested")
+			if err := os.Mkdir(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			selected := filepath.Join(dir, "cfgb.yaml")
+			if kind == "directory" {
+				if err := os.Mkdir(selected, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				target := "cfgb.yaml"
+				if kind == "dangling symlink" {
+					target = "missing.yaml"
+				}
+				if err := os.Symlink(target, selected); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			}
+			if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), selected) {
+				t.Fatalf("broken entry silently selected ancestor config: %v", err)
+			}
+		})
+	}
+}
+
+func TestDiscoveryReportsRepositoryProbeError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, minimalConfig)
+	file := filepath.Join(dir, "not-a-directory")
+	if err := os.WriteFile(file, []byte("file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(file); err == nil || !strings.Contains(err.Error(), "find repository root") {
+		t.Fatalf("repository probe failure was not reported: %v", err)
+	}
+}
+
 func TestLoadRejectsLocaleProblems(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

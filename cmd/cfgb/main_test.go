@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +13,28 @@ import (
 	"github.com/ymmt2005/cfgb/internal/build"
 	"github.com/ymmt2005/cfgb/internal/version"
 )
+
+type failingWriter struct {
+	err error
+}
+
+func (w failingWriter) Write([]byte) (int, error) { return 0, w.err }
+
+func TestCLIOutputErrorsFailIncludingFrameworkHelp(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	broken := errors.New("output unavailable")
+	for _, args := range [][]string{{"version"}, {"--version"}, {"build", "--version"}, {"--help"}, {"build", "--help"}, {"help", "build"}} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			var stderr bytes.Buffer
+			if code := run(args, failingWriter{broken}, &stderr); code != 3 || !strings.Contains(stderr.String(), broken.Error()) {
+				t.Fatalf("exit=%d stderr=%q", code, &stderr)
+			}
+		})
+	}
+	if code := run([]string{"unknown"}, io.Discard, failingWriter{broken}); code != 3 {
+		t.Fatalf("failed diagnostic write: exit=%d", code)
+	}
+}
 
 func TestVersion(t *testing.T) {
 	var out, err bytes.Buffer

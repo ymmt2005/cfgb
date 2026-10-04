@@ -28,7 +28,9 @@ func TestContentErrorClassification(t *testing.T) {
 	}
 }
 
-func TestRunSourceDiagnosticExitCodes(t *testing.T) {
+// Fail unexpected tool operations so error-path tests cannot install or render.
+func stubBuildProbes(t *testing.T) {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("toolchain probe stubs use shell scripts")
 	}
@@ -43,6 +45,10 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 	}
 	t.Setenv("PATH", tools+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("CFGB_PACKAGE_MANAGER", "npm")
+}
+
+func TestRunSourceDiagnosticExitCodes(t *testing.T) {
+	stubBuildProbes(t)
 	const article = "---\ntitle: T\nslug: test\npublishedAt: '2026-01-02T00:00:00Z'\ntopics: [protobuf]\n---\nBody\n"
 	for _, tc := range []struct {
 		name, file, body, code string
@@ -151,5 +157,68 @@ func TestRunSelectedConfigurationDoesNotFallBack(t *testing.T) {
 		if got, err := os.ReadFile(marker); err != nil || string(got) != "existing output" {
 			t.Fatalf("invalid selected config removed output: %q, %v", got, err)
 		}
+	}
+}
+
+type progressWriter func([]byte) (int, error)
+
+func (w progressWriter) Write(p []byte) (int, error) { return w(p) }
+
+func TestRunProgressFailureAndCleanupErrors(t *testing.T) {
+	stubBuildProbes(t)
+	for _, blockedCleanup := range []bool{false, true} {
+		t.Run(fmt.Sprintf("blocked cleanup=%t", blockedCleanup), func(t *testing.T) {
+			if blockedCleanup && os.Geteuid() == 0 {
+				t.Skip("root bypasses directory permissions; this case runs in CI as a normal user")
+			}
+			_, repo := testRepo(t)
+			out := filepath.Join(repo, "dist")
+			workspaces := t.TempDir()
+			t.Setenv("TMPDIR", workspaces)
+			broken := errors.New("progress stream failed")
+			t.Cleanup(func() {
+				if err := os.Chmod(repo, 0o755); err != nil {
+					t.Error(err)
+				}
+			})
+			err := Run(Options{Dir: repo, Out: out, Stdout: progressWriter(func([]byte) (int, error) {
+				if blockedCleanup {
+					if err := os.Chmod(repo, 0o555); err != nil {
+						t.Fatal(err)
+					}
+				}
+				return 0, broken
+			})})
+			var exit *ExitError
+			if !errors.As(err, &exit) || exit.Code != 3 || !errors.Is(err, broken) {
+				t.Fatalf("Run lost progress failure: %v", err)
+			}
+			if blockedCleanup {
+				if !errors.Is(err, os.ErrPermission) || !strings.Contains(err.Error(), out) {
+					t.Fatalf("Run lost cleanup failure/path: %v", err)
+				}
+			} else if _, err := os.Stat(out); !os.IsNotExist(err) {
+				t.Fatalf("incomplete output retained: %v", err)
+			}
+			entries, err := os.ReadDir(workspaces)
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("workspace cleanup stopped: %v, %v", entries, err)
+			}
+		})
+	}
+}
+
+func TestRunWorkspaceCreationFailureCleansOutput(t *testing.T) {
+	stubBuildProbes(t)
+	_, repo := testRepo(t)
+	out := filepath.Join(repo, "dist")
+	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
+	err := Run(Options{Dir: repo, Out: out})
+	var exit *ExitError
+	if !errors.As(err, &exit) || exit.Code != 2 || !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Run lost workspace error: %v", err)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("workspace failure retained incomplete output: %v", err)
 	}
 }

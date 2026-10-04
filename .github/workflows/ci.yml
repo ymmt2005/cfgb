@@ -26,6 +26,10 @@ jobs:
         run: go test ./... -skip '^TestExampleCorpus$'
       - name: Staticcheck
         run: go tool staticcheck ./...
+      - name: Check returned errors
+        # -blank catches explicit error discards; fmt is otherwise ignored by
+        # errcheck by default. Keep its documented infallible stdlib excludes.
+        run: go tool errcheck -blank -ignore 'fmt:a^' ./...
       - name: Format
         run: test -z "$(gofmt -l .)"
 

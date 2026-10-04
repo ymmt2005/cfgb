@@ -3,6 +3,7 @@ package build
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,8 +27,11 @@ func TestExampleCorpus(t *testing.T) {
 	}
 	root := exampleRoot(t)
 	out := filepath.Join(root, ".cfgb-build-test")
-	os.RemoveAll(out)
-	t.Cleanup(func() { os.RemoveAll(out) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(out); err != nil {
+			t.Error(err)
+		}
+	})
 	if err := Run(Options{Dir: root, Out: out}); err != nil {
 		t.Fatal(err)
 	}
@@ -180,6 +184,7 @@ func TestExampleCorpus(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
+	cleanupExampleWorkspace(t, out)
 	switch manager {
 	case "npm":
 		if manifest.Toolchain.PackageManager != "npm" || !npmAtLeast12(manifest.Toolchain.ObservedNpmVersion) || manifest.Toolchain.ObservedPnpmVersion != "" {
@@ -192,6 +197,57 @@ func TestExampleCorpus(t *testing.T) {
 	default:
 		t.Fatalf("CFGB_PACKAGE_MANAGER = %s", manager)
 	}
+	t.Run("final output failure retains artifact and toolchain", func(t *testing.T) {
+		failedOut := filepath.Join(root, ".cfgb-build-test-final-output")
+		t.Cleanup(func() {
+			if err := os.RemoveAll(failedOut); err != nil {
+				t.Error(err)
+			}
+		})
+		broken := errors.New("final output stream failed")
+		err := Run(Options{Dir: root, Out: failedOut, Stdout: progressWriter(func(p []byte) (int, error) {
+			if bytes.HasPrefix(p, []byte("built ")) {
+				return 0, broken
+			}
+			return len(p), nil
+		})})
+		var exit *ExitError
+		if !errors.As(err, &exit) || exit.Code != 3 || !errors.Is(err, broken) {
+			t.Fatalf("final output failure = %v", err)
+		}
+		for _, rel := range []string{"site/en/index.html", "worker/index.js", "build-manifest.json"} {
+			if _, err := os.Stat(filepath.Join(failedOut, rel)); err != nil {
+				t.Fatalf("completed artifact removed: %s: %v", rel, err)
+			}
+		}
+		cleanupExampleWorkspace(t, failedOut)
+	})
+}
+
+func cleanupExampleWorkspace(t *testing.T, out string) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(out, "build-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Session string `json:"toolchainSessionId"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(manifest.Session, "cfgb-build-") || filepath.Base(manifest.Session) != manifest.Session {
+		t.Fatalf("unexpected workspace basename: %q", manifest.Session)
+	}
+	workspace := filepath.Join(os.TempDir(), manifest.Session)
+	if _, err := os.Stat(filepath.Join(workspace, "renderer", "node_modules")); err != nil {
+		t.Fatalf("completed toolchain was not retained: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(workspace); err != nil {
+			t.Error(err)
+		}
+	})
 }
 
 var publicationStampPattern = regexp.MustCompile(`<time datetime="([^"]+)" data-pagefind-meta="published\[datetime\]">`)

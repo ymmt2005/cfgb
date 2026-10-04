@@ -1,5 +1,16 @@
 # Implementation progress
 
+Go error handling is checked by the pinned `errcheck` tool in CI, including
+test code, explicit blank-identifier discards and fmt writes. Files/root handles
+report close failures; file copying preserves delayed destination-close errors;
+failed-build and output-staging cleanup return errors alongside the original
+failure. CLI progress, result, help/version and diagnostic stream failures produce
+a failure exit code. Configuration discovery distinguishes absence from probe
+errors instead of silently selecting an ancestor after an I/O failure. Optional
+Git diagnostics retain their documented fallback. Regression tests cover failing
+writers/closers, simultaneous work/cleanup failures and broken discovery entries.
+The root `AGENTS.md` records these rules and the settled design/review practices.
+
 Baseline reviewed before this work:
 
 | Repository | Commit |

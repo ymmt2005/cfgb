@@ -18,12 +18,24 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) int {
 	cmd := newRootCommand(build.Run)
-	cmd.SetOut(stdout)
-	cmd.SetErr(stderr)
+	// Cobra's help callback cannot return an error. Record stream failures so
+	// help (and other framework output) cannot turn a failed write into exit 0.
+	out := &checkedWriter{Writer: stdout}
+	errOut := &checkedWriter{Writer: stderr}
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
 	// A nil Cobra args slice would fall back to os.Args, including test flags.
 	cmd.SetArgs(append([]string{}, args...))
-	if err := cmd.Execute(); err != nil {
-		fmt.Fprintln(stderr, err)
+	err := cmd.Execute()
+	if writeErr := errors.Join(out.err, errOut.err); writeErr != nil {
+		err = errors.Join(&build.ExitError{Code: 3, Err: fmt.Errorf("write command output: %w", writeErr)}, err)
+	}
+	if err != nil {
+		if _, writeErr := fmt.Fprintln(stderr, err); writeErr != nil {
+			// The diagnostic stream itself has failed; there is no other stream
+			// to report it on. Preserve failure through the I/O exit code.
+			return 3
+		}
 		var exit *build.ExitError
 		if errors.As(err, &exit) {
 			return exit.Code
@@ -31,6 +43,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	return 0
+}
+
+type checkedWriter struct {
+	io.Writer
+	err error
+}
+
+func (w *checkedWriter) Write(p []byte) (int, error) {
+	n, err := w.Writer.Write(p)
+	if err == nil && n < len(p) {
+		err = io.ErrShortWrite
+	}
+	if err != nil && w.err == nil {
+		w.err = err
+	}
+	return n, err
 }
 
 // Construct each invocation independently: commands/flags must not retain

@@ -37,6 +37,7 @@ func Source(opts Options) ([]byte, error) {
 		return nil, fmt.Errorf("invalid release security headers")
 	}
 	var buf bytes.Buffer
+	// bytes.Buffer's Write and WriteString are documented to never fail.
 	buf.WriteString("const site = ")
 	buf.Write(payload)
 	buf.WriteString(";\n")

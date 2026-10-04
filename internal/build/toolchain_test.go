@@ -2,11 +2,21 @@ package build
 
 import (
 	"encoding/json"
+	"errors"
+	"os/exec"
 	"testing"
 
 	cfgb "github.com/ymmt2005/cfgb"
 	"github.com/ymmt2005/cfgb/internal/worker"
 )
+
+func TestToolchainProbePreservesCause(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	_, err := checkToolchain(releasePins{NodeRange: ">=24.15.0 <25 || >=26.0.0"})
+	if !errors.Is(err, exec.ErrNotFound) {
+		t.Fatalf("missing Node cause was discarded: %v", err)
+	}
+}
 
 func TestPackageManager(t *testing.T) {
 	t.Setenv("CFGB_PACKAGE_MANAGER", "")

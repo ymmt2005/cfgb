@@ -91,7 +91,7 @@ type siteJSON struct {
 }
 
 // Run builds the site in Dir into Out.
-func Run(opts Options) error {
+func Run(opts Options) (err error) {
 	if opts.Stdout == nil {
 		opts.Stdout = io.Discard
 	}
@@ -99,7 +99,6 @@ func Run(opts Options) error {
 		opts.Stderr = io.Discard
 	}
 	var cfg *config.File
-	var err error
 	if opts.Config != "" {
 		file := opts.Config
 		if !filepath.IsAbs(file) {
@@ -129,11 +128,14 @@ func Run(opts Options) error {
 	}
 	workspace, err := newWorkspace()
 	if err != nil {
-		_ = os.RemoveAll(out)
-		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}
+		return errors.Join(&ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}, discardFailedBuild(out, "", nil))
 	}
 	built := false
-	defer discardFailedBuild(out, workspace, &built)
+	defer func() {
+		if cleanupErr := discardFailedBuild(out, workspace, &built); cleanupErr != nil {
+			err = errors.Join(err, &ExitError{Code: 3, Err: cleanupErr})
+		}
+	}()
 	rendererDir := filepath.Join(workspace, "renderer")
 	if err := extractRenderer(rendererDir); err != nil {
 		return &ExitError{Code: 3, Err: err}
@@ -168,12 +170,16 @@ func Run(opts Options) error {
 		return &ExitError{Code: 3, Err: err}
 	}
 	routesPath := filepath.Join(workspace, "routes.json")
-	fmt.Fprintf(opts.Stdout, "installing renderer dependencies with %s\n", tc.PackageManager)
+	if _, err := fmt.Fprintf(opts.Stdout, "installing renderer dependencies with %s\n", tc.PackageManager); err != nil {
+		return &ExitError{Code: 3, Err: fmt.Errorf("write build progress: %w", err)}
+	}
 	if err := installRenderer(rendererDir, opts.Stdout, opts.Stderr, tc); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
 	env := []string{"CFGB_SITE_JSON=" + sitePath, "CFGB_ROUTES_OUT=" + routesPath}
-	fmt.Fprintf(opts.Stdout, "rendering\n")
+	if _, err := fmt.Fprintln(opts.Stdout, "rendering"); err != nil {
+		return &ExitError{Code: 3, Err: fmt.Errorf("write build progress: %w", err)}
+	}
 	if err := renderSite(rendererDir, opts.Stdout, opts.Stderr, env, tc); err != nil {
 		return &ExitError{Code: 1, Err: err}
 	}
@@ -197,7 +203,9 @@ func Run(opts Options) error {
 		return &ExitError{Code: 3, Err: err}
 	}
 	built = true
-	fmt.Fprintf(opts.Stdout, "built %s\n", out)
+	if _, err := fmt.Fprintf(opts.Stdout, "built %s\n", out); err != nil {
+		return &ExitError{Code: 3, Err: fmt.Errorf("write build result: %w", err)}
+	}
 	return nil
 }
 
@@ -253,7 +261,7 @@ func checkToolchain(pins releasePins) (toolchainCheck, error) {
 	var tc toolchainCheck
 	node, err := output("node", "-p", "process.versions.node")
 	if err != nil {
-		return tc, fmt.Errorf("node is required (%s)", pins.NodeRange)
+		return tc, fmt.Errorf("node is required (%s): %w", pins.NodeRange, err)
 	}
 	if _, err := parseSemver(node); err != nil {
 		return tc, fmt.Errorf("node version %q is not a valid semantic version", node)
@@ -271,7 +279,7 @@ func checkToolchain(pins releasePins) (toolchainCheck, error) {
 	case "npm":
 		npm, err := output("npm", "-v")
 		if err != nil {
-			return tc, fmt.Errorf("npm >= %s is required (tested %s)", minimumNpmVersion, testedNpmVersion)
+			return tc, fmt.Errorf("npm >= %s is required (tested %s): %w", minimumNpmVersion, testedNpmVersion, err)
 		}
 		npm = strings.TrimPrefix(npm, "v")
 		if err := requireMinimumVersion("npm", npm, minimumNpmVersion, testedNpmVersion); err != nil {
@@ -281,7 +289,7 @@ func checkToolchain(pins releasePins) (toolchainCheck, error) {
 	case "pnpm":
 		pnpm, err := output("pnpm", "-v")
 		if err != nil {
-			return tc, fmt.Errorf("pnpm >= %s is required (tested %s)", minimumPnpmVersion, testedPnpmVersion)
+			return tc, fmt.Errorf("pnpm >= %s is required (tested %s): %w", minimumPnpmVersion, testedPnpmVersion, err)
 		}
 		pnpm = strings.TrimPrefix(pnpm, "v")
 		if err := requireMinimumVersion("pnpm", pnpm, minimumPnpmVersion, testedPnpmVersion); err != nil {
@@ -588,12 +596,20 @@ func newWorkspace() (string, error) {
 
 // discardFailedBuild removes the incomplete output and the workspace created by
 // this invocation. A successful build leaves both in place.
-func discardFailedBuild(out, workspace string, built *bool) {
+func discardFailedBuild(out, workspace string, built *bool) error {
 	if built != nil && *built {
-		return
+		return nil
 	}
-	_ = os.RemoveAll(out)
-	_ = os.RemoveAll(workspace)
+	var err error
+	for _, name := range []string{out, workspace} {
+		if name == "" {
+			continue
+		}
+		if cleanupErr := os.RemoveAll(name); cleanupErr != nil {
+			err = errors.Join(err, fmt.Errorf("remove failed build %s: %w", name, cleanupErr))
+		}
+	}
+	return err
 }
 
 func extractRenderer(dest string) error {
@@ -618,12 +634,12 @@ func extractRenderer(dest string) error {
 	})
 }
 
-func stageContent(cfg *config.File, snapshot string) (string, string, string, error) {
+func stageContent(cfg *config.File, snapshot string) (contentRoot, topicsFile, linkcardsDir string, err error) {
 	root, err := os.OpenRoot(cfg.Root())
 	if err != nil {
 		return "", "", "", err
 	}
-	defer root.Close()
+	defer func() { err = errors.Join(err, root.Close()) }()
 	base := filepath.Dir(cfg.Path())
 	content, err := repoRelative(cfg.Root(), base, cfg.Content.Root)
 	if err != nil {
@@ -673,12 +689,12 @@ func repoRelative(repo, base, value string) (string, error) {
 	return filepath.ToSlash(rel), nil
 }
 
-func stageMedia(cfg *config.File, dest string) error {
+func stageMedia(cfg *config.File, dest string) (err error) {
 	root, err := os.OpenRoot(cfg.Root())
 	if err != nil {
 		return err
 	}
-	defer root.Close()
+	defer func() { err = errors.Join(err, root.Close()) }()
 	content, err := repoRelative(cfg.Root(), filepath.Dir(cfg.Path()), cfg.Content.Root)
 	if err != nil {
 		return err
@@ -698,7 +714,7 @@ func stageMedia(cfg *config.File, dest string) error {
 	return nil
 }
 
-func stageArticleMedia(root *os.Root, content, dest string) error {
+func stageArticleMedia(root *os.Root, content, dest string) (err error) {
 	posts, err := root.OpenRoot(joinRoot(content, "posts"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -706,7 +722,7 @@ func stageArticleMedia(root *os.Root, content, dest string) error {
 		}
 		return err
 	}
-	defer posts.Close()
+	defer func() { err = errors.Join(err, posts.Close()) }()
 	years, err := readRootDir(posts, ".")
 	if err != nil {
 		return err
@@ -739,7 +755,7 @@ func stageArticleMedia(root *os.Root, content, dest string) error {
 				return err
 			}
 			err = copyOptionalAssets(group, "assets", filepath.Join(dest, year.Name(), key.Name()))
-			group.Close()
+			err = errors.Join(err, group.Close())
 			if err != nil {
 				return err
 			}
@@ -748,7 +764,7 @@ func stageArticleMedia(root *os.Root, content, dest string) error {
 	return nil
 }
 
-func copyOptionalAssets(root *os.Root, name, dest string) error {
+func copyOptionalAssets(root *os.Root, name, dest string) (err error) {
 	info, err := root.Stat(name)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -763,16 +779,16 @@ func copyOptionalAssets(root *os.Root, name, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer assets.Close()
+	defer func() { err = errors.Join(err, assets.Close()) }()
 	return copyFromRoot(assets, ".", dest)
 }
 
-func readRootDir(root *os.Root, name string) ([]fs.DirEntry, error) {
+func readRootDir(root *os.Root, name string) (entries []fs.DirEntry, err error) {
 	file, err := root.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { err = errors.Join(err, file.Close()) }()
 	return file.ReadDir(-1)
 }
 
@@ -895,22 +911,26 @@ func deliver(out, dist string, workerSource, manifest []byte) error {
 	return stageOutput(out, dist, workerSource, manifest)
 }
 
-func stageOutput(out, dist string, workerSource, manifest []byte) error {
+func stageOutput(out, dist string, workerSource, manifest []byte) (err error) {
 	root, err := os.OpenRoot(out)
 	if err != nil {
 		return err
 	}
-	defer root.Close()
+	defer func() { err = errors.Join(err, root.Close()) }()
 	if err := root.Mkdir(".tmp", 0o755); err != nil && !os.IsExist(err) {
 		return err
 	}
-	defer root.RemoveAll(".tmp")
+	defer func() {
+		if cleanupErr := root.RemoveAll(".tmp"); cleanupErr != nil {
+			err = errors.Join(err, fmt.Errorf("remove output staging: %w", cleanupErr))
+		}
+	}()
 	staging, err := root.OpenRoot(".tmp")
 	if err != nil {
 		return err
 	}
 	writeErr := writeStaged(staging, dist, workerSource, manifest)
-	staging.Close()
+	writeErr = errors.Join(writeErr, staging.Close())
 	if writeErr != nil {
 		return writeErr
 	}
@@ -923,15 +943,15 @@ func stageOutput(out, dist string, workerSource, manifest []byte) error {
 	if err := root.Rename(".tmp/build-manifest.json", "build-manifest.json"); err != nil {
 		return err
 	}
-	return root.RemoveAll(".tmp")
+	return nil
 }
 
-func writeStaged(staging *os.Root, dist string, workerSource, manifest []byte) error {
+func writeStaged(staging *os.Root, dist string, workerSource, manifest []byte) (err error) {
 	site, err := os.OpenRoot(dist)
 	if err != nil {
 		return err
 	}
-	defer site.Close()
+	defer func() { err = errors.Join(err, site.Close()) }()
 	if err := copyRootToRoot(site, ".", staging, "site"); err != nil {
 		return err
 	}
@@ -1066,7 +1086,12 @@ func gitState(repo, out string) (string, string, bool) {
 	if err != nil {
 		return "", "", true
 	}
-	branch, _ := output("git", "-C", repo, "rev-parse", "--abbrev-ref", "HEAD")
+	branch, err := output("git", "-C", repo, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		// Branch metadata is optional diagnostics. A failed lookup means it is
+		// unavailable, not a reason to prevent rendering a static site.
+		branch = ""
+	}
 	args := []string{"-C", repo, "status", "--porcelain", "--", "."}
 	rel, relErr := filepath.Rel(filepath.Clean(repo), filepath.Clean(out))
 	if relErr == nil && filepath.IsLocal(rel) {
@@ -1101,7 +1126,7 @@ func copyFromRoot(root *os.Root, name, dest string) error {
 	return copyRootPath(root, name, dest, 0)
 }
 
-func copyRootPath(root *os.Root, name, dest string, depth int) error {
+func copyRootPath(root *os.Root, name, dest string, depth int) (err error) {
 	if depth > 64 {
 		return fmt.Errorf("directory is too deep or cyclic: %s", name)
 	}
@@ -1111,11 +1136,10 @@ func copyRootPath(root *os.Root, name, dest string, depth int) error {
 	}
 	info, err := file.Stat()
 	if err != nil {
-		file.Close()
-		return err
+		return errors.Join(err, file.Close())
 	}
 	if !info.IsDir() {
-		defer file.Close()
+		defer func() { err = errors.Join(err, file.Close()) }()
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}
@@ -1123,12 +1147,10 @@ func copyRootPath(root *os.Root, name, dest string, depth int) error {
 		if err != nil {
 			return err
 		}
-		defer out.Close()
-		_, err = io.Copy(out, file)
-		return err
+		return copyAndClose(out, file)
 	}
 	entries, err := file.ReadDir(-1)
-	file.Close()
+	err = errors.Join(err, file.Close())
 	if err != nil {
 		return err
 	}
@@ -1148,7 +1170,7 @@ func copyRootToRoot(src *os.Root, name string, dest *os.Root, to string) error {
 	return copyRootToRootDepth(src, name, dest, to, 0)
 }
 
-func copyRootToRootDepth(src *os.Root, name string, dest *os.Root, to string, depth int) error {
+func copyRootToRootDepth(src *os.Root, name string, dest *os.Root, to string, depth int) (err error) {
 	if depth > 64 {
 		return fmt.Errorf("directory is too deep or cyclic: %s", name)
 	}
@@ -1158,11 +1180,10 @@ func copyRootToRootDepth(src *os.Root, name string, dest *os.Root, to string, de
 	}
 	info, err := file.Stat()
 	if err != nil {
-		file.Close()
-		return err
+		return errors.Join(err, file.Close())
 	}
 	if !info.IsDir() {
-		defer file.Close()
+		defer func() { err = errors.Join(err, file.Close()) }()
 		data, err := io.ReadAll(file)
 		if err != nil {
 			return err
@@ -1170,7 +1191,7 @@ func copyRootToRootDepth(src *os.Root, name string, dest *os.Root, to string, de
 		return dest.WriteFile(to, data, 0o644)
 	}
 	entries, err := file.ReadDir(-1)
-	file.Close()
+	err = errors.Join(err, file.Close())
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,14 +75,26 @@ func Load(start string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	repo := repositoryRoot(start)
+	repo, err := repositoryRoot(start)
+	if err != nil {
+		return nil, err
+	}
 	dir := start
 	var file string
 	for {
 		candidate := filepath.Join(dir, "cfgb.yaml")
-		if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+		// Select an existing entry, including a dangling symlink. Reading it
+		// through the repository root must fail rather than select an ancestor.
+		st, err := os.Lstat(candidate)
+		if err == nil {
+			if st.IsDir() {
+				return nil, fmt.Errorf("configuration is a directory: %s", candidate)
+			}
 			file = candidate
 			break
+		}
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("find configuration: %w", err)
 		}
 		if dir == repo {
 			break
@@ -109,7 +122,11 @@ func LoadFile(file string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return load(repositoryRoot(filepath.Dir(file)), file)
+	repo, err := repositoryRoot(filepath.Dir(file))
+	if err != nil {
+		return nil, err
+	}
+	return load(repo, file)
 }
 
 func load(repo, file string) (*File, error) {
@@ -181,12 +198,12 @@ func load(repo, file string) (*File, error) {
 
 // readConfig reads cfgb.yaml through a root at the repository. Symlinks that
 // stay inside that root are followed. A symlink that leaves the repository fails.
-func readConfig(repo, file string) ([]byte, error) {
+func readConfig(repo, file string) (raw []byte, err error) {
 	root, err := os.OpenRoot(repo)
 	if err != nil {
 		return nil, err
 	}
-	defer root.Close()
+	defer func() { err = errors.Join(err, root.Close()) }()
 	rel, err := filepath.Rel(repo, file)
 	if err != nil {
 		return nil, err
@@ -194,22 +211,24 @@ func readConfig(repo, file string) ([]byte, error) {
 	if !filepath.IsLocal(rel) {
 		return nil, fmt.Errorf("cfgb.yaml escapes the repository")
 	}
-	raw, err := root.ReadFile(filepath.ToSlash(rel))
+	raw, err = root.ReadFile(filepath.ToSlash(rel))
 	if err != nil {
-		return nil, fmt.Errorf("cfgb.yaml: %w", err)
+		return nil, fmt.Errorf("%s: %w", file, err)
 	}
 	return raw, nil
 }
 
-func repositoryRoot(start string) string {
+func repositoryRoot(start string) (string, error) {
 	dir := start
 	for {
 		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
-			return dir
+			return dir, nil
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("find repository root: %w", err)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return start
+			return start, nil
 		}
 		dir = parent
 	}

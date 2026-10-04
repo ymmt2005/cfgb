@@ -4,6 +4,7 @@ package frontmatter
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -103,6 +104,7 @@ func Split(r io.Reader) (front []byte, body []byte, found bool, err error) {
 			}
 			return block.Bytes(), rest, true, nil
 		}
+		// bytes.Buffer.Write is documented to always return a nil error.
 		block.Write(lineRaw)
 		if lineErr == io.EOF {
 			return nil, nil, true, invalid("unterminated front matter")
@@ -223,8 +225,7 @@ func Topics(raw []byte) (map[string]map[string]string, error) {
 }
 
 // Collect reads staged articles, prose, and topics.yaml.
-func Collect(contentRoot, topicsFile string, locales []string) (Index, error) {
-	var index Index
+func Collect(contentRoot, topicsFile string, locales []string) (index Index, err error) {
 	rawTopics, err := os.ReadFile(topicsFile)
 	if err != nil {
 		return index, err
@@ -238,7 +239,7 @@ func Collect(contentRoot, topicsFile string, locales []string) (Index, error) {
 	if err != nil {
 		return index, err
 	}
-	defer root.Close()
+	defer func() { err = errors.Join(err, root.Close()) }()
 	posts, err := collectPosts(contentRoot, root, locales)
 	if err != nil {
 		return index, err
@@ -261,7 +262,7 @@ func Collect(contentRoot, topicsFile string, locales []string) (Index, error) {
 	return index, nil
 }
 
-func collectPosts(contentRoot string, root *os.Root, locales []string) ([]Post, error) {
+func collectPosts(contentRoot string, root *os.Root, locales []string) (result []Post, err error) {
 	postsRoot, err := root.OpenRoot("posts")
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -269,7 +270,7 @@ func collectPosts(contentRoot string, root *os.Root, locales []string) ([]Post, 
 		}
 		return nil, err
 	}
-	defer postsRoot.Close()
+	defer func() { err = errors.Join(err, postsRoot.Close()) }()
 	years, err := readDir(postsRoot, ".")
 	if err != nil {
 		return nil, err
@@ -299,25 +300,30 @@ func collectPosts(contentRoot string, root *os.Root, locales []string) ([]Post, 
 				return nil, err
 			}
 			err = readGroup(group, contentRoot, year.Name(), key.Name(), enabled, &posts)
-			group.Close()
+			err = errors.Join(err, group.Close())
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 	seen := map[string]string{}
+	published := make(map[string]time.Time, len(posts))
 	for _, post := range posts {
-		slug, _ := post.Data["slug"].(string)
+		slug := post.Data["slug"].(string) // Required string after article schema validation.
 		id := post.Locale + ":" + slug
 		if previous, ok := seen[id]; ok {
 			return nil, &ValidationError{Code: "E_SLUG_DUPLICATE", Err: fmt.Errorf("duplicate slug %s in %s (%s and %s)", slug, post.Locale, previous, post.ID)}
 		}
 		seen[id] = post.ID
+		date, err := time.Parse(time.RFC3339, post.Data["publishedAt"].(string))
+		if err != nil {
+			return nil, invalid("%s publishedAt: %w", post.ID, err)
+		}
+		published[post.ID] = date
 	}
 	sort.Slice(posts, func(i, j int) bool {
-		left, lok := time.Parse(time.RFC3339, posts[i].Data["publishedAt"].(string))
-		right, rok := time.Parse(time.RFC3339, posts[j].Data["publishedAt"].(string))
-		if lok == nil && rok == nil && !left.Equal(right) {
+		left, right := published[posts[i].ID], published[posts[j].ID]
+		if !left.Equal(right) {
 			return left.After(right)
 		}
 		if posts[i].ArticleKey != posts[j].ArticleKey {
@@ -353,7 +359,7 @@ func readGroup(group *os.Root, contentRoot, year, articleKey string, locales map
 			return err
 		}
 		data, body, err := ReadArticle(file)
-		file.Close()
+		err = errors.Join(err, file.Close())
 		if err != nil {
 			return fmt.Errorf("posts/%s/%s/%s: %w", year, articleKey, name, err)
 		}
@@ -393,7 +399,7 @@ func collectProse(contentRoot string, root *os.Root, locales []string) ([]Prose,
 				return nil, err
 			}
 			body, err := io.ReadAll(file)
-			file.Close()
+			err = errors.Join(err, file.Close())
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", name, err)
 			}
@@ -447,12 +453,12 @@ func readLine(br *bufio.Reader) (string, []byte, error) {
 	return content, raw, nil
 }
 
-func readDir(root *os.Root, name string) ([]os.DirEntry, error) {
+func readDir(root *os.Root, name string) (entries []os.DirEntry, err error) {
 	file, err := root.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { err = errors.Join(err, file.Close()) }()
 	return file.ReadDir(-1)
 }
 

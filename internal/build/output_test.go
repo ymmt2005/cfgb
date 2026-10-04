@@ -102,7 +102,11 @@ func TestDeliverStopsWhenRemovalFails(t *testing.T) {
 	if err := os.Chmod(parent, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(parent, 0o755) })
+	t.Cleanup(func() {
+		if err := os.Chmod(parent, 0o755); err != nil {
+			t.Error(err)
+		}
+	})
 	if err := resetOutput(out); err == nil {
 		t.Fatal("expected removal to fail")
 	}
@@ -125,12 +129,20 @@ func TestFreshWorkspacesStayDistinct(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(first) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(first); err != nil {
+			t.Error(err)
+		}
+	})
 	second, err := newWorkspace()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(second) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(second); err != nil {
+			t.Error(err)
+		}
+	})
 	if first == second {
 		t.Fatal("repeated builds shared a workspace")
 	}
@@ -161,13 +173,19 @@ func TestFailedBuildRemovesItsWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(retained) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(retained); err != nil {
+			t.Error(err)
+		}
+	})
 	out := filepath.Join(t.TempDir(), "dist")
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	built := false
-	discardFailedBuild(out, failed, &built)
+	if err := discardFailedBuild(out, failed, &built); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(failed); !os.IsNotExist(err) {
 		t.Fatal("failed build retained its workspace")
 	}
@@ -182,14 +200,24 @@ func TestFailedBuildRemovesItsWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(kept) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(kept); err != nil {
+			t.Error(err)
+		}
+	})
 	artifact := filepath.Join(t.TempDir(), "dist")
 	if err := os.MkdirAll(artifact, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(artifact) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(artifact); err != nil {
+			t.Error(err)
+		}
+	})
 	built = true
-	discardFailedBuild(artifact, kept, &built)
+	if err := discardFailedBuild(artifact, kept, &built); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(kept); err != nil {
 		t.Fatal("successful build removed its workspace")
 	}
@@ -205,7 +233,11 @@ func TestManifestSessionIDIsBasename(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(workspace) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(workspace); err != nil {
+			t.Error(err)
+		}
+	})
 	raw, err := manifestJSON(cfg, releasePins{}, toolchainCheck{}, workspace, []string{"/ja/"}, filepath.Join(repo, "dist"), frontmatter.Index{})
 	if err != nil {
 		t.Fatal(err)
@@ -234,7 +266,11 @@ func TestManifestRecordsOptionalDiagnostics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(workspace) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(workspace); err != nil {
+			t.Error(err)
+		}
+	})
 	index := frontmatter.Index{Posts: []frontmatter.Post{
 		{
 			ArticleKey: "2026-09-20-markdown-showcase",
