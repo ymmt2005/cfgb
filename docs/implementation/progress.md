@@ -145,8 +145,9 @@ Static `_headers` and all Worker-created responses use the same baseline policy
 from `renderer/src/lib/security-headers.json`. Worker tests cover redirects,
 GET/HEAD/method/locale errors and the missing-binding fallback while preserving
 cache, cookie, Vary, Location and Allow headers; asset responses pass through.
-Astro content/image caches live under the workspace's `.astro/cache`, so builds
-with shared dependency installations cannot mix their content stores.
+Astro content and image caches live under the workspace's `.astro/cache`. Vite
+dependency optimization uses `.astro/vite` in that same workspace, so builds
+that share a dependency installation keep separate caches.
 
 A mandatory `links` CI job builds the pinned example and checks all generated
 HTML with lychee 0.24.2, installed by aqua 2.63.0. Both registry/tool versions

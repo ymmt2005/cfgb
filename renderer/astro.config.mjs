@@ -23,7 +23,7 @@ const manifest = sitemapManifest(corpus);
 
 export default defineConfig({
   site: site.baseUrl,
-  // Keep content/image caches in this workspace even when tests share dependencies.
+  // Keep content and image caches in this workspace when tests share dependencies.
   cacheDir: "./.astro/cache",
   trailingSlash: "always",
   output: "static",
@@ -75,6 +75,9 @@ export default defineConfig({
     }),
   },
   vite: {
+    // Dependency optimization is written under this workspace, so builds that
+    // share node_modules keep separate caches.
+    cacheDir: fileURLToPath(new URL("./.astro/vite", import.meta.url)),
     resolve: {
       alias: {
         "@cfgb": fileURLToPath(new URL("./src/lib", import.meta.url)),
