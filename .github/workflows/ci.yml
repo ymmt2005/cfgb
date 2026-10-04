@@ -78,13 +78,54 @@ jobs:
           CFGB_PACKAGE_MANAGER: ${{ matrix.package-manager }}
         run: go test ./internal/build -run '^TestExampleCorpus$' -count=1
 
+  links:
+    name: links
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      AQUA_ENFORCE_CHECKSUM: "true"
+      AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.1"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+      - name: Install npm 12
+        run: npm install -g npm@12.2.0
+      - name: Install checksum-pinned lychee with aqua
+        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        with:
+          aqua_version: v2.63.0
+          aqua_opts: ""
+      - name: Check that tool checksums stayed fixed
+        run: git diff --exit-code -- aqua-checksums.json
+      - name: Check link-checker routing with real lychee
+        run: node --test scripts/tests/check-links.test.mjs
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ymmt2005/cfgb-example
+          ref: 7f9f3553f259e86e1417d24f625eb97bbaefa025
+          path: cfgb-example
+      - name: Build CFGB
+        run: go build -o "$RUNNER_TEMP/cfgb" ./cmd/cfgb
+      - name: Build example HTML
+        working-directory: cfgb-example
+        run: '"$RUNNER_TEMP/cfgb" build --out dist'
+      - name: Check every generated HTML file offline
+        run: node scripts/check-links.mjs cfgb-example/dist/site https://example.invalid --config .github/lychee.toml
+
   # The single status check to require in a ruleset. A skipped job is reported
   # as success, so this stays skipped unless a needed job fails or is cancelled,
   # and then it runs and fails. Add every new job to needs.
   required:
     name: required
     runs-on: ubuntu-latest
-    needs: [go, typescript]
+    needs: [go, typescript, links]
     if: ${{ cancelled() || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'failure') }}
     steps:
       - name: Fail because an upstream job failed

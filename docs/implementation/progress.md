@@ -70,6 +70,13 @@ Browser interaction tests build real pages and run Chromium with the generated
 CSP in the Node 24/npm CI job; their separate test dependencies are not part of
 the embedded renderer toolchain.
 
+A mandatory `links` CI job builds the pinned example and checks all generated
+HTML with lychee 0.24.2, installed by aqua 2.63.0. Both registry/tool versions
+and their checksums are committed; the installer Action uses a full commit SHA.
+Routing adapters cover self-origin canonical URLs and alias redirects, while
+Worker endpoints remain under the Worker tests. External links are an optional
+online pass, reported by cfgb-example's scheduled/manual workflow.
+
 ## Not done
 
 Validation, deploy/preview upload, and every later milestone. Live Cloudflare, model, and release gates remain open.

@@ -123,3 +123,36 @@ positive conformance cases. Native paths continue to use Node's platform-aware
 This PR remains the renderer/build foundation. Full semantic validation,
 deploy/preview upload, and complete social image metadata are documented in
 `progress.md` as unfinished. They are not claims made by the current renderer.
+
+## Generated-site link checks
+
+CI builds the pinned example with the CLI and runs lychee over every generated
+HTML file. `aqua.yaml` pins the registry and lychee versions; committed
+`aqua-checksums.json` locks their downloaded bytes on supported platforms.
+Checksum enforcement is enabled in the workflow, and aqua-installer is pinned
+to a full commit SHA. The link check is a dependency of the `required` status.
+
+`scripts/check-links.mjs` supplies CFGB routing to lychee. It maps same-origin
+absolute URLs to the local output, resolves aliases through generated
+`_redirects`, and preserves fragments at their canonical targets. Directory
+links require an actual `index.html`. Only the two Worker endpoints `/` and
+`/__locale` are excluded from filesystem checks; Worker tests cover them.
+The routing test uses the real pinned lychee and verifies that missing pages,
+images, fragment IDs, index pages, and alias targets are rejected.
+
+After building the corpus, run:
+
+```sh
+aqua install
+node scripts/check-links.mjs path/to/dist/site https://example.invalid --config .github/lychee.toml
+```
+
+Add `--online --output external-links.md` to also check external HTTP links.
+This enables lychee's cache; the config limits concurrency and supplies retry
+and timeout settings. External availability is reported separately from the
+required offline renderer check. `cfgb-example` owns that scheduled/manual
+check against its current content. Its negative input fixtures are not scanned.
+
+To update the tool, review the exact version/ref changes and run
+`aqua update-checksum -prune`. Commit the config and generated checksums together;
+normal CI must not regenerate the lock.
