@@ -64,6 +64,13 @@ jobs:
             npm ci
           fi
           node --test tests/*.test.mjs
+      - name: Browser interaction tests
+        if: matrix.node == '24.21.0' && matrix.package-manager == 'npm'
+        working-directory: renderer/tests/browser
+        run: |
+          npm ci
+          npx --no-install playwright install --with-deps chromium
+          node --test site.test.mjs
       - name: Test
         env:
           CFGB_EXAMPLE: ${{ github.workspace }}/cfgb-example

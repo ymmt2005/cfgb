@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"unicode/utf8"
 
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/parser"
 	"github.com/ymmt2005/cfgb/internal/locale"
 )
 
@@ -94,12 +96,18 @@ func Load(start string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if bytes.HasPrefix(raw, []byte("\ufeff")) {
+	if !utf8.Valid(raw) || bytes.HasPrefix(raw, []byte("\ufeff")) {
 		return nil, fmt.Errorf("cfgb.yaml must be UTF-8 without a BOM")
 	}
+	parsed, err := parser.ParseBytes(raw, 0)
+	if err != nil {
+		return nil, fmt.Errorf("cfgb.yaml: %w", err)
+	}
+	if len(parsed.Docs) != 1 || parsed.Docs[0].Body == nil {
+		return nil, fmt.Errorf("cfgb.yaml must contain a single nonempty YAML document")
+	}
 	var cfg File
-	dec := yaml.NewDecoder(bytes.NewReader(raw), yaml.DisallowUnknownField())
-	if err := dec.Decode(&cfg); err != nil {
+	if err := yaml.NodeToValue(parsed.Docs[0].Body, &cfg, yaml.DisallowUnknownField()); err != nil {
 		return nil, fmt.Errorf("cfgb.yaml: %w", err)
 	}
 	if cfg.SchemaVersion != 1 {

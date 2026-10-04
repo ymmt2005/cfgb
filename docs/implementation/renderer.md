@@ -12,6 +12,12 @@ validates the original mapping against the embedded `article.schema.json`,
 including asserted date-time formats. Only then does it project string arrays
 and pass the untouched Markdown body to Astro. The schema is the source of
 structural constraints; Astro's collection shape supplies types to templates.
+Invalid UTF-8 is rejected before converting source bytes to JSON strings. This
+covers the article body, prose pages, and YAML input; valid UTF-8 body bytes and
+line endings remain unchanged. YAML is parsed as exactly one document, including
+rejection of a trailing empty second document. Content failures carry a typed
+diagnostic (`E_SCHEMA`, `E_SLUG_DUPLICATE`, or `E_TRANSLATION_GROUP`) and make
+`build` exit 1; reader/filesystem errors remain I/O failures with exit 3.
 Semantic validation remains a separate CLI milestone.
 
 The normalized index owns group identity, locale, source filename, and article
@@ -67,6 +73,18 @@ Markdown content on canonical articles. Navigation, TOC, aside, non-article
 pages, and fallback pages are excluded. Publication metadata comes from the
 `time` element's `datetime`, not a literal in Pagefind's attribute syntax.
 
+## Browser behavior
+
+Persisted theme choices are members of an explicit `Set`; inherited JavaScript
+object properties cannot become theme values. The theme listbox is named by its
+button and supports focus movement, selection, and Escape back to the button.
+Storage failures do not prevent a visitor from changing the current page theme.
+
+The scroll observer groups desktop and mobile TOC links by heading ID in a
+`Map`. It updates the stored elements directly instead of constructing a CSS
+selector from authored anchors. Ordinary heading IDs such as `constructor` and
+`__proto__` do not collide with JavaScript object prototypes.
+
 ## Tests and scope
 
 Fast tests cover URL resolution and rejection, image staging, HTML attribute
@@ -80,6 +98,22 @@ and aside composition, translations, and literal examples. The URL matrix also
 builds a real Pagefind index and checks canonical article membership and
 searchable title/summary text. The pinned example corpus goes through the actual
 Go CLI, embedded extraction, dependency installation, Astro, and Pagefind.
+
+`renderer/tests/browser/` builds a small actual site and serves its generated
+HTML and scripts with the generated CSP. Playwright checks theme keyboard
+interaction, accessibility names, persisted and invalid storage values, storage
+failures, and native scroll observation at desktop/mobile widths. CI runs this
+suite on the Node 24/npm job. The browser-test package has its own pinned npm
+lockfile and is not embedded or installed by `cfgb build`.
+
+Run the browser suite after installing renderer dependencies:
+
+```sh
+cd renderer/tests/browser
+npm ci
+npx --no-install playwright install --with-deps chromium
+node --test site.test.mjs
+```
 
 Supported scenarios are based on the authoring contract. Local asset request
 suffixes and an artificial Windows path supplied to a Linux renderer are not

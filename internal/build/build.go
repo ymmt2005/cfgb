@@ -3,6 +3,7 @@ package build
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -139,7 +140,7 @@ func Run(opts Options) error {
 	sort.Strings(locales)
 	index, err := frontmatter.Collect(contentRoot, topicsFile, locales)
 	if err != nil {
-		return &ExitError{Code: 3, Err: err}
+		return contentError(err)
 	}
 	metadataPath := filepath.Join(workspace, "metadata.json")
 	metadata, err := json.Marshal(index)
@@ -1178,4 +1179,14 @@ func joinRoot(parent, name string) string {
 		return name
 	}
 	return parent + "/" + name
+}
+
+// contentError distinguishes invalid content from failures to read that content.
+func contentError(err error) *ExitError {
+	code := 3
+	var validation *frontmatter.ValidationError
+	if errors.As(err, &validation) {
+		code = 1
+	}
+	return &ExitError{Code: code, Err: err}
 }

@@ -59,6 +59,17 @@ entries; discovery rejects unconfigured article Markdown variants. Semantic
 requirements such as required summaries, alias ownership, URL/fragment validation,
 and publication policy remain later work.
 
+The input boundary rejects invalid UTF-8 before JSON normalization and enforces
+one nonempty YAML document for configuration/front matter/topics. Invalid
+content carries stable typed diagnostic codes and exits 1 from `build`; actual
+reader and filesystem failures remain exit 3. Regression tests cover these
+command exits and failed-build cleanup, including source encoding failures.
+The theme listbox is named by its trigger. Theme values use an explicit set,
+and both TOCs use a heading-ID map shared by desktop/mobile link elements.
+Browser interaction tests build real pages and run Chromium with the generated
+CSP in the Node 24/npm CI job; their separate test dependencies are not part of
+the embedded renderer toolchain.
+
 ## Not done
 
 Validation, deploy/preview upload, and every later milestone. Live Cloudflare, model, and release gates remain open.

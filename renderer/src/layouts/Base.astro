@@ -91,7 +91,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
         </nav>
         <div class="menu">
           <button class="menu-button" id="cfgb-theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="cfgb-theme-list">{copy.theme}</button>
-          <ul class="menu-list" id="cfgb-theme-list" role="listbox" hidden>
+          <ul class="menu-list" id="cfgb-theme-list" role="listbox" aria-labelledby="cfgb-theme" hidden>
             <li role="option" tabindex="-1" data-value="system">{copy.system}</li>
             <li role="option" tabindex="-1" data-value="light">{copy.light}</li>
             <li role="option" tabindex="-1" data-value="dark">{copy.dark}</li>

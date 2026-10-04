@@ -2,14 +2,14 @@
   var root = document.documentElement;
   root.classList.add("js");
   var themeKey = "cfgb-theme";
-  var modes = { system: 1, light: 1, dark: 1 };
+  var modes = new Set(["system", "light", "dark"]);
 
   function currentMode() {
     var attr = root.getAttribute("data-theme");
     if (attr === "light" || attr === "dark") return attr;
     var saved = "system";
     try { saved = localStorage.getItem(themeKey) || "system"; } catch (error) {}
-    return modes[saved] ? saved : "system";
+    return modes.has(saved) ? saved : "system";
   }
 
   function mark(list, value) {
@@ -98,7 +98,7 @@
 
   applyMode(currentMode());
   bindMenu("cfgb-theme", function (value) {
-    var next = modes[value] ? value : "system";
+    var next = modes.has(value) ? value : "system";
     try { localStorage.setItem(themeKey, next); } catch (error) {}
     applyMode(next);
   });
@@ -110,21 +110,22 @@
     if (event.key === "Escape") closeMenus(null);
   });
 
-  var links = Array.prototype.slice.call(document.querySelectorAll(".toc a"));
+  var links = Array.prototype.slice.call(document.querySelectorAll(".toc a, .toc-mobile a"));
   if (!links.length || !("IntersectionObserver" in window)) return;
-  var byId = {};
+  var byId = new Map();
   links.forEach(function (link) {
     var id = decodeURIComponent(link.getAttribute("href").slice(1));
-    byId[id] = byId[id] || link;
+    if (!byId.has(id)) byId.set(id, []);
+    byId.get(id).push(link);
   });
   var heads = Array.prototype.slice.call(document.querySelectorAll(".prose h2, .prose h3"));
   var observer = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
       if (!entry.isIntersecting) return;
       links.forEach(function (link) { link.removeAttribute("aria-current"); });
-      var current = byId[entry.target.id];
+      var current = byId.get(entry.target.id);
       if (!current) return;
-      document.querySelectorAll('.toc a[href="' + current.getAttribute("href") + '"]').forEach(function (link) {
+      current.forEach(function (link) {
         link.setAttribute("aria-current", "true");
       });
     });

@@ -229,3 +229,19 @@ func writeConfig(t *testing.T, dir, body string) {
 		t.Fatal(err)
 	}
 }
+
+func TestLoadRejectsInvalidEncodingAndExtraDocuments(t *testing.T) {
+	t.Parallel()
+	for _, body := range []string{
+		"\ufeff" + minimalConfig,
+		strings.Replace(minimalConfig, "CFGB Example", "Bad\xff", 1),
+		minimalConfig + "\n---\nschemaVersion: 1\n",
+		minimalConfig + "\n---\n",
+	} {
+		dir := t.TempDir()
+		writeConfig(t, dir, body)
+		if _, err := Load(dir); err == nil {
+			t.Fatalf("invalid config accepted: %q", body)
+		}
+	}
+}

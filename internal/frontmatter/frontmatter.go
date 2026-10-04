@@ -11,10 +11,26 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml/parser"
 	"github.com/ymmt2005/cfgb/schemas"
 )
+
+// ValidationError identifies invalid source content without disguising I/O failures.
+// Callers can recover its diagnostic code through wrapped file context.
+type ValidationError struct {
+	Code string
+	Err  error
+}
+
+func (e *ValidationError) Error() string { return e.Code + ": " + e.Err.Error() }
+func (e *ValidationError) Unwrap() error { return e.Err }
+
+func invalid(format string, args ...any) error {
+	return &ValidationError{Code: "E_SCHEMA", Err: fmt.Errorf(format, args...)}
+}
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
@@ -73,7 +89,7 @@ func Split(r io.Reader) (front []byte, body []byte, found bool, err error) {
 	for {
 		line, lineRaw, lineErr := readLine(br)
 		if lineErr == io.EOF && len(lineRaw) == 0 {
-			return nil, nil, true, fmt.Errorf("unterminated front matter")
+			return nil, nil, true, invalid("unterminated front matter")
 		}
 		if lineErr != nil && lineErr != io.EOF {
 			return nil, nil, true, lineErr
@@ -87,7 +103,7 @@ func Split(r io.Reader) (front []byte, body []byte, found bool, err error) {
 		}
 		block.Write(lineRaw)
 		if lineErr == io.EOF {
-			return nil, nil, true, fmt.Errorf("unterminated front matter")
+			return nil, nil, true, invalid("unterminated front matter")
 		}
 	}
 }
@@ -95,22 +111,25 @@ func Split(r io.Reader) (front []byte, body []byte, found bool, err error) {
 // Document decodes one YAML document. Timestamps and other scalars keep the
 // types produced for a generic value, and strings stay strings.
 func Document(raw []byte) (any, error) {
+	if !utf8.Valid(raw) {
+		return nil, invalid("YAML must be valid UTF-8")
+	}
 	if bytes.HasPrefix(raw, utf8BOM) {
-		return nil, fmt.Errorf("UTF-8 BOM is not allowed")
+		return nil, invalid("UTF-8 BOM is not allowed")
 	}
-	dec := yaml.NewDecoder(bytes.NewReader(raw))
+	parsed, err := parser.ParseBytes(raw, 0)
+	if err != nil {
+		return nil, invalid("YAML: %w", err)
+	}
+	if len(parsed.Docs) == 0 || len(parsed.Docs) == 1 && parsed.Docs[0].Body == nil {
+		return nil, invalid("YAML document is empty")
+	}
+	if len(parsed.Docs) != 1 {
+		return nil, invalid("YAML document must be a single document")
+	}
 	var doc any
-	if err := dec.Decode(&doc); err != nil {
-		if err == io.EOF {
-			return nil, fmt.Errorf("YAML document is empty")
-		}
-		return nil, err
-	}
-	var extra any
-	if err := dec.Decode(&extra); err == nil {
-		return nil, fmt.Errorf("YAML document must be a single document")
-	} else if err != io.EOF {
-		return nil, err
+	if err := yaml.NodeToValue(parsed.Docs[0].Body, &doc); err != nil {
+		return nil, invalid("YAML: %w", err)
 	}
 	return doc, nil
 }
@@ -121,10 +140,10 @@ func Document(raw []byte) (any, error) {
 func ArticleData(doc any) (map[string]any, error) {
 	mapping, ok := doc.(map[string]any)
 	if !ok || mapping == nil {
-		return nil, fmt.Errorf("front matter must be a mapping")
+		return nil, invalid("front matter must be a mapping")
 	}
 	if err := schemas.ValidateArticle(mapping); err != nil {
-		return nil, fmt.Errorf("article schema: %w", err)
+		return nil, invalid("article schema: %w", err)
 	}
 	// Schema validation happens before projection so fields cannot disappear
 	// silently. Keep the array representation expected by Go consumers.
@@ -155,7 +174,10 @@ func ReadArticle(r io.Reader) (map[string]any, []byte, error) {
 		return nil, nil, err
 	}
 	if !found {
-		return nil, nil, fmt.Errorf("article front matter is required")
+		return nil, nil, invalid("article front matter is required")
+	}
+	if !utf8.Valid(body) {
+		return nil, nil, invalid("Markdown body must be valid UTF-8")
 	}
 	doc, err := Document(front)
 	if err != nil {
@@ -177,19 +199,19 @@ func Topics(raw []byte) (map[string]map[string]string, error) {
 	}
 	mapping, ok := doc.(map[string]any)
 	if !ok || mapping == nil {
-		return nil, fmt.Errorf("topics.yaml must be a mapping")
+		return nil, invalid("topics.yaml must be a mapping")
 	}
 	topics := make(map[string]map[string]string, len(mapping))
 	for key, value := range mapping {
 		labels, ok := value.(map[string]any)
 		if !ok || labels == nil {
-			return nil, fmt.Errorf("topic %s must be a mapping", key)
+			return nil, invalid("topic %s must be a mapping", key)
 		}
 		converted := make(map[string]string, len(labels))
 		for locale, label := range labels {
 			text, ok := label.(string)
 			if !ok {
-				return nil, fmt.Errorf("topic %s label %s must be a string", key, locale)
+				return nil, invalid("topic %s label %s must be a string", key, locale)
 			}
 			converted[locale] = text
 		}
@@ -283,7 +305,7 @@ func collectPosts(contentRoot string, root *os.Root, locales []string) ([]Post, 
 		slug, _ := post.Data["slug"].(string)
 		id := post.Locale + ":" + slug
 		if previous, ok := seen[id]; ok {
-			return nil, fmt.Errorf("duplicate slug %s in %s (%s and %s)", slug, post.Locale, previous, post.ID)
+			return nil, &ValidationError{Code: "E_SLUG_DUPLICATE", Err: fmt.Errorf("duplicate slug %s in %s (%s and %s)", slug, post.Locale, previous, post.ID)}
 		}
 		seen[id] = post.ID
 	}
@@ -313,7 +335,7 @@ func readGroup(group *os.Root, contentRoot, year, articleKey string, locales map
 		}
 		locale := strings.TrimSuffix(name, ".md")
 		if !locales[locale] {
-			return fmt.Errorf("posts/%s/%s/%s: locale %q is not enabled", year, articleKey, name, locale)
+			return &ValidationError{Code: "E_TRANSLATION_GROUP", Err: fmt.Errorf("posts/%s/%s/%s: locale %q is not enabled", year, articleKey, name, locale)}
 		}
 		file, err := group.Open(name)
 		if err != nil {
@@ -364,8 +386,11 @@ func collectProse(contentRoot string, root *os.Root, locales []string) ([]Prose,
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", name, err)
 			}
+			if !utf8.Valid(body) {
+				return nil, invalid("%s: Markdown must be valid UTF-8", name)
+			}
 			if bytes.HasPrefix(body, utf8BOM) {
-				return nil, fmt.Errorf("%s: UTF-8 BOM is not allowed", name)
+				return nil, invalid("%s: UTF-8 BOM is not allowed", name)
 			}
 			prose = append(prose, Prose{
 				ID:     spec.id + "/" + locale,
@@ -389,7 +414,7 @@ func rejectBOM(br *bufio.Reader) error {
 		return err
 	}
 	if bytes.HasPrefix(prefix, utf8BOM) {
-		return fmt.Errorf("UTF-8 BOM is not allowed")
+		return invalid("UTF-8 BOM is not allowed")
 	}
 	return nil
 }
