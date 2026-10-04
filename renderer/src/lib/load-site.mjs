@@ -3,8 +3,6 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import catalog from "./locales.json" with { type: "json" };
 
-const localeIdentifier = new RegExp(catalog.identifier);
-
 let cached;
 
 export function loadSite() {
@@ -160,9 +158,9 @@ export function rootNotFoundTitle() {
 }
 
 function localeEntry(locale) {
-  const entry = catalog.locales[locale];
-  if (!entry) throw new Error(`locale ${locale} is not supported`);
-  return entry;
+  if (!Object.hasOwn(catalog.locales, locale))
+    throw new Error(`locale ${locale} is not supported`);
+  return catalog.locales[locale];
 }
 
 function assertConfiguredLocales(site) {
@@ -176,9 +174,7 @@ function assertConfiguredLocales(site) {
     throw new Error("locales must be a nonempty map");
   }
   for (const [locale, item] of Object.entries(locales)) {
-    if (!localeIdentifier.test(locale))
-      throw new Error(`locale ${locale} is not a path-safe language tag`);
-    if (!catalog.locales[locale])
+    if (!Object.hasOwn(catalog.locales, locale))
       throw new Error(`locale ${locale} is not supported`);
     if (typeof item?.label !== "string" || !item.label.trim())
       throw new Error(`locale ${locale} requires a nonempty label`);

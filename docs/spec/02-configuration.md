@@ -83,18 +83,19 @@ Worker identity and policy; hostname-specific coverage is an advanced option.
 stays inside the repository is followed. A symlink that leaves the repository is
 rejected. Relative paths must stay inside the repository after symlink resolution.
 
-A locale identifier and a release-supported locale are separate. An identifier
-matches `^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?$`. That
-contract accepts tags such as `pt-BR` and `zh-Hant` and rejects path separators,
-dot segments, percent escapes, and any other character outside it. A match is
-not support. UI copy, date presentation, and OpenGraph locale metadata live in
-one catalog, `renderer/src/lib/locales.json`, read by the CLI and the renderer.
-This release's catalog is `ja` and `en`. Build rejects an empty locale map, a blank or whitespace-only label, a default locale that is not one of the
-configured keys, an unsafe identifier, and a safe tag that the catalog does not
-define. Those checks happen after decoding, before the output directory is removed or the renderer runs. The renderer does not treat an
-unknown locale as English. Adding a language means extending that catalog; it
-does not mean another language already works. The shipped pages still present
-the current two-language header.
+Supported content languages are exact, case-sensitive keys in
+`renderer/src/lib/locales.json`, shared by the CLI and renderer. This release's
+catalog contains `ja` and `en`. There is no separate runtime language-tag syntax
+check: `pt-BR`, `EN`, `en-US`, and any other key absent from the catalog are
+unsupported. The optional identifier schema is editor guidance, not a build gate.
+UI copy, date presentation, and OpenGraph locale metadata live in that catalog.
+Build also currently rejects an empty locale map, a blank or whitespace-only
+label, and a default language absent from the configured keys; those remaining
+required-value policies are listed separately in the input-policy audit.
+Checks happen after decoding and before output removal or rendering. The renderer
+does not treat an unknown language as English. Adding a language means extending
+the catalog and providing its translations; the shipped pages retain the current
+two-language header.
 
 Topic IDs match `[a-z0-9]+(-[a-z0-9]+)*`. Every topic must have exactly the configured
 locale labels, even when it currently has articles in only one locale. JSON Schema

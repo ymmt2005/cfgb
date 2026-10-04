@@ -3,6 +3,7 @@ package frontmatter
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -433,5 +434,40 @@ func TestArticleDoesNotApplySchemaConstraints(t *testing.T) {
 		if _, _, err := ReadArticle(strings.NewReader("---\n" + fields + "---\nBody\n")); err != nil {
 			t.Fatalf("decodable metadata was schema-gated: %q: %v", fields, err)
 		}
+	}
+}
+
+func TestCollectProsePreservesReadBytes(t *testing.T) {
+	t.Parallel()
+	for _, body := range []string{"\ufeffBody\n", "Body\xff\n", "whole\r\n\r\n---\r\nfile\r\n"} {
+		t.Run(fmt.Sprintf("%q", body), func(t *testing.T) {
+			dir := t.TempDir()
+			for _, name := range []string{"home/ja.md", "pages/about/ja.md", "aside/ja.md"} {
+				filename := filepath.Join(dir, filepath.FromSlash(name))
+				if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filename, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			topics := filepath.Join(dir, "topics.yaml")
+			if err := os.WriteFile(topics, []byte("{}\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			index, err := Collect(dir, topics, []string{"ja"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			prose := index.Prose
+			if len(prose) != 3 {
+				t.Fatalf("prose = %#v", prose)
+			}
+			for _, item := range prose {
+				if item.Body != body {
+					t.Errorf("%s body = %q, want %q", item.ID, item.Body, body)
+				}
+			}
+		})
 	}
 }

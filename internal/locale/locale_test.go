@@ -10,23 +10,6 @@ import (
 	cfgb "github.com/ymmt2005/cfgb"
 )
 
-func TestIdentifierContract(t *testing.T) {
-	t.Parallel()
-	if _, err := releaseCatalog(); err != nil {
-		t.Fatal(err)
-	}
-	for _, id := range []string{"ja", "en", "pt-BR", "zh-Hant", "zh-Hant-TW", "es-419"} {
-		if !pattern.MatchString(id) {
-			t.Fatalf("%s was rejected", id)
-		}
-	}
-	for _, id := range []string{"", ".", "..", "../../escape", "%2e%2e", "en/us", "ja.", "EN", "pt-br", "en_US", "zh-hant"} {
-		if pattern.MatchString(id) {
-			t.Fatalf("%s was accepted", id)
-		}
-	}
-}
-
 func TestValidateConfiguredLocales(t *testing.T) {
 	t.Parallel()
 	ja := map[string]Entry{"ja": {Label: "日本語"}, "en": {Label: "English"}}
@@ -37,12 +20,12 @@ func TestValidateConfiguredLocales(t *testing.T) {
 		t.Fatalf("empty map: %v", err)
 	}
 	unsafe := map[string]Entry{"../../escape": {Label: "Bad"}, "ja": {Label: "日本語"}}
-	if err := Validate(unsafe, "ja"); err == nil || !strings.Contains(err.Error(), "path-safe") {
+	if err := Validate(unsafe, "ja"); err == nil || !strings.Contains(err.Error(), "not supported") {
 		t.Fatalf("unsafe: %v", err)
 	}
 	unsupported := map[string]Entry{"pt-BR": {Label: "Português"}, "ja": {Label: "日本語"}}
 	err := Validate(unsupported, "ja")
-	if err == nil || !strings.Contains(err.Error(), "not supported") || strings.Contains(err.Error(), "path-safe") {
+	if err == nil || !strings.Contains(err.Error(), "not supported") {
 		t.Fatalf("unsupported: %v", err)
 	}
 	blank := map[string]Entry{"ja": {Label: "  "}}
@@ -56,9 +39,9 @@ func TestValidateConfiguredLocales(t *testing.T) {
 
 func TestLanguageCatalogRequiresExactSupportedIdentifier(t *testing.T) {
 	t.Parallel()
-	for _, language := range []string{"EN", "JA", "en-US", "ja-JP", "pt-BR", "fr"} {
-		if err := Validate(map[string]Entry{language: {Label: "Label"}}, language); err == nil {
-			t.Fatalf("unsupported identifier %q was accepted as a catalog language", language)
+	for _, language := range []string{"EN", "JA", "en-US", "ja-JP", "pt-BR", "fr", "../../escape", "%2e%2e", "", "constructor", "__proto__"} {
+		if err := Validate(map[string]Entry{language: {Label: "Label"}}, language); err == nil || !strings.Contains(err.Error(), "not supported") {
+			t.Fatalf("unsupported identifier %q: %v, want catalog-membership error", language, err)
 		}
 	}
 }

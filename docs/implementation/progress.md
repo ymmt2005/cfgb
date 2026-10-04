@@ -13,11 +13,11 @@ The root `AGENTS.md` records these rules and the settled design/review practices
 
 Baseline reviewed before this work:
 
-| Repository | Commit |
-| --- | --- |
-| cfgb | `66daf2f26a80ee42232976f1c332afb100ce221d` |
+| Repository   | Commit                                     |
+| ------------ | ------------------------------------------ |
+| cfgb         | `66daf2f26a80ee42232976f1c332afb100ce221d` |
 | cfgb-example | `7f9f3553f259e86e1417d24f625eb97bbaefa025` |
-| cfgb-action | `e8150e2b5bc47388ef3dbecd7768687a4780500c` |
+| cfgb-action  | `e8150e2b5bc47388ef3dbecd7768687a4780500c` |
 
 ## M0-A — visual mockup
 
@@ -81,7 +81,8 @@ unknown-field rejection. Defaults are seeded before decoding so explicit values
 are preserved; Hatena blog entries are typed. There is no configuration AST
 policy, custom-tag/document restriction or runtime JSON Schema gate. The
 configuration schema remains available as an optional standalone/editor aid.
-Build calls the separate `ValidateSite` method for its supported-language and
+Language support is exact, case-sensitive catalog membership without a separate
+language-tag syntax gate. Build calls the separate `ValidateSite` method for its supported-language and
 bundled-timezone requirements; decoding itself does not perform these checks.
 Decode and build-setting errors precede toolchain probes and output removal.
 
@@ -90,7 +91,9 @@ string/slice/time fields and unknown-field rejection. Go consumers and the
 publication snapshot use typed fields rather than input maps/type assertions.
 Topics decode into their typed map. The article schema is optional standalone/
 editor guidance; loaders do not apply it or add YAML AST/document/tag policies.
-Markdown article body bytes and line endings are preserved. The Astro collection
+Markdown article and home/about/aside body bytes and line endings are preserved
+at the loader boundary, without an independent BOM/UTF-8 ban. JSON serialization
+and rendering use their native text behavior. The Astro collection
 shape provides types without extra nonempty/minimum-length constraints.
 Discovery still uses four-digit years and checks disabled variants and group directories;
 other unverified input policies are inventoried in the

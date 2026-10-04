@@ -173,11 +173,16 @@ For changes crossing repositories, keep ownership explicit:
   bytes. Metadata consumers use typed fields, not generic maps or type assertions.
   Decode topics directly into their typed map. Do not add AST/custom-tag/document
   policies, an encoding ban or runtime JSON Schema validation to these loaders.
-  Unknown-field rejection and decoder errors are sufficient at this boundary.
+  Read home/about/aside prose as ordinary body text, without an independent
+  BOM/UTF-8 ban. Preserve bytes at the loader boundary; JSON serialization and
+  rendering retain their native text behavior. Unknown-field rejection and
+  decoder errors are sufficient at the YAML boundary.
   Business checks belong where the decoded value is used and must have a verified
   human requirement; ask before adding a new one.
 - Supported content languages come from the shared release catalog and match
-  exactly, case sensitively. A syntactically valid language tag alone is not
+  exactly, case sensitively, without a separate syntax gate. Use own-property
+  membership for JavaScript catalogs, not inherited object properties. A
+  syntactically valid language tag alone is not
   supported. Keep internal structures extensible without adding untranslated
   languages, redesigning the UI, or broadly normalizing configured identifiers.
   HTTP `Accept-Language` negotiation is a separate protocol behavior.

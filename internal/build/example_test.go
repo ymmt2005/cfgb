@@ -246,6 +246,23 @@ func buildExtendedExample(t *testing.T, source string) {
 			t.Fatal(err)
 		}
 	}
+	// Prose uses the same native text path as article bodies: the loader adds
+	// no encoding ban. JSON serialization supplies its own replacement behavior.
+	for _, name := range []string{"home/ja.md", "pages/about/ja.md", "aside/ja.md"} {
+		filename := filepath.Join(repo, "src", "content", filepath.FromSlash(name))
+		raw, err := os.ReadFile(filename)
+		if err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		raw = append([]byte("\ufeff"), raw...)
+		raw = append(raw, []byte("\n\nProse regression "+name+" \xff\n")...)
+		if err := os.WriteFile(filename, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	const original = "2026-09-19-protobuf-guide"
 	const key = "Protocol Buffers_図.#%"
 	posts := filepath.Join(repo, "src", "content", "posts", "2026")
@@ -307,6 +324,19 @@ func buildExtendedExample(t *testing.T, source string) {
 		}
 		if !bytes.Contains(html, []byte(`src="/media/2026/`+url.PathEscape(key)+`/schema.svg"`)) {
 			t.Fatalf("literal article key was not encoded in %s", route)
+		}
+	}
+	for _, tc := range []struct{ route, marker string }{
+		{"ja/index.html", "home/ja.md"},
+		{"ja/about/index.html", "pages/about/ja.md"},
+		{"ja/index.html", "aside/ja.md"},
+	} {
+		html, err := os.ReadFile(filepath.Join(out, "site", filepath.FromSlash(tc.route)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(html, []byte("Prose regression "+tc.marker+" \ufffd")) {
+			t.Fatalf("prose did not render through native JSON text handling: %s", tc.marker)
 		}
 	}
 	leaf := filepath.Join(out, "site", "media", "2026", key, strings.TrimPrefix(deep, "assets"+string(filepath.Separator)), "leaf.txt")

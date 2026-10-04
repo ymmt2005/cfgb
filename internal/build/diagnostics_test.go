@@ -56,7 +56,6 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 	}{
 		{"bad YAML", "posts/2026/example/ja.md", "---\ntitle: [bad\n---\n", "E_SCHEMA", 1},
 		{"unknown field", "posts/2026/example/ja.md", strings.Replace(article, "---\nBody", "summray: unknown\n---\nBody", 1), "E_SCHEMA", 1},
-		{"invalid prose", "home/ja.md", "Body\xff\n", "E_SCHEMA", 1},
 		{"disabled locale", "posts/2026/example/en.md", article, "E_TRANSLATION_GROUP", 1},
 		{"nested variant", "posts/2026/example/nested/ja.md", article, "E_TRANSLATION_GROUP", 1},
 		{"invalid topics", "", "protobuf: invalid\n", "E_SCHEMA", 1},

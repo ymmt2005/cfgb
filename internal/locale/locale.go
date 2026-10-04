@@ -4,7 +4,6 @@ package locale
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -25,13 +24,12 @@ type catalog struct {
 var (
 	loadOnce sync.Once
 	loaded   catalog
-	pattern  *regexp.Regexp
 	loadErr  error
 )
 
 // Validate checks configured languages before site rendering.
-// An identifier must be a path-safe language tag. A tag is not supported
-// unless the shared catalog defines it. This release defines ja and en.
+// Support is exact, case-sensitive membership in the shared catalog.
+// This release defines ja and en.
 func Validate(configured map[string]Entry, defaultLocale string) error {
 	cat, err := releaseCatalog()
 	if err != nil {
@@ -45,11 +43,6 @@ func Validate(configured map[string]Entry, defaultLocale string) error {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	for _, key := range keys {
-		if !pattern.MatchString(key) {
-			return fmt.Errorf("cfgb.yaml locale %q is not a path-safe language tag", key)
-		}
-	}
 	for _, key := range keys {
 		if _, ok := cat.Locales[key]; !ok {
 			return fmt.Errorf("cfgb.yaml locale %q is not supported by this release (%s)", key, supportedList(cat))
@@ -77,16 +70,10 @@ func releaseCatalog() (catalog, error) {
 			loadErr = fmt.Errorf("locale catalog: %w", err)
 			return
 		}
-		if loaded.Identifier == "" || len(loaded.Locales) == 0 {
+		if len(loaded.Locales) == 0 {
 			loadErr = fmt.Errorf("locale catalog is empty")
 			return
 		}
-		compiled, err := regexp.Compile(loaded.Identifier)
-		if err != nil {
-			loadErr = fmt.Errorf("locale catalog identifier: %w", err)
-			return
-		}
-		pattern = compiled
 	})
 	return loaded, loadErr
 }

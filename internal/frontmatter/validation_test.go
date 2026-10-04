@@ -21,31 +21,6 @@ func TestReadArticlePreservesBodyBytes(t *testing.T) {
 	}
 }
 
-func TestCollectRejectsInvalidProseUTF8(t *testing.T) {
-	t.Parallel()
-	for _, name := range []string{"home/ja.md", "pages/about/ja.md", "aside/ja.md"} {
-		t.Run(name, func(t *testing.T) {
-			dir := t.TempDir()
-			file := filepath.Join(dir, filepath.FromSlash(name))
-			if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(file, []byte("Body\xff\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			topics := filepath.Join(dir, "topics.yaml")
-			if err := os.WriteFile(topics, []byte("{}\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			_, err := Collect(dir, topics, []string{"ja"})
-			assertValidationCode(t, err, "E_SCHEMA")
-			if !strings.Contains(err.Error(), name) {
-				t.Fatal(err)
-			}
-		})
-	}
-}
-
 func TestSourceValidationErrors(t *testing.T) {
 	t.Parallel()
 	for _, raw := range []string{

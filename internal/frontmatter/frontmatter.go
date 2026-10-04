@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/goccy/go-yaml"
 )
@@ -309,12 +308,6 @@ func collectProse(contentRoot string, root *os.Root, locales []string) ([]Prose,
 			err = errors.Join(err, file.Close())
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", name, err)
-			}
-			if !utf8.Valid(body) {
-				return nil, invalid("%s: Markdown must be valid UTF-8", name)
-			}
-			if bytes.HasPrefix(body, []byte("\ufeff")) {
-				return nil, invalid("%s: UTF-8 BOM is not allowed", name)
 			}
 			prose = append(prose, Prose{
 				ID:     spec.id + "/" + locale,

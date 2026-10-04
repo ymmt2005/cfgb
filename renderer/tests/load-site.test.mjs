@@ -12,7 +12,9 @@ test("routes and aliases come from the Go metadata index", () => {
     writeFileSync(
       metadataPath,
       JSON.stringify({
-        topics: { protobuf: { en: "Protocol Buffers", ja: "Protocol Buffers" } },
+        topics: {
+          protobuf: { en: "Protocol Buffers", ja: "Protocol Buffers" },
+        },
         posts: [
           {
             id: "posts/2026/guide/ja",
@@ -69,27 +71,44 @@ test("routes and aliases come from the Go metadata index", () => {
   }
 });
 
-test("a path-safe unsupported locale is rejected", () => {
+test("language support is exact catalog membership", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "cfgb-locale-"));
   try {
     const metadataPath = path.join(dir, "metadata.json");
-    writeFileSync(metadataPath, JSON.stringify({ topics: {}, posts: [], prose: [] }));
-    const sitePath = path.join(dir, "site.json");
     writeFileSync(
-      sitePath,
-      JSON.stringify({
-        title: "Example",
-        baseUrl: "https://example.invalid",
-        defaultLocale: "pt-BR",
-        timezone: "UTC",
-        locales: { "pt-BR": { label: "Português" } },
-        metadataFile: metadataPath,
-      }),
+      metadataPath,
+      JSON.stringify({ topics: {}, posts: [], prose: [] }),
     );
-    process.env.CFGB_SITE_JSON = sitePath;
-    resetSiteCache();
-    assert.throws(() => loadSite(), /not supported/);
-    assert.throws(() => copyFor("pt-BR"), /not supported/);
+    const sitePath = path.join(dir, "site.json");
+    for (const locale of [
+      "pt-BR",
+      "EN",
+      "JA",
+      "en-US",
+      "ja-JP",
+      "../../escape",
+      "%2e%2e",
+      "constructor",
+      "toString",
+      "__proto__",
+      "",
+    ]) {
+      writeFileSync(
+        sitePath,
+        JSON.stringify({
+          title: "Example",
+          baseUrl: "https://example.invalid",
+          defaultLocale: locale,
+          timezone: "UTC",
+          locales: { [locale]: { label: "Label" } },
+          metadataFile: metadataPath,
+        }),
+      );
+      process.env.CFGB_SITE_JSON = sitePath;
+      resetSiteCache();
+      assert.throws(() => loadSite(), /not supported/, locale);
+      assert.throws(() => copyFor(locale), /not supported/, locale);
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
     resetSiteCache();

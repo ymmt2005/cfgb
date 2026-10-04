@@ -18,11 +18,12 @@ supplies collection types without adding nonempty/minimum-length gates.
 
 The opening/closing `---` lines identify the front-matter block, including a BOM
 before the opening delimiter. The YAML library handles decoding, conversions
-and syntax errors. Article body bytes are preserved without an added encoding
-check. Content failures carry a typed diagnostic (`E_SCHEMA`,
+and syntax errors. Article bodies and home/about/aside prose preserve the read bytes without
+an added BOM/UTF-8 check. Go JSON serialization supplies its native text handling,
+including replacement of invalid UTF-8; arbitrary invalid bytes are not promised
+to survive through HTML. Content failures carry a typed diagnostic (`E_SCHEMA`,
 `E_SLUG_DUPLICATE`, or `E_TRANSLATION_GROUP`) and make `build` exit 1;
-reader/filesystem errors remain I/O failures with exit 3. Existing prose encoding
-and other unverified restrictions are listed in the
+reader/filesystem errors remain I/O failures with exit 3. Other unverified restrictions are listed in the
 [PR #3 policy audit](../reviews/pr-3-policy-audit.md); they are not evidence of
 human approval. New correctness rules require explicit human confirmation under
 `AGENTS.md`.
