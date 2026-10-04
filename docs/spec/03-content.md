@@ -116,14 +116,15 @@ Global language links use the article group's locale-to-URL map. The requested
 locale resolves to that group's counterpart, or to that locale's home when the
 group has no translation. A different group that publishes the same slug is not
 a counterpart. Alternate-language metadata is the collection of actual group
-members and is omitted when the group has only one. The header provides a
-compact native disclosure with links for every configured language, marking the
-current language. It works with keyboard navigation and without JavaScript;
-JavaScript additionally closes it on Escape, outside click or focus leaving.
+members and is omitted when the group has only one. With one configured language,
+the header shows a non-interactive label. With two, it shows a compact segmented
+toggle with language links. With more, it shows a native disclosure listing every
+configured language. Both controls mark the current language and work with keyboard
+navigation and without JavaScript. JavaScript additionally closes the disclosure
+on Escape, outside click or focus leaving.
 Missing article translations are labeled as home destinations in the selector.
 The article notice links every real translation by its configured language label;
-it reports no translations only when no other group member exists. A single-language
-site shows its language label without an interactive selector.
+it reports no translations only when no other group member exists.
 Only a real counterpart receives the article-level translation
 notice and reciprocal `hreflang`. Each member uses its own canonical and its
 own summary/dates. Do not pretend untranslated content has an alternate. Home

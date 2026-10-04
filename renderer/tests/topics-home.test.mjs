@@ -119,6 +119,7 @@ test(
       }
       const home = readFileSync(path.join(dist, "en", "index.html"), "utf8");
       assert.equal(home.includes('class="language-switch"'), false);
+      assert.equal(home.includes('class="language-toggle"'), false);
       assert.ok(home.includes('class="language-single"'));
       assert.equal(home.includes("Visible article"), false);
       assert.ok(

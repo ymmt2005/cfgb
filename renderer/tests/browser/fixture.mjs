@@ -28,8 +28,9 @@ const languages = {
 export async function startSite({
   basePath = "",
   static: staticSite = false,
+  enabledLanguages = Object.keys(languages),
 } = {}) {
-  const work = buildSite(basePath, staticSite);
+  const work = buildSite(basePath, staticSite, enabledLanguages);
   let browser, server;
   try {
     const dist = path.join(work, "renderer", "dist");
@@ -138,7 +139,10 @@ export async function withPage(site, options, run) {
   }
 }
 
-function buildSite(basePath, staticSite) {
+function buildSite(basePath, staticSite, enabledLanguages) {
+  const configured = Object.fromEntries(
+    enabledLanguages.map((locale) => [locale, languages[locale]]),
+  );
   const work = mkdtempSync(path.join(tmpdir(), "cfgb-browser-test-"));
   try {
     const renderer = path.join(work, "renderer");
@@ -175,7 +179,7 @@ function buildSite(basePath, staticSite) {
       '<img id="responsive-width" alt="Width image" srcset="./assets/responsive-1.svg 64w, ./assets/responsive-2.svg 128w" sizes="64px" width="64" height="32">',
       '<img id="responsive-data" alt="Data image" srcset="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2264%22%20height=%2232%22%3E%3C/svg%3E 1x, ./assets/responsive-2.svg 2x" width="64" height="32">',
     ].join("\n\n");
-    const posts = Object.keys(languages).map((locale) => ({
+    const posts = enabledLanguages.map((locale) => ({
       id: `posts/2026/browser/${locale}`,
       file: path.join(content, "posts", "2026", "browser", `${locale}.md`),
       body:
@@ -205,6 +209,7 @@ function buildSite(basePath, staticSite) {
       },
     }));
     for (const locale of ["ja", "ko"]) {
+      if (!enabledLanguages.includes(locale)) continue;
       posts.push({
         id: `posts/2026/partial/${locale}`,
         file: path.join(content, "posts", "2026", "partial", `${locale}.md`),
@@ -223,23 +228,24 @@ function buildSite(basePath, staticSite) {
         },
       });
     }
-    posts.push({
-      id: "posts/2026/diagram-error/en",
-      file: path.join(content, "posts", "2026", "diagram-error", "en.md"),
-      body: "## Invalid diagram\n\n```mermaid\nthis is not a diagram\n```",
-      group: "2026/diagram-error",
-      year: "2026",
-      articleKey: "diagram-error",
-      locale: "en",
-      archive: { year: "2026", month: "01" },
-      data: {
-        title: "Diagram syntax error",
-        slug: "diagram-error",
-        publishedAt: "2026-01-02T00:00:00Z",
-        topics: ["notes"],
-        summary: "A deliberately malformed diagram.",
-      },
-    });
+    if (enabledLanguages.includes("en"))
+      posts.push({
+        id: "posts/2026/diagram-error/en",
+        file: path.join(content, "posts", "2026", "diagram-error", "en.md"),
+        body: "## Invalid diagram\n\n```mermaid\nthis is not a diagram\n```",
+        group: "2026/diagram-error",
+        year: "2026",
+        articleKey: "diagram-error",
+        locale: "en",
+        archive: { year: "2026", month: "01" },
+        data: {
+          title: "Diagram syntax error",
+          slug: "diagram-error",
+          publishedAt: "2026-01-02T00:00:00Z",
+          topics: ["notes"],
+          summary: "A deliberately malformed diagram.",
+        },
+      });
     for (const post of posts) {
       mkdirSync(path.dirname(post.file), { recursive: true });
       writeFileSync(post.file, post.body);
@@ -293,7 +299,7 @@ function buildSite(basePath, staticSite) {
         static: staticSite,
         defaultLocale: "ja",
 
-        locales: languages,
+        locales: configured,
         contentRoot: content,
         topicsFile: path.join(work, "topics.yaml"),
         linkcardsDir: path.join(work, "linkcards"),

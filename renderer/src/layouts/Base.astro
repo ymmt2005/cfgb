@@ -85,7 +85,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     <div class="mast-row">
       <a class="brand" href={sitePath(site, `/${locale}/`)}>{site.title.split(" ")[0]} <span>{site.title.split(" ").slice(1).join(" ")}</span></a>
       <div class="tools">
-        {languages.length > 1 ? (
+        {languages.length > 2 ? (
           <details class="language-switch">
             <summary aria-label={`${copy.language}: ${site.locales[locale].label}`}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>
@@ -103,6 +103,15 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
               </ul>
             </nav>
           </details>
+        ) : languages.length === 2 ? (
+          <nav class="language-toggle" aria-label={copy.language}>
+            {languages.map((language) => (
+              <a href={localeChoice(language, languageDestination({ path, locale, destination: language, counterparts, routes }))} hreflang={language} lang={language} aria-current={language === locale ? "true" : undefined}>
+                {site.locales[language].label}
+                {counterparts && language !== locale && !Object.hasOwn(counterparts, language) && <small lang={locale}>{copy.home}</small>}
+              </a>
+            ))}
+          </nav>
         ) : <span class="language-single" lang={locale}>{site.locales[locale].label}</span>}
         <div class="menu">
           <button class="menu-button" id="cfgb-theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="cfgb-theme-list">{copy.theme}</button>

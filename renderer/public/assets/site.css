@@ -399,6 +399,26 @@ a:hover { color: var(--accent); }
 .tools { gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
 
 .language-switch { position: relative; font-size: 0.85rem; }
+.language-toggle {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-raised);
+  font-size: 0.85rem;
+}
+.language-toggle a {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.language-toggle a[aria-current="true"] { background: var(--ink); color: var(--bg); }
+.language-toggle a:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+.language-toggle a[aria-current="true"]:focus-visible { outline-color: var(--bg); }
 .language-switch summary, .language-single {
   border: 1px solid var(--line);
   border-radius: 999px;
