@@ -7,6 +7,13 @@ input independently. Content repositories contain Markdown and assets.
 The renderer does not parse front matter again or infer article identity from a
 collection ID or an absolute filesystem path.
 
+Astro's content/image cache and Vite's dependency cache both live under the
+invocation's `.astro/` directory. Vite has its own `cacheDir`; setting only
+Astro's cache does not isolate it. Test workspaces may share installed dependencies
+through symlinks, but they must not write a shared `node_modules/.vite` cache.
+Actual renderer builds verify workspace-local Vite cache creation while running
+in parallel.
+
 ## Input boundary
 
 Go isolates the front-matter block with a line reader and unmarshals it directly

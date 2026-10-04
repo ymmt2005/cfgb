@@ -173,6 +173,7 @@ test("prose pages publish local images and untranslated articles stay in their g
       env: { ...process.env, CFGB_SITE_JSON: sitePath },
       stdio: "pipe",
     });
+    assert.ok(existsSync(path.join(work, "renderer", ".astro", "vite")), "Vite cache belongs to this workspace");
     const dist = path.join(work, "renderer", "dist");
     for (const page of ["ja/index.html", "en/index.html", "ja/about/index.html", "en/about/index.html"]) {
       const html = readFileSync(path.join(dist, page), "utf8");

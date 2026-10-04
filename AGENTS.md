@@ -225,6 +225,8 @@ For changes crossing repositories, keep ownership explicit:
   responsive images, navigation, focus/keyboard interactions, storage/theme,
   CSP, Pagefind WASM and Mermaid redraws. Keep the real browser APIs and wait for
   observable state; fail on unexpected runtime/resource/CSP errors.
+- Isolate both Astro and Vite caches in each build workspace. Sharing installed
+  dependencies in tests must not share mutable `node_modules/.vite` state.
 - Pin dependencies and tooling, maintain both renderer lockfiles, and preserve
   frozen installs. Test the CI-supported Node/npm/pnpm combinations. Workers
   compatibility dates come from tested release values, not the build clock.

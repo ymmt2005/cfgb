@@ -447,6 +447,7 @@ test(
         n.nodeName === "#text"
           ? n.value
           : (n.childNodes ?? []).map(textOf).join("");
+      assert.ok(existsSync(path.join(work, "renderer", ".astro", "vite")), "Vite cache belongs to this workspace");
       const dist = path.join(renderer, "dist");
       function checkPage(route, checks, scope = "content") {
         const html = readFileSync(path.join(dist, route, "index.html"), "utf8");

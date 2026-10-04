@@ -169,3 +169,9 @@ Intl as `UTC`. Equal publication times sort by article key, then the complete
 year/group identity; generated homes and feeds exercise that ordering. Aside ID
 references include microdata and native popover/dialog targets, with a browser
 regression test that runs without JavaScript.
+
+Parallel renderer CI exposed a separate Vite cache race when test workspaces
+shared `node_modules`: Astro's cache setting alone did not isolate Vite's
+`node_modules/.vite` writes. Vite now has its own workspace-local
+`.astro/vite/` cache. Both actual Astro integration tests verify that cache is
+created in their own workspace; parallel tests remain enabled.
