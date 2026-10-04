@@ -49,7 +49,12 @@ See the [build runtime contract](10-build-runtime.md). `.env.example` contains
 names only.
 
 CFGB applies defaults in its parser; JSON Schema default annotations do not
-populate missing configuration. In v1, `security.previewAccess: false` is an
+populate missing configuration. The loader validates the original YAML value
+against the bundled configuration schema, with format assertion and bundled
+references, before projecting it into renderer settings. It also checks the
+IANA timezone against the CLI's bundled timezone database (`Local` is not a
+site timezone). These checks fail with exit 2 before removing existing output;
+invalid values must not be replaced by defaults. In v1, `security.previewAccess: false` is an
 error. Omission of the field or parent section still requires private previews.
 The setting is an assertion, not automatic creation of Access policies. Default
 protection uses Worker-level previews-only `preview_worker` Access with verified

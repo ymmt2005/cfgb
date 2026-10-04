@@ -3,7 +3,7 @@ package schemas
 
 import (
 	"bytes"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -11,21 +11,35 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-//go:embed article.schema.json
-var articleJSON []byte
+//go:embed *.schema.json
+var files embed.FS
 
-var articleSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
-	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(articleJSON))
+var articleSchema = sync.OnceValues(func() (*jsonschema.Schema, error) { return compile("article.schema.json") })
+var configSchema = sync.OnceValues(func() (*jsonschema.Schema, error) { return compile("cfgb.schema.json") })
+
+func compile(name string) (*jsonschema.Schema, error) {
+	compiler := jsonschema.NewCompiler()
+	compiler.AssertFormat()
+	entries, err := files.ReadDir(".")
 	if err != nil {
 		return nil, err
 	}
-	compiler := jsonschema.NewCompiler()
-	compiler.AssertFormat()
-	if err := compiler.AddResource("article.schema.json", doc); err != nil {
-		return nil, err
+	// Register bundled references locally; compilation never fetches schemas.
+	for _, entry := range entries {
+		raw, err := files.ReadFile(entry.Name())
+		if err != nil {
+			return nil, err
+		}
+		doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
+		if err != nil {
+			return nil, err
+		}
+		if err := compiler.AddResource(entry.Name(), doc); err != nil {
+			return nil, err
+		}
 	}
-	return compiler.Compile("article.schema.json")
-})
+	return compiler.Compile(name)
+}
 
 // ValidateArticle runs structural validation, including date-time formats.
 // Semantic requirements such as summary presence and alias ownership are separate.
@@ -34,6 +48,20 @@ func ValidateArticle(value any) error {
 	if err != nil {
 		return fmt.Errorf("compile article schema: %w", err)
 	}
+	return validate(schema, value)
+}
+
+// ValidateConfig checks the unprojected YAML value, including URI formats.
+// Defaults and semantic checks are the configuration loader's responsibility.
+func ValidateConfig(value any) error {
+	schema, err := configSchema()
+	if err != nil {
+		return fmt.Errorf("compile configuration schema: %w", err)
+	}
+	return validate(schema, value)
+}
+
+func validate(schema *jsonschema.Schema, value any) error {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return err

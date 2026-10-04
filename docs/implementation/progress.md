@@ -48,14 +48,19 @@ exclusion. Title and summary are searchable even for image-only article bodies.
 Layout-owned IDs use a `cfgb-` prefix; aside IDs use `aside-` and keep their HTML
 and ARIA associations. See [renderer design](renderer.md).
 
-Go validates the decoded article mapping against the embedded
-`article.schema.json` with `github.com/santhosh-tekuri/jsonschema/v6` `v6.0.3`
-and asserted date-time formats before projecting normalized metadata. This
+Go validates decoded configuration and article mappings against the embedded
+schemas with `github.com/santhosh-tekuri/jsonschema/v6` `v6.0.3`, asserted URI
+and date-time formats, and locally bundled references before projecting them. This
 includes unknown keys, ID patterns, date syntax and validity, topic uniqueness,
 single-line summaries, and asset/alias path syntax. The YAML parser tests still
 check scalar and body preservation separately from article validity. Config
 loading rejects unknown AI summary entry fields and structurally incomplete
-entries; discovery rejects unconfigured article Markdown variants. Semantic
+entries, invalid origins/counts/providers and disabled preview protection. It
+checks timezones using bundled tzdata and applies omitted configuration defaults,
+including mandatory preview protection. These configuration errors precede
+toolchain probes and output removal. Discovery rejects invalid article keys,
+unconfigured variants and directories other than shared `assets/` inside a
+group. Nested shared assets remain supported. Semantic
 requirements such as required summaries, alias ownership, URL/fragment validation,
 and publication policy remain later work.
 
@@ -69,6 +74,13 @@ and both TOCs use a heading-ID map shared by desktop/mobile link elements.
 Browser interaction tests build real pages and run Chromium with the generated
 CSP in the Node 24/npm CI job; their separate test dependencies are not part of
 the embedded renderer toolchain.
+
+Static `_headers` and all Worker-created responses use the same baseline policy
+from `renderer/src/lib/security-headers.json`. Worker tests cover redirects,
+GET/HEAD/method/locale errors and the missing-binding fallback while preserving
+cache, cookie, Vary, Location and Allow headers; asset responses pass through.
+Astro content/image caches live under the workspace's `.astro/cache`, so builds
+with shared dependency installations cannot mix their content stores.
 
 A mandatory `links` CI job builds the pinned example and checks all generated
 HTML with lychee 0.24.2, installed by aqua 2.63.0. Both registry/tool versions

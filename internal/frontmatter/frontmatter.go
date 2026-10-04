@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -33,6 +34,7 @@ func invalid(format string, args ...any) error {
 }
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+var articleKeyPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // Post is one localized article after front matter has been removed.
 type Post struct {
@@ -289,6 +291,9 @@ func collectPosts(contentRoot string, root *os.Root, locales []string) ([]Post, 
 			if !key.IsDir() {
 				continue
 			}
+			if !articleKeyPattern.MatchString(key.Name()) {
+				return nil, &ValidationError{Code: "E_TRANSLATION_GROUP", Err: fmt.Errorf("posts/%s/%s: invalid article key; expected [a-z0-9]+(-[a-z0-9]+)*", year.Name(), key.Name())}
+			}
 			group, err := postsRoot.OpenRoot(year.Name() + "/" + key.Name())
 			if err != nil {
 				return nil, err
@@ -330,7 +335,13 @@ func readGroup(group *os.Root, contentRoot, year, articleKey string, locales map
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".md") {
+		if entry.IsDir() {
+			if name != "assets" {
+				return &ValidationError{Code: "E_TRANSLATION_GROUP", Err: fmt.Errorf("posts/%s/%s/%s: unexpected directory; only shared assets/ is allowed", year, articleKey, name)}
+			}
+			continue
+		}
+		if !strings.HasSuffix(name, ".md") {
 			continue
 		}
 		locale := strings.TrimSuffix(name, ".md")

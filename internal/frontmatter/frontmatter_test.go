@@ -2,6 +2,7 @@ package frontmatter
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -276,10 +277,45 @@ func TestCollectRejectsUnconfiguredVariants(t *testing.T) {
 	}
 }
 
+func TestCollectRejectsInvalidGroupLayout(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, key, nested string }{
+		{"space", "Bad Key", ""},
+		{"uppercase", "Example", ""},
+		{"percent encoded", "%2e%2e", ""},
+		{"dot", "example.key", ""},
+		{"underscore", "example_key", ""},
+		{"double hyphen", "example--key", ""},
+		{"nested variant", "example", "nested"},
+		{"nested locale", "example", "ja"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			group := filepath.Join(dir, "posts", "2026", tc.key, tc.nested)
+			if err := os.MkdirAll(group, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(group, "ja.md"), []byte("---\n"+required+"---\nBody\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			topics := filepath.Join(dir, "topics.yaml")
+			if err := os.WriteFile(topics, []byte("protobuf:\n  ja: Protocol Buffers\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Collect(dir, topics, []string{"ja"})
+			var validation *ValidationError
+			if !errors.As(err, &validation) || validation.Code != "E_TRANSLATION_GROUP" || !strings.Contains(err.Error(), "posts/2026/"+tc.key) {
+				t.Fatalf("invalid layout accepted or misclassified: %v", err)
+			}
+		})
+	}
+}
+
 func TestCollectKeepsSharedAssetsAndExcludesNonPosts(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	for _, name := range []string{"posts/2026/example/ja.md", "posts/2026/example/assets/fr.md", "tests/fr.md", "docs/fr.md", "examples/fr.md"} {
+	for _, name := range []string{"posts/2026/2026-01-02-example/ja.md", "posts/2026/2026-01-02-example/assets/fr.md", "posts/2026/2026-01-02-example/assets/nested/en.md", "posts/2026/2026-01-02-example/.cfgb.json", "tests/fr.md", "docs/fr.md", "examples/fr.md"} {
 		filename := filepath.Join(dir, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
 			t.Fatal(err)

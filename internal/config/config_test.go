@@ -34,6 +34,9 @@ hatena:
 	if cfg.Content.Root != "src/content" || cfg.Content.Topics != "src/data/topics.yaml" || cfg.Home.LatestPosts != 5 {
 		t.Fatalf("defaults = %+v home=%d", cfg.Content, cfg.Home.LatestPosts)
 	}
+	if cfg.Search.Provider != "pagefind" || cfg.AI.Gateway != "cloudflare" || cfg.Deploy.ProductionBranch != "main" || !cfg.Security.PreviewAccess {
+		t.Fatalf("defaults = %+v", cfg)
+	}
 	if cfg.Hatena == nil || cfg.Hatena.Type() != ast.MappingType {
 		t.Fatalf("hatena = %#v", cfg.Hatena)
 	}
@@ -153,17 +156,17 @@ func TestLoadRejectsLocaleProblems(t *testing.T) {
 		{
 			name: "unsafe identifier",
 			body: localeConfig("ja", "  \"../../escape\":\n    label: Bad\n"),
-			want: "path-safe",
+			want: "locales",
 		},
 		{
 			name: "percent escape",
 			body: localeConfig("ja", "  \"%2e%2e\":\n    label: Bad\n"),
-			want: "path-safe",
+			want: "locales",
 		},
 		{
 			name: "dot segment",
 			body: localeConfig("ja", "  \"..\":\n    label: Bad\n"),
-			want: "path-safe",
+			want: "locales",
 		},
 		{
 			name: "unsupported",
@@ -178,12 +181,12 @@ func TestLoadRejectsLocaleProblems(t *testing.T) {
 		{
 			name: "empty map",
 			body: strings.Replace(minimalConfig, "locales:\n  ja:\n    label: 日本語\n", "locales: {}\n", 1),
-			want: "nonempty",
+			want: "locales",
 		},
 		{
 			name: "missing map",
 			body: strings.Replace(minimalConfig, "locales:\n  ja:\n    label: 日本語\n", "", 1),
-			want: "nonempty",
+			want: "locales",
 		},
 		{
 			name: "blank label",
@@ -242,6 +245,53 @@ func TestLoadRejectsInvalidEncodingAndExtraDocuments(t *testing.T) {
 		writeConfig(t, dir, body)
 		if _, err := Load(dir); err == nil {
 			t.Fatalf("invalid config accepted: %q", body)
+		}
+	}
+}
+
+func TestLoadSchemaAndTimezone(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, from, to, tail, field string
+	}{
+		{"negative count", "", "", "home:\n  latestPosts: -1\n", "latestPosts"},
+		{"zero count", "", "", "home:\n  latestPosts: 0\n", "latestPosts"},
+		{"large count", "", "", "home:\n  latestPosts: 51\n", "latestPosts"},
+		{"string count", "", "", "home:\n  latestPosts: '5'\n", "latestPosts"},
+		{"HTTP origin", "https://example.invalid", "http://example.invalid", "", "baseUrl"},
+		{"origin path", "https://example.invalid", "https://example.invalid/blog", "", "baseUrl"},
+		{"origin slash", "https://example.invalid", "https://example.invalid/", "", "baseUrl"},
+		{"origin query", "https://example.invalid", "https://example.invalid?q=1", "", "baseUrl"},
+		{"origin credentials", "https://example.invalid", "https://user@example.invalid", "", "baseUrl"},
+		{"URI format", "https://example.invalid", "https://bad host", "", "baseUrl"},
+		{"unknown timezone", "Asia/Tokyo", "Invalid/Timezone", "", "timezone"},
+		{"machine timezone", "Asia/Tokyo", "Local", "", "timezone"},
+		{"search provider", "", "", "search:\n  provider: other\n", "provider"},
+		{"preview access", "", "", "security:\n  previewAccess: false\n", "previewAccess"},
+		{"null section", "", "", "home: null\n", "home"},
+		{"empty path", "", "", "content:\n  root: ''\n", "root"},
+		{"hatena field", "", "", "hatena:\n  extra: true\n", "extra"},
+		{"hatena locale ref", "", "", "hatena:\n  blogs:\n    - url: https://example.invalid\n      locale: '../ja'\n", "locale"},
+		{"default locale ref", "defaultLocale: ja", "defaultLocale: '../ja'", "", "defaultLocale"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			body := minimalConfig
+			if tc.from != "" {
+				body = strings.Replace(body, tc.from, tc.to, 1)
+			}
+			dir := t.TempDir()
+			writeConfig(t, dir, body+"\n"+tc.tail)
+			if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), tc.field) {
+				t.Fatalf("Load = %v, want %s error", err, tc.field)
+			}
+		})
+	}
+	for _, tail := range []string{"home:\n  latestPosts: 1\n", "home:\n  latestPosts: 50\n", "security: {}\n", "security:\n  previewAccess: true\n", "content: {}\n", "deploy:\n  productionBranch: master\n"} {
+		dir := t.TempDir()
+		writeConfig(t, dir, minimalConfig+"\n"+tail)
+		if cfg, err := Load(dir); err != nil || !cfg.Security.PreviewAccess {
+			t.Fatalf("valid config %s: %v", tail, err)
 		}
 	}
 }

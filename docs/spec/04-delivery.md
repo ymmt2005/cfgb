@@ -249,6 +249,13 @@ implementation, prefer generated script hashes, and test both themes, keyboard
 access and no-JS fallbacks. No tracking cookies or analytics by default; analytics
 is a future explicit opt-in.
 
+The renderer and generated Worker share the release's baseline header definition
+in `renderer/src/lib/security-headers.json`. Every Worker-created response uses
+that policy, including redirects and method/locale/not-found errors, while
+retaining endpoint-specific cache, cookie, `Vary`, `Location` and `Allow` headers.
+Responses delegated to Static Assets are returned unchanged; their `_headers`
+rules apply there.
+
 Cloudflare Access enforcement and ordinary cache/security headers are separate
 checks. Validate all exposed preview hosts rather than assuming asset, feed or
 search URLs inherit protection from the first HTML request.

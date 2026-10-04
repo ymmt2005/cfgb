@@ -15,6 +15,7 @@ import {
 } from "./src/lib/sitemap.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
 import { imageWorkspace } from "./src/lib/image-paths.mjs";
+import securityHeaders from "./src/lib/security-headers.json" with { type: "json" };
 
 const corpus = loadSite();
 const { site, posts, routes } = corpus;
@@ -22,6 +23,8 @@ const manifest = sitemapManifest(corpus);
 
 export default defineConfig({
   site: site.baseUrl,
+  // Keep content/image caches in this workspace even when tests share dependencies.
+  cacheDir: "./.astro/cache",
   trailingSlash: "always",
   output: "static",
   integrations: [
@@ -159,11 +162,10 @@ function headers() {
   // 'wasm-unsafe-eval'. That release does not create a blob worker, so the
   // script-src fallback covers the worker and blob: is not required.
   // img-src includes https: because remote article images stay external.
-  return `/*
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  X-Frame-Options: DENY
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'
-`;
+  return (
+    "/*\n" +
+    Object.entries(securityHeaders)
+      .map(([name, value]) => `  ${name}: ${value}\n`)
+      .join("")
+  );
 }

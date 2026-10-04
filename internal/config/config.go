@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
+	_ "time/tzdata"
 	"unicode/utf8"
 
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
 	"github.com/ymmt2005/cfgb/internal/locale"
+	"github.com/ymmt2005/cfgb/schemas"
 )
 
 // File is the subset of cfgb.yaml the renderer needs.
@@ -106,20 +109,22 @@ func Load(start string) (*File, error) {
 	if len(parsed.Docs) != 1 || parsed.Docs[0].Body == nil {
 		return nil, fmt.Errorf("cfgb.yaml must contain a single nonempty YAML document")
 	}
+	var doc any
+	if err := yaml.NodeToValue(parsed.Docs[0].Body, &doc); err != nil {
+		return nil, fmt.Errorf("cfgb.yaml: %w", err)
+	}
+	if err := schemas.ValidateConfig(doc); err != nil {
+		return nil, fmt.Errorf("cfgb.yaml: E_SCHEMA: %w", err)
+	}
 	var cfg File
 	if err := yaml.NodeToValue(parsed.Docs[0].Body, &cfg, yaml.DisallowUnknownField()); err != nil {
 		return nil, fmt.Errorf("cfgb.yaml: %w", err)
 	}
-	if cfg.SchemaVersion != 1 {
-		return nil, fmt.Errorf("cfgb.yaml schemaVersion must be 1")
+	if cfg.Site.Timezone == "Local" {
+		return nil, fmt.Errorf("cfgb.yaml site.timezone must be an IANA timezone, not Local")
 	}
-	for locale, summary := range cfg.AI.Summary {
-		if summary.Provider == "" || summary.Model == "" {
-			return nil, fmt.Errorf("cfgb.yaml ai.summary.%s requires provider and model", locale)
-		}
-	}
-	if cfg.Site.Title == "" || cfg.Site.BaseURL == "" || cfg.Site.DefaultLocale == "" || cfg.Site.Timezone == "" {
-		return nil, fmt.Errorf("cfgb.yaml site title, baseUrl, defaultLocale and timezone are required")
+	if _, err := time.LoadLocation(cfg.Site.Timezone); err != nil {
+		return nil, fmt.Errorf("cfgb.yaml site.timezone: %w", err)
 	}
 	configured := make(map[string]locale.Entry, len(cfg.Locales))
 	for key, item := range cfg.Locales {
@@ -140,6 +145,17 @@ func Load(start string) (*File, error) {
 	if cfg.Home.LatestPosts == 0 {
 		cfg.Home.LatestPosts = 5
 	}
+	if cfg.Search.Provider == "" {
+		cfg.Search.Provider = "pagefind"
+	}
+	if cfg.AI.Gateway == "" {
+		cfg.AI.Gateway = "cloudflare"
+	}
+	if cfg.Deploy.ProductionBranch == "" {
+		cfg.Deploy.ProductionBranch = "main"
+	}
+	// The schema permits only true; omitted fields/sections also mean true.
+	cfg.Security.PreviewAccess = true
 	cfg.path = file
 	cfg.root = repo
 	return &cfg, nil

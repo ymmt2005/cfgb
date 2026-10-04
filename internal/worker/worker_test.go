@@ -30,7 +30,20 @@ func TestLocaleWorker(t *testing.T) {
 	}
 	script := `
 import worker from "./worker.js";
-const env = { ASSETS: { async fetch() { return new Response("asset", { status: 200 }); } } };
+const baseline = {
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "x-frame-options": "DENY",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
+  "content-security-policy": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'",
+};
+function checkHeaders(id, response) {
+  for (const [header, value] of Object.entries(baseline)) {
+    if (response.headers.get(header) !== value) throw new Error(id + " missing/wrong " + header);
+  }
+}
+const assetResponse = new Response("asset", { status: 200, headers: { "cache-control": "public, max-age=42", etag: '"asset"' } });
+const env = { ASSETS: { async fetch() { return assetResponse; } } };
 const cases = [
   ["root-default", "/", {}, 302, "/ja/"],
   ["root-cookie", "/", {"cookie":"cfgb_locale=en","accept-language":"ja"}, 302, "/en/"],
@@ -45,6 +58,7 @@ const cases = [
 ];
 for (const [id, path, headers, status, location] of cases) {
   const response = await worker.fetch(new Request("https://example.invalid" + path, { headers }), env);
+  checkHeaders(id, response);
   if (response.status !== status) throw new Error(id + " status " + response.status);
   if (response.headers.get("location") !== location) throw new Error(id + " location " + response.headers.get("location"));
   const cache = response.headers.get("cache-control") || "";
@@ -56,8 +70,23 @@ const cookie = set.headers.get("set-cookie") || "";
 for (const part of ["cfgb_locale=en", "Secure", "HttpOnly", "SameSite=Lax", "Path=/", "Max-Age=31536000"]) {
   if (!cookie.includes(part)) throw new Error("cookie " + part + " in " + cookie);
 }
+for (const [id, path, method, status, body, cache, allow] of [
+  ["root-head", "/", "HEAD", 302, "", "private, no-store", null],
+  ["root-method", "/", "POST", 405, "method not allowed\n", "private, no-store", "GET, HEAD"],
+  ["locale-method", "/__locale?lang=en", "POST", 405, "method not allowed\n", "no-store", "GET"],
+  ["locale-head", "/__locale?lang=en", "HEAD", 405, "method not allowed\n", "no-store", "GET"],
+  ["locale-invalid", "/__locale?lang=fr", "GET", 400, "unsupported locale\n", "no-store", null],
+  ["locale-missing", "/__locale", "GET", 400, "unsupported locale\n", "no-store", null],
+  ["no-assets", "/missing", "GET", 404, "not found\n", null, null],
+]) {
+  const response = await worker.fetch(new Request("https://example.invalid" + path, { method }), id === "no-assets" ? {} : env);
+  checkHeaders(id, response);
+  if (response.status !== status || await response.text() !== body) throw new Error(id + " status/body");
+  if (response.headers.get("cache-control") !== cache || response.headers.get("allow") !== allow) throw new Error(id + " cache/allow");
+  if (id === "root-head" && response.headers.get("location") !== "/ja/") throw new Error(id + " location");
+}
 const asset = await worker.fetch(new Request("https://example.invalid/ja/posts/x/"), env);
-if (asset.status !== 200 || await asset.text() !== "asset") throw new Error("asset delegate");
+if (asset !== assetResponse || asset.status !== 200 || await asset.text() !== "asset" || asset.headers.get("cache-control") !== "public, max-age=42" || asset.headers.get("etag") !== '"asset"') throw new Error("asset delegate");
 console.log("ok");
 `
 	if err := os.WriteFile(filepath.Join(dir, "harness.mjs"), []byte(script), 0o644); err != nil {

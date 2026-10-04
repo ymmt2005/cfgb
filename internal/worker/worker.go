@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
+	cfgb "github.com/ymmt2005/cfgb"
 )
 
 // CompatibilityDate is the Workers runtime date pinned with this Worker.
@@ -27,9 +29,19 @@ func Source(opts Options) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	headers, err := cfgb.FS.ReadFile("renderer/src/lib/security-headers.json")
+	if err != nil {
+		return nil, err
+	}
+	if !json.Valid(headers) {
+		return nil, fmt.Errorf("invalid release security headers")
+	}
 	var buf bytes.Buffer
 	buf.WriteString("const site = ")
 	buf.Write(payload)
+	buf.WriteString(";\n")
+	buf.WriteString("const securityHeaders = ")
+	buf.Write(headers)
 	buf.WriteString(";\n")
 	buf.WriteString(runtime)
 	return buf.Bytes(), nil
@@ -37,6 +49,14 @@ func Source(opts Options) ([]byte, error) {
 
 const runtime = `
 const routes = new Set(site.Routes);
+
+// Static Assets applies _headers only to its own responses. All responses
+// created here use the same release policy, preserving endpoint headers.
+function response(body, init = {}) {
+  const headers = new Headers(init.headers);
+  for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
+  return new Response(body, { ...init, headers });
+}
 
 function localeFromCookie(header) {
   if (!header) return "";
@@ -90,11 +110,11 @@ function safeNext(raw, locale) {
 function localeResponse(request) {
   const url = new URL(request.url);
   if (request.method !== "GET") {
-    return new Response("method not allowed\n", { status: 405, headers: { "cache-control": "no-store", allow: "GET" } });
+    return response("method not allowed\n", { status: 405, headers: { "cache-control": "no-store", allow: "GET" } });
   }
   const lang = url.searchParams.get("lang") || "";
   if (!site.Locales.includes(lang)) {
-    return new Response("unsupported locale\n", { status: 400, headers: { "cache-control": "no-store" } });
+    return response("unsupported locale\n", { status: 400, headers: { "cache-control": "no-store" } });
   }
   const next = safeNext(url.searchParams.get("next"), lang);
   const headers = new Headers({
@@ -102,12 +122,12 @@ function localeResponse(request) {
     "cache-control": "no-store",
     "set-cookie": "cfgb_locale=" + lang + "; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000",
   });
-  return new Response(null, { status: 303, headers });
+  return response(null, { status: 303, headers });
 }
 
 function rootResponse(request) {
   if (request.method !== "GET" && request.method !== "HEAD") {
-    return new Response("method not allowed\n", { status: 405, headers: { "cache-control": "private, no-store", allow: "GET, HEAD" } });
+    return response("method not allowed\n", { status: 405, headers: { "cache-control": "private, no-store", allow: "GET, HEAD" } });
   }
   const cookie = localeFromCookie(request.headers.get("cookie"));
   const locale = site.Locales.includes(cookie) ? cookie : negotiatedLocale(request.headers.get("accept-language"));
@@ -116,7 +136,7 @@ function rootResponse(request) {
     "cache-control": "private, no-store",
     vary: "Cookie, Accept-Language",
   });
-  return new Response(null, { status: 302, headers });
+  return response(null, { status: 302, headers });
 }
 
 export default {
@@ -125,7 +145,7 @@ export default {
     if (url.pathname === "/") return rootResponse(request);
     if (url.pathname === "/__locale") return localeResponse(request);
     if (env && env.ASSETS && env.ASSETS.fetch) return env.ASSETS.fetch(request);
-    return new Response("not found\n", { status: 404 });
+    return response("not found\n", { status: 404 });
   },
 };
 `

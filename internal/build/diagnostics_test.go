@@ -53,6 +53,8 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 		{"invalid UTF-8", "posts/2026/example/ja.md", article + "\xff", "E_SCHEMA", 1},
 		{"invalid prose", "home/ja.md", "Body\xff\n", "E_SCHEMA", 1},
 		{"disabled locale", "posts/2026/example/en.md", article, "E_TRANSLATION_GROUP", 1},
+		{"invalid article key", "posts/2026/Bad Key/ja.md", article, "E_TRANSLATION_GROUP", 1},
+		{"nested variant", "posts/2026/example/nested/ja.md", article, "E_TRANSLATION_GROUP", 1},
 		{"invalid topics", "", "protobuf: invalid\n", "E_SCHEMA", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -89,4 +91,35 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 			t.Fatalf("Run I/O = %v", err)
 		}
 	})
+}
+
+func TestRunInvalidConfigurationPreservesOutput(t *testing.T) {
+	// No toolchain is installed: configuration must fail before probing Node.
+	t.Setenv("PATH", t.TempDir())
+	for _, body := range []string{
+		testConfig + "\nhome:\n  latestPosts: -1\n",
+		strings.Replace(testConfig, "Asia/Tokyo", "Invalid/Timezone", 1),
+		testConfig + "\nsecurity:\n  previewAccess: false\n",
+	} {
+		repo := t.TempDir()
+		if err := os.WriteFile(filepath.Join(repo, "cfgb.yaml"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		out := filepath.Join(repo, "dist")
+		if err := os.Mkdir(out, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		sentinel := filepath.Join(out, "existing.html")
+		if err := os.WriteFile(sentinel, []byte("existing site"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		err := Run(Options{Dir: repo, Out: out})
+		var exit *ExitError
+		if !errors.As(err, &exit) || exit.Code != 2 || !strings.Contains(err.Error(), "cfgb.yaml") {
+			t.Fatalf("Run = %v, want config exit 2", err)
+		}
+		if got, err := os.ReadFile(sentinel); err != nil || string(got) != "existing site" {
+			t.Fatalf("invalid config removed existing output: %q, %v", got, err)
+		}
+	}
 }
