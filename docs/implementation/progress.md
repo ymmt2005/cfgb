@@ -92,7 +92,7 @@ Browser interaction tests build real pages and run Chromium with the generated
 CSP in the Node 24/npm CI job; their separate test dependencies are not part of
 the embedded renderer toolchain.
 
-The browser suites now run 13 tests, including real Pagefind WASM searches with
+The browser suites now run 15 tests, including real Pagefind WASM searches with
 a locale differing from the browser language, article/heading navigation and
 empty-result recovery; real Mermaid redraws on native color-scheme changes and
 rapid theme selections; malformed-diagram source/error preservation; actual
@@ -104,6 +104,14 @@ focus outside it, and native fragments could land behind the sticky masthead.
 Focus departure now dismisses the popup without trapping focus, and desktop
 fragment scroll padding clears the masthead. Static-masthead mobile pages omit
 that padding. Runtime/resource failures and CSP violations fail the new cases.
+
+Responsive raw HTML images now rewrite every `srcset` / `imagesrcset` URL through
+the same media contract as `src`: local request suffixes and path escapes are
+rejected, remote/data candidates are preserved, and density/width descriptors
+are unchanged. Source-span tokenization follows HTML splitting rules rather than
+splitting on every comma. Built-HTML tests cover articles and all prose scopes;
+the two additional browser tests verify native density/width candidate selection,
+data URLs, successful image decoding and picture breakpoint changes at DPR 1/2.
 
 Static `_headers` and all Worker-created responses use the same baseline policy
 from `renderer/src/lib/security-headers.json`. Worker tests cover redirects,

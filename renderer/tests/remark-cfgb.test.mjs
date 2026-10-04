@@ -236,17 +236,47 @@ test("alerts keep markdown children and raw HTML links use the route", async (t)
     t.mock.method(console, "error", () => {});
     const processor = unified({ remarkPlugins: [remarkCfgb] });
     const renderer = await processor.createRenderer({ syntaxHighlight: false });
+    const media = "/media/2026/2026-09-20-markdown-showcase/";
+    for (const html of [
+      "<img srcset=./assets/picture.svg>",
+      '<img srcset="./assets/a%20b.svg 1x, ./assets/picture.svg 2x">',
+      "<picture><source SRCSET='./assets/a&amp;b.svg 320w, ./assets/picture.svg 640w' sizes='100vw'><img src=./assets/picture.svg></picture>",
+      '<link rel="preload" as="image" imagesrcset="./assets/picture.svg 1x">',
+    ]) {
+      const tree = { type: "root", children: [{ type: "html", value: html }] };
+      remarkCfgb()(tree, { path: sourceFile });
+      assert.equal(
+        tree.children[0].value,
+        html.replaceAll("./assets/", media).replace("a&amp;b.svg", "a%26b.svg"),
+      );
+    }
     for (const markdown of [
       "![Image](./assets/picture.svg?v=1)",
       "![Image][pic]\n\n[pic]: ./assets/picture.svg#detail",
       "[Download](./assets/picture.svg?v=1)",
       '<img src="./assets/picture.svg#detail">',
       '<a href="./assets/picture.svg?v=1">Download</a>',
+      '<img srcset="./assets/picture.svg?v=1 2x">',
+      '<img srcset="https://example.invalid/a.svg 1x, ./assets/picture.svg#view 2x">',
+      '<source srcset="./assets/picture.svg 1x, ./assets/picture.svg?v=1 2x">',
+      '<link imagesrcset="./assets/picture.svg?v=1 2x">',
     ])
       await assert.rejects(
         renderer.render(markdown, { fileURL: pathToFileURL(sourceFile) }),
         /query or fragment/,
       );
+    for (const url of [
+      "./assets/../outside.svg",
+      "./assets/%2e%2e/outside.svg",
+      "./assets/a%2Fb.svg",
+      "./assets/bad%ZZ.svg",
+    ]) {
+      await assert.rejects(
+        renderer.render(`<img srcset="./assets/picture.svg 1x, ${url} 2x">`, {
+          fileURL: pathToFileURL(sourceFile),
+        }),
+      );
+    }
     // Unused definitions and literal examples are not file consumers.
     await renderer.render(
       "Example.\n\n[unused]: ./assets/missing.svg?v=1\n\n`![Image](./assets/missing.svg?v=1)`",

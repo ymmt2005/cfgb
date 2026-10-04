@@ -168,6 +168,48 @@ test(
         raw("Raw"),
       ]);
       add(
+        "raw-density",
+        '<img src="./assets/picture.svg" srcset="./assets/picture.svg 1x, ./assets/a%20b.svg 2x" alt="Responsive">',
+        [
+          {
+            kind: "srcset",
+            tag: "img",
+            candidates: [
+              ["picture.svg", "1x"],
+              ["a%20b.svg", "2x"],
+            ],
+          },
+        ],
+      );
+      add(
+        "raw-width",
+        "<picture><source srcset='./assets/picture.svg 320w, ./assets/a%20b.svg 640w' sizes='100vw'><img src='./assets/picture.svg' alt='Responsive'></picture>",
+        [
+          {
+            kind: "srcset",
+            tag: "source",
+            candidates: [
+              ["picture.svg", "320w"],
+              ["a%20b.svg", "640w"],
+            ],
+          },
+        ],
+      );
+      add(
+        "raw-encoded-srcset",
+        '<img srcset="./assets/a%23b.svg 1x, ./assets/a%26b.svg 2x" alt="Encoded candidates">',
+        [
+          {
+            kind: "srcset",
+            tag: "img",
+            candidates: [
+              ["a%23b.svg", "1x"],
+              ["a%26b.svg", "2x"],
+            ],
+          },
+        ],
+      );
+      add(
         "raw-unquoted-html-block",
         "<div><img src=./assets/picture.svg alt=Raw></div>",
         [raw("Raw")],
@@ -276,6 +318,8 @@ test(
         [],
       );
       const proseCases = [
+        "raw-density",
+        "raw-width",
         "reference-image-and-link",
         "image-in-alert",
         "reference-space",
@@ -416,7 +460,22 @@ test(
         const errors = [];
         const base = "https://example.invalid/" + route + "/";
         for (const check of checks) {
-          if (check.kind.includes("image")) {
+          if (check.kind === "srcset") {
+            const element = nodes.find(
+              (node) => node.tagName === check.tag && attr(node, "srcset"),
+            );
+            const prefix =
+              scope === "content" && route.startsWith("en/posts/")
+                ? `/media/2026/${route.split("/").at(-1)}/`
+                : `/media/${scope === "content" ? (route === "en" ? "home" : route.split("/").at(-1)) : scope}/`;
+            const expected = check.candidates
+              .map(([url, descriptor]) => prefix + url + " " + descriptor)
+              .join(", ");
+            if (attr(element, "srcset") !== expected)
+              errors.push("srcset mapping: " + attr(element, "srcset"));
+            for (const [url] of check.candidates)
+              validateUrl(prefix + url, "", "srcset", true);
+          } else if (check.kind.includes("image")) {
             const img = nodes.find(
               (n) => n.tagName === "img" && attr(n, "alt") === check.alt,
             );

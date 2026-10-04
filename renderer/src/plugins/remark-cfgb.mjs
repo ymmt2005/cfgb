@@ -1,6 +1,7 @@
 import path from "node:path";
 import { transformAttributes } from "../lib/html-attributes.mjs";
 import { contentUrls } from "../lib/content-urls.mjs";
+import { transformSrcset } from "../lib/srcset.mjs";
 import { cardKey, loadSite } from "../lib/load-site.mjs";
 
 const alerts = {
@@ -58,6 +59,10 @@ export function remarkCfgb(options = {}) {
       } else if (node.type === "html" && typeof node.value === "string") {
         node.value = transformAttributes(node.value, (attr) => {
           if (attr.name === "src") return urls.media(attr.value, source);
+          if (attr.name === "srcset" || attr.name === "imagesrcset")
+            return transformSrcset(attr.value, (url) =>
+              urls.media(url, source),
+            );
           if (attr.name === "href") return urls.link(attr.value, source);
         });
       }

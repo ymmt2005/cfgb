@@ -15,6 +15,49 @@ describe(
       await site?.close();
     });
 
+    for (const deviceScaleFactor of [1, 2]) {
+      test(`responsive images load native candidates at DPR ${deviceScaleFactor}`, async () => {
+        await withPage(
+          site,
+          { deviceScaleFactor, viewport: { width: 1024, height: 768 } },
+          async (page) => {
+            await page.goto(`${site.origin}/en/posts/browser/`);
+            for (const id of [
+              "responsive-density",
+              "responsive-width",
+              "responsive-data",
+            ]) {
+              const image = page.locator(`#${id}`);
+              await image.evaluate((el) => el.decode());
+              const src = await image.evaluate((el) => el.currentSrc);
+              if (id === "responsive-data" && deviceScaleFactor === 1)
+                assert.ok(src.startsWith("data:image/svg+xml,"));
+              else
+                assert.equal(
+                  src,
+                  `${site.origin}/media/2026/browser/responsive-${deviceScaleFactor}.svg`,
+                );
+              assert.ok(await image.evaluate((el) => el.naturalWidth > 0));
+            }
+            const picture = page.locator("#responsive-picture");
+            await picture.evaluate((el) => el.decode());
+            assert.equal(
+              await picture.evaluate((el) => el.currentSrc),
+              `${site.origin}/media/2026/browser/responsive-1.svg`,
+            );
+            await page.setViewportSize({ width: 480, height: 768 });
+            await page.waitForFunction(
+              (expected) =>
+                document.querySelector("#responsive-picture").currentSrc ===
+                expected,
+              `${site.origin}/media/2026/browser/responsive-2.svg`,
+            );
+            await picture.evaluate((el) => el.decode());
+          },
+        );
+      });
+    }
+
     test("saved theme paints before the interactive script loads", async () => {
       await withPage(site, { colorScheme: "light" }, async (page) => {
         await page.addInitScript(() =>

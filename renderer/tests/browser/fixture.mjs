@@ -160,6 +160,10 @@ function buildSite() {
       "```mermaid\n" + diagram + "\n```",
       "A reader note[^detail].",
       "[^detail]: A footnote reached through a native fragment link.",
+      '<img id="responsive-density" alt="Density image" src="./assets/responsive-1.svg" srcset="./assets/responsive-1.svg 1x, ./assets/responsive-2.svg 2x" width="64" height="32">',
+      '<picture><source media="(max-width: 600px)" srcset="./assets/responsive-2.svg 1x"><img id="responsive-picture" alt="Picture image" src="./assets/responsive-1.svg" width="64" height="32"></picture>',
+      '<img id="responsive-width" alt="Width image" srcset="./assets/responsive-1.svg 64w, ./assets/responsive-2.svg 128w" sizes="64px" width="64" height="32">',
+      '<img id="responsive-data" alt="Data image" srcset="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2264%22%20height=%2232%22%3E%3C/svg%3E 1x, ./assets/responsive-2.svg 2x" width="64" height="32">',
     ].join("\n\n");
     const posts = ["ja", "en"].map((locale) => ({
       id: `posts/2026/browser/${locale}`,
@@ -196,6 +200,17 @@ function buildSite() {
     for (const post of posts) {
       mkdirSync(path.dirname(post.file), { recursive: true });
       writeFileSync(post.file, post.body);
+    }
+    for (const scale of [1, 2]) {
+      const filename = `responsive-${scale}.svg`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${64 * scale}" height="${32 * scale}"><rect width="100%" height="100%" fill="blue"/></svg>`;
+      for (const dir of [
+        path.join(content, "posts/2026/browser/assets"),
+        path.join(renderer, "public/media/2026/browser"),
+      ]) {
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(path.join(dir, filename), svg);
+      }
     }
     const metadata = path.join(work, "metadata.json");
     writeFileSync(

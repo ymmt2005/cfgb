@@ -46,6 +46,16 @@ public path once. Percent-encoded filename punctuation is supported. Heading
 fragments on relative article links, and remote or public URLs, retain their
 normal URL meaning. Unused definitions do not cause image imports.
 
+Raw HTML `srcset` and preload `imagesrcset` use the same media URL policy for
+every URL token as `src`, including local suffix/path rejection. A small URL-span
+tokenizer follows the HTML srcset splitting rules, preserving descriptors,
+spacing and comma-containing URLs (including data URLs). Descriptor validation
+remains with the browser; the rewrite does not add or repair descriptors.
+The existing HTML attribute editor handles entity decoding/re-escaping and
+quote styles. Article, home, about and aside scopes share source metadata.
+Tests inspect the actual built candidate URLs/files and Chromium's selected
+images at different device pixel ratios and picture media-query breakpoints.
+
 `image-paths.mjs` isolates a necessary Astro/Vite import adaptation: some valid
 asset filenames cannot be used directly as Vite import specifiers. Copy image
 bytes to safe names under the build-owned workspace. Astro then supplies
