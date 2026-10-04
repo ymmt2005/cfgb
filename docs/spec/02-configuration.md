@@ -19,7 +19,7 @@ constraint. Keep those domain checks in their relevant commands.
 | `site.title` | Required nonempty text |
 | `site.baseUrl` | Required HTTPS origin, no path/query/fragment/trailing slash/userinfo |
 | `site.defaultLocale` | Required key in `locales` |
-| `site.timezone` | Required IANA timezone; archives/dates use it |
+| `site.timezone` | IANA timezone used only for monthly archive classification |
 | `locales` | Nonempty map of supported content/UI language identifiers. This release supports exact, case-sensitive `ja` and `en`, each with a nonempty `label` |
 | `content.root` | Default `src/content` |
 | `content.topics` | Default `src/data/topics.yaml` |
@@ -83,13 +83,15 @@ Worker identity and policy; hostname-specific coverage is an advanced option.
 stays inside the repository is followed. A symlink that leaves the repository is
 rejected. Relative paths must stay inside the repository after symlink resolution.
 
-Build uses Go's native timezone interpretation after decoding. An omitted/empty
-`site.timezone` resolves to UTC. Before serializing renderer metadata, Go converts
-publication/update timestamps with `time.Time.In` using its bundled timezone
-database. The renderer reads archive/display calendar fields from those RFC3339
-values; it does not interpret the configured timezone identifier. Language-specific
-date formatting may use Intl with UTC for a synthetic calendar date. This preserves
-the timestamp instant and does not mutate the decoded configuration.
+`site.timezone` is used only to classify articles into monthly archives. Build
+uses Go's native timezone interpretation with bundled tzdata; an omitted/empty
+name resolves to UTC. Go supplies each article's archive year/month separately
+and normalizes publication/update timestamps to UTC for renderer metadata.
+The renderer and browser do not interpret the configured site timezone.
+Visible dates start as a static UTC fallback and JavaScript formats the UTC
+instant in the reader's browser timezone, retaining the article language's date
+format. Machine timestamps, chronological ordering and archive links do not
+change with the reader's timezone. `new` also uses UTC for timestamps/group names.
 
 Supported content languages are exact, case-sensitive keys in
 `renderer/src/lib/locales.json`, shared by the CLI and renderer. This release's

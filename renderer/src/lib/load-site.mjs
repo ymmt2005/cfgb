@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import catalog from "./locales.json" with { type: "json" };
+import { localeEntry } from "./dates.mjs";
+export { formatDate } from "./dates.mjs";
 
 let cached;
 
@@ -90,7 +92,7 @@ function buildRoutes(site, posts, topics) {
     const months = new Set();
     const usedTopics = new Set();
     for (const post of posts.filter((item) => item.locale === locale)) {
-      const parts = archiveParts(post.publishedAt);
+      const parts = post.archive;
       months.add(`${parts.year}/${parts.month}`);
       for (const topic of post.topics) usedTopics.add(topic);
     }
@@ -103,32 +105,6 @@ function buildRoutes(site, posts, topics) {
   routes.add("/sitemap-index.xml");
   routes.add("/sitemap-0.xml");
   return routes;
-}
-
-// Go supplies RFC3339 timestamps already converted to the site location.
-// Read their calendar date directly; do not reinterpret the configured zone in JS.
-export function archiveParts(iso) {
-  return { year: iso.slice(0, 4), month: iso.slice(5, 7) };
-}
-
-export function formatDate(iso, locale) {
-  const entry = localeEntry(locale);
-  const { year, month } = archiveParts(iso);
-  const day = iso.slice(8, 10);
-  if (entry.date.form === "ymd-kanji") {
-    return `${Number(year)}年${Number(month)}月${Number(day)}日`;
-  }
-  if (entry.date.form === "intl-medium") {
-    // A synthetic UTC date formats the supplied calendar fields without a
-    // second timezone conversion, even if Node and Go use different tzdata.
-    return new Intl.DateTimeFormat(entry.date.intl, {
-      timeZone: "UTC",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(`${iso.slice(0, 10)}T12:00:00Z`));
-  }
-  throw new Error(`locale ${locale} has no date form`);
 }
 
 export function archiveTitle(year, month, locale) {
@@ -148,12 +124,6 @@ export function openGraphLocale(locale) {
 
 export function rootNotFoundTitle() {
   return catalog.rootNotFound;
-}
-
-function localeEntry(locale) {
-  if (!Object.hasOwn(catalog.locales, locale))
-    throw new Error(`locale ${locale} is not supported`);
-  return catalog.locales[locale];
 }
 
 function assertConfiguredLocales(site) {

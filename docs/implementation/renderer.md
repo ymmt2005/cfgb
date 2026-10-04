@@ -37,11 +37,13 @@ reader/filesystem errors remain I/O failures with exit 3. Other unverified restr
 human approval. New correctness rules require explicit human confirmation under
 `AGENTS.md`.
 
-Go converts publication/update timestamps to the configured site location using
-`time.Time.In` before JSON serialization. Archive grouping and visible date
-labels read the resulting RFC3339 calendar fields directly. JavaScript does not
-interpret the site timezone; Intl only formats a synthetic UTC calendar date for
-language-specific labels. RSS and chronological ordering preserve the instant.
+Go derives each post's `archive: {year, month}` with `site.timezone` and normalizes
+publication/update timestamps to UTC. This keeps historical offsets containing
+seconds out of machine timestamp serialization. Archive routes use those derived
+fields, independently of visible dates. Static HTML renders a UTC fallback in
+`time[data-cfgb-date]`; the shared browser/server date formatter then updates only
+its text in the reader's timezone. Machine `datetime`, JSON-LD, Pagefind metadata
+and RSS retain UTC instants. JavaScript never receives the site timezone.
 
 The normalized index owns group identity, locale, source filename, and article
 route. `content.ts` joins collection entries to that index. `content-urls.mjs`

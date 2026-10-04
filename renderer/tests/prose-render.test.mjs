@@ -100,6 +100,7 @@ test("prose pages publish local images and untranslated articles stay in their g
       year,
       articleKey: key,
       locale,
+      archive: { year: "2026", month: "09" },
       data: {
         title,
         slug,
@@ -158,7 +159,6 @@ test("prose pages publish local images and untranslated articles stay in their g
         title: "Example",
         baseUrl: "https://example.invalid",
         defaultLocale: "ja",
-        timezone: "UTC",
         locales: { ja: { label: "日本語" }, en: { label: "English" } },
         contentRoot: content,
         topicsFile: path.join(work, "topics.yaml"),

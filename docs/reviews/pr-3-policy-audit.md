@@ -211,12 +211,11 @@ Generic permission to fix bugs or add tests is not approval to invent a new
 input restriction. New policy needs its own concrete explanation and explicit
 human confirmation, including when suggested by Copilot.
 
-## Final date and CI adjustments
+## Date and CI contract
 
-Go converts publication/update timestamps to the configured location before
-renderer JSON serialization. JavaScript reads the calendar fields from the
-converted RFC3339 timestamps and does not load the site timezone. Tests cover
-month/year rollover, DST, fractional-hour offsets, empty-name UTC and `Factory`
-(a Go timezone not recognized by Intl), plus display under different host zones.
-CI runs for pull requests and for pushes to `main` only, avoiding duplicate runs
-for feature-branch pushes.
+The user's final decision reserves `site.timezone` for monthly archives. Go
+supplies archive year/month separately and normalizes machine timestamps to UTC.
+Browsers localize visible dates only, with a static UTC fallback. Tests cover
+month/year rollover, DST, fractional offsets, Go-only zones, historical offsets,
+reader zones and JavaScript-disabled rendering. CI runs for pull requests and
+pushes to `main` only.

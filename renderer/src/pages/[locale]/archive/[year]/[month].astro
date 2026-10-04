@@ -1,14 +1,14 @@
 ---
 import Base from "../../../../layouts/Base.astro";
 import PostList from "../../../../components/PostList.astro";
-import { monthOf, posts, renderedProse } from "../../../../lib/content";
+import { posts, renderedProse } from "../../../../lib/content";
 import { archiveTitle, copyFor } from "../../../../lib/load-site.mjs";
 
 export async function getStaticPaths() {
   const seen = new Set<string>();
   const paths = [];
   for (const post of await posts()) {
-    const month = monthOf(post.data.publishedAt);
+    const month = post.archive;
     const id = `${post.locale}/${month.year}/${month.month}`;
     if (seen.has(id)) continue;
     seen.add(id);
@@ -20,7 +20,7 @@ const { locale, year, month } = Astro.params;
 const copy = copyFor(locale);
 const list = (await posts()).filter((post) => {
   if (post.locale !== locale) return false;
-  const parts = monthOf(post.data.publishedAt);
+  const parts = post.archive;
   return parts.year === year && parts.month === month;
 });
 const aside = await renderedProse("aside", locale);

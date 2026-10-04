@@ -169,10 +169,10 @@ func TestExampleCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if publicationStamp(boundary) != "2026-10-01T01:30:00+09:00" ||
-		!bytes.Contains(boundary, []byte("2026年10月1日")) ||
+	if publicationStamp(boundary) != "2026-09-30T16:30:00Z" ||
+		!bytes.Contains(boundary, []byte("2026年9月30日")) ||
 		!bytes.Contains(boundary, []byte(`href="/ja/archive/2026/10/"`)) {
-		t.Fatal("Go-localized timestamp, visible date and archive route disagree")
+		t.Fatal("UTC timestamp/fallback or archive-timezone route is incorrect")
 	}
 	archive, err := os.ReadFile(filepath.Join(out, "site", "ja", "archive", "2026", "10", "index.html"))
 	if err != nil || !bytes.Contains(archive, []byte(`href="/ja/posts/archive-timezone-boundary/"`)) {
@@ -403,7 +403,7 @@ func cleanupExampleWorkspace(t *testing.T, out string) {
 	})
 }
 
-var publicationStampPattern = regexp.MustCompile(`<time datetime="([^"]+)" data-pagefind-meta="published\[datetime\]">`)
+var publicationStampPattern = regexp.MustCompile(`<time datetime="([^"]+)" data-pagefind-meta="published\[datetime\]"`)
 
 func publicationStamp(article []byte) string {
 	match := publicationStampPattern.FindSubmatch(article)

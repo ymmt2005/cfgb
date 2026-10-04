@@ -49,8 +49,9 @@ unless `--lang` restricts it. Empty selection is a successful no-op, not â€œallâ
 by sending the entire repository. Deleted variants are omitted from generation
 but still matter for link validation. Renames are detected by Git and reported.
 
-`new` derives `<year>/<YYYY-MM-DD>-<slug>` in `site.timezone`, checks collisions,
-and sets `publishedAt` to the creation instant with an offset. No future scheduling.
+`new` derives `<year>/<YYYY-MM-DD>-<slug>` in UTC, checks collisions,
+and sets `publishedAt` to the UTC creation instant (`Z`). `site.timezone` is only
+used for monthly archive classification. No future scheduling.
 It prints the created branch and path, but makes no commit. The author must review
 the date at publication. `translate` uses the current branch, sets a new locale
 publication date, does not copy source aliases, ogImage or generated ownership,

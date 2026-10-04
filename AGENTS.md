@@ -183,11 +183,12 @@ For changes crossing repositories, keep ownership explicit:
   are sufficient at the YAML boundary.
   Business checks belong where the decoded value is used and must have a verified
   human requirement; ask before adding a new one.
-- Convert article publication/update timestamps to the configured site timezone
-  in Go, using the bundled tzdata, before passing metadata to the renderer.
-  Archive and visible dates use the resulting RFC3339 calendar fields. JavaScript
-  may format language-specific labels but must not reinterpret the site timezone;
-  machine timestamps and chronological ordering retain the same instant.
+- Use `site.timezone` only for monthly archive classification in Go with bundled
+  tzdata. Pass the derived archive year/month independently from UTC publication
+  and update timestamps. Browsers format the UTC instant in the reader's timezone
+  using the shared language date formatter; static/no-JavaScript fallback is UTC.
+  Never change machine timestamps, archive links or archive membership when
+  localizing display text. `new` uses UTC for creation timestamps and group names.
 - Supported content languages come from the shared release catalog and match
   exactly, case sensitively, without a separate syntax gate. Use own-property
   membership for JavaScript catalogs, not inherited object properties. A

@@ -1,7 +1,8 @@
 import { getCollection, render, type CollectionEntry } from "astro:content";
-import { archiveParts, comparePosts, loadSite } from "./load-site.mjs";
+import { comparePosts, loadSite } from "./load-site.mjs";
 
 export type PostEntry = CollectionEntry<"posts"> & {
+  archive: { year: string; month: string };
   locale: string;
   articleKey: string;
   group: string;
@@ -17,6 +18,7 @@ export async function posts(): Promise<PostEntry[]> {
       if (!post) throw new Error(`Missing article metadata for ${entry.id}`);
       return {
         ...entry,
+        archive: post.archive,
         locale: post.locale,
         articleKey: post.articleKey,
         group: post.group,
@@ -55,8 +57,4 @@ export async function renderedProse(
   const entry = await proseEntry(kind, locale);
   if (!entry) return null;
   return render(entry);
-}
-
-export function monthOf(iso: string) {
-  return archiveParts(iso);
 }

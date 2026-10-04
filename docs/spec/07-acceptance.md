@@ -19,7 +19,7 @@ run the standalone scenarios as negative CLI acceptance.
 | Paste/drop colocates originals | `.vscode/settings.json` | VS Code and Cursor manual check |
 | Image warnings and local-path isolation | Negative cases + asset inventory | CLI |
 | Cached link card / missing cache fallback | Protobuf URL and IANA URL | CLI + renderer |
-| Monthly ordering and timezone boundary | 2025 and 2026 groups; UTC boundary article | Renderer |
+| Monthly ordering and timezone boundary | Fixed archive-timezone year/month, UTC machine timestamps, reader-local visible dates and UTC no-JS fallback | Go + Renderer + Browser |
 | Topic IDs and labels | `src/data/topics.yaml`; schema-valid missing/empty locale labels fail semantic `E_TOPIC` | CLI + renderer |
 | Static, runtime, fallback routes and aliases | `static-routes.json`, `worker-routes.json`, `fallbacks.json`, aliases | CFGB renderer + Worker + Static Assets |
 | Local links and fragment resolution | Cross-article/HTML/reference links | Shared renderer manifest + CLI |

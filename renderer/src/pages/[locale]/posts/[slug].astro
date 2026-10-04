@@ -2,7 +2,7 @@
 import { render } from "astro:content";
 import Base from "../../../layouts/Base.astro";
 import { groupCounterparts } from "../../../lib/locale-link.mjs";
-import { monthOf, posts, renderedProse } from "../../../lib/content";
+import { posts, renderedProse } from "../../../lib/content";
 import { formatDate, loadSite } from "../../../lib/load-site.mjs";
 
 export async function getStaticPaths() {
@@ -21,7 +21,7 @@ const aside = await renderedProse("aside", locale);
 const { site, topics } = loadSite();
 const other = Object.keys(site.locales).find((item) => item !== locale) || "";
 const untranslated = Boolean(other) && !Object.hasOwn(counterparts, other);
-const month = monthOf(post.data.publishedAt);
+const month = post.archive;
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
@@ -47,7 +47,7 @@ const jsonLd = {
 >
   {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
   <article data-pagefind-filter={`locale:${locale}`}>
-    <p class="kicker"><a href={`/${locale}/archive/${month.year}/${month.month}/`} data-pagefind-filter={`year:${month.year}`}><time datetime={post.data.publishedAt} data-pagefind-meta="published[datetime]">{formatDate(post.data.publishedAt, locale)}</time></a></p>
+    <p class="kicker"><a href={`/${locale}/archive/${month.year}/${month.month}/`} data-pagefind-filter={`year:${month.year}`}><time datetime={post.data.publishedAt} data-pagefind-meta="published[datetime]" data-cfgb-date={locale}>{formatDate(post.data.publishedAt, locale, "UTC")}</time></a></p>
     <h1 class="article-title" data-pagefind-body data-pagefind-meta="title">{post.data.title}</h1>
     <div class="meta-row">
       <p class="topics">

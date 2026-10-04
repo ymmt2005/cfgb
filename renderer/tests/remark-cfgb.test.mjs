@@ -46,6 +46,7 @@ test("alerts keep markdown children and raw HTML links use the route", async (t)
             year: "2026",
             articleKey: "2026-09-19-protobuf-guide",
             locale: "en",
+            archive: { year: "2026", month: "09" },
             data: {
               title: "Reading",
               slug: "reading-protobuf-schemas",
@@ -61,6 +62,7 @@ test("alerts keep markdown children and raw HTML links use the route", async (t)
             year: "2026",
             articleKey: "2026-09-20-markdown-showcase",
             locale: "en",
+            archive: { year: "2026", month: "09" },
             data: {
               title: "Showcase",
               slug: "markdown-rendering-showcase",
@@ -79,7 +81,7 @@ test("alerts keep markdown children and raw HTML links use the route", async (t)
         title: "Example",
         baseUrl: "https://example.invalid",
         defaultLocale: "en",
-        timezone: "UTC",
+
         locales: { en: { label: "English" } },
         contentRoot: path.join(dir, "content"),
         topicsFile: path.join(dir, "topics.yaml"),
@@ -325,6 +327,7 @@ test("markdown parsing keeps rewritten anchor labels inside the anchor", async (
             year: "2026",
             articleKey: "2026-09-19-protobuf-guide",
             locale: "en",
+            archive: { year: "2026", month: "09" },
             data: {
               title: "Reading",
               slug: "reading-protobuf-schemas",
@@ -343,7 +346,7 @@ test("markdown parsing keeps rewritten anchor labels inside the anchor", async (
         title: "Example",
         baseUrl: "https://example.invalid",
         defaultLocale: "en",
-        timezone: "UTC",
+
         locales: { en: { label: "English" } },
         contentRoot: path.join(dir, "content"),
         topicsFile: path.join(dir, "topics.yaml"),
@@ -429,7 +432,7 @@ test("prose links and raw HTML publish assets while Markdown images stay local",
         title: "Example",
         baseUrl: "https://example.invalid",
         defaultLocale: "ja",
-        timezone: "UTC",
+
         locales: { ja: { label: "日本語" }, en: { label: "English" } },
         contentRoot: path.join(dir, "content"),
         topicsFile: path.join(dir, "topics.yaml"),

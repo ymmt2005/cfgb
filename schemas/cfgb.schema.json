@@ -24,6 +24,7 @@
           "$ref": "locale-id.schema.json"
         },
         "timezone": {
+          "description": "Timezone used only for monthly archive classification; visible dates use the reader browser timezone.",
           "type": "string",
           "minLength": 1
         }

@@ -173,10 +173,11 @@ function buildSite() {
       year: "2026",
       articleKey: "browser",
       locale,
+      archive: { year: "2026", month: "10" },
       data: {
         title: locale === "ja" ? "ブラウザの操作" : "Browser interactions",
         slug: "browser",
-        publishedAt: "2026-01-02T00:00:00Z",
+        publishedAt: "2026-09-30T16:30:00Z",
         topics: ["notes"],
         summary: "Interaction test article.",
       },
@@ -189,6 +190,7 @@ function buildSite() {
       year: "2026",
       articleKey: "diagram-error",
       locale: "en",
+      archive: { year: "2026", month: "01" },
       data: {
         title: "Diagram syntax error",
         slug: "diagram-error",
@@ -246,7 +248,7 @@ function buildSite() {
         title: "CFGB Example",
         baseUrl: "https://example.invalid",
         defaultLocale: "ja",
-        timezone: "UTC",
+
         locales: { ja: { label: "日本語" }, en: { label: "English" } },
         contentRoot: content,
         topicsFile: path.join(work, "topics.yaml"),

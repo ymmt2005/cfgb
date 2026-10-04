@@ -1,6 +1,6 @@
 ---
 import Base from "../../../layouts/Base.astro";
-import { monthOf, posts, renderedProse } from "../../../lib/content";
+import { posts, renderedProse } from "../../../lib/content";
 import { copyFor, loadSite } from "../../../lib/load-site.mjs";
 
 export function getStaticPaths() {
@@ -11,7 +11,7 @@ const { locale } = Astro.params;
 const copy = copyFor(locale);
 const months = new Map<string, { year: string; month: string; count: number }>();
 for (const post of (await posts()).filter((item) => item.locale === locale)) {
-  const month = monthOf(post.data.publishedAt);
+  const month = post.archive;
   const id = `${month.year}/${month.month}`;
   const current = months.get(id) || { ...month, count: 0 };
   current.count += 1;

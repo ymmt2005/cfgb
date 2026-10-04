@@ -169,7 +169,7 @@ func Run(opts Options) (err error) {
 	if err != nil {
 		return &ExitError{Code: 2, Err: err}
 	}
-	index.LocalizeDates(location)
+	index.PrepareDates(location)
 	metadataPath := filepath.Join(workspace, "metadata.json")
 	metadata, err := json.Marshal(index)
 	if err != nil {

@@ -44,16 +44,23 @@ type Metadata struct {
 	Aliases     []string   `yaml:"aliases" json:"aliases,omitempty"`
 }
 
+// ArchiveMonth is the publication month in the configured archive timezone.
+type ArchiveMonth struct {
+	Year  string `json:"year"`
+	Month string `json:"month"`
+}
+
 // Post is one localized article after front matter has been removed.
 type Post struct {
-	ID         string   `json:"id"`
-	File       string   `json:"file"`
-	Body       string   `json:"body"`
-	Group      string   `json:"group"`
-	Year       string   `json:"year"`
-	ArticleKey string   `json:"articleKey"`
-	Locale     string   `json:"locale"`
-	Data       Metadata `json:"data"`
+	Archive    ArchiveMonth `json:"archive"`
+	ID         string       `json:"id"`
+	File       string       `json:"file"`
+	Body       string       `json:"body"`
+	Group      string       `json:"group"`
+	Year       string       `json:"year"`
+	ArticleKey string       `json:"articleKey"`
+	Locale     string       `json:"locale"`
+	Data       Metadata     `json:"data"`
 }
 
 // Prose is a home, about, or aside file. v1 keeps the whole file as the body.
@@ -379,16 +386,18 @@ func isYear(name string) bool {
 	return true
 }
 
-// LocalizeDates converts article timestamps to the site location before JSON
-// serialization. The instant is unchanged; the RFC3339 calendar date and offset
-// become authoritative for archive grouping and visible dates in the renderer.
-func (index *Index) LocalizeDates(location *time.Location) {
+// PrepareDates derives archive months in the site location and normalizes
+// machine timestamps to UTC. The site location does not affect visible dates;
+// browsers format the UTC instant in the reader's timezone.
+func (index *Index) PrepareDates(location *time.Location) {
 	for i := range index.Posts {
-		data := &index.Posts[i].Data
-		data.PublishedAt = data.PublishedAt.In(location)
-		if data.UpdatedAt != nil {
-			updated := data.UpdatedAt.In(location)
-			data.UpdatedAt = &updated
+		post := &index.Posts[i]
+		published := post.Data.PublishedAt.In(location)
+		post.Archive = ArchiveMonth{Year: published.Format("2006"), Month: published.Format("01")}
+		post.Data.PublishedAt = post.Data.PublishedAt.UTC()
+		if post.Data.UpdatedAt != nil {
+			updated := post.Data.UpdatedAt.UTC()
+			post.Data.UpdatedAt = &updated
 		}
 	}
 }

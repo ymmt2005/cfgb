@@ -347,6 +347,7 @@ test(
           year: "2026",
           articleKey: c.name,
           locale: "en",
+          archive: { year: "2026", month: "09" },
           data: {
             title: c.name,
             slug: c.name,
@@ -404,7 +405,7 @@ test(
         title: "Pattern review",
         baseUrl: "https://example.invalid",
         defaultLocale: "en",
-        timezone: "UTC",
+
         locales: { en: { label: "English" } },
         contentRoot: content,
         topicsFile: path.join(work, "topics.yaml"),
@@ -447,7 +448,10 @@ test(
         n.nodeName === "#text"
           ? n.value
           : (n.childNodes ?? []).map(textOf).join("");
-      assert.ok(existsSync(path.join(work, "renderer", ".astro", "vite")), "Vite cache belongs to this workspace");
+      assert.ok(
+        existsSync(path.join(work, "renderer", ".astro", "vite")),
+        "Vite cache belongs to this workspace",
+      );
       const dist = path.join(renderer, "dist");
       function checkPage(route, checks, scope = "content") {
         const html = readFileSync(path.join(dist, route, "index.html"), "utf8");

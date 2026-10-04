@@ -85,10 +85,15 @@ valid. Monthly/topic pages exist only where that locale has matching articles.
 Default lists are unpaginated in v1. Latest = descending publication instant,
 then ascending article key and full year/group identity as deterministic tie
 breaks. `updatedAt` never
-reorders publication feeds. Go converts publication/update timestamps to the site timezone before emitting
-renderer metadata. Archive year/month and visible dates read that RFC3339 calendar
-date without a second timezone conversion in JavaScript. Feeds, structured data
-and ordering keep the same publication instant.
+reorders publication feeds. `site.timezone` is used only for monthly archive
+classification: Go derives each article's archive year/month from its publication
+instant and passes these fields separately from UTC publication/update timestamps.
+Article lists, homes and article pages initially show the UTC date. JavaScript
+uses the reader's browser timezone to update date text in the existing language
+format; without JavaScript the UTC fallback remains. Generated `datetime`,
+JSON-LD, Pagefind publication metadata and RSS retain UTC instants. Archive page
+membership and links remain fixed even when a reader's visible date falls in a
+different month. Directory names do not determine archive membership.
 
 An article's URL never depends on directory year, title, or date. Build a single
 route registry before rendering. Aliases are origin-relative paths with a trailing
@@ -214,7 +219,7 @@ may load the small global theme controller; no Mermaid/Pagefind there.
 Run Pagefind Extended on built output. Each page has correct `<html lang>`;
 load search only at `/<locale>/search/`, and reinitialize when locale changes.
 Use `data-pagefind-body` on the article title, summary, and Markdown body, with
-metadata for title, summary, publication date and topics; filters use stable topic IDs and site-local year.
+metadata for title, summary, publication date and topics; filters use stable topic IDs and the archive-timezone publication year.
 The publication timestamp is the `datetime` attribute of its `time` element,
 recorded as `published[datetime]`, not as a bracketed literal value.
 Pages that are not articles, including generated 404 pages, carry

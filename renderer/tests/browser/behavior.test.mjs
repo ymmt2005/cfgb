@@ -15,6 +15,87 @@ describe(
       await site?.close();
     });
 
+    for (const [timezoneId, ja, en] of [
+      ["Asia/Tokyo", "2026年10月1日", "1 Oct 2026"],
+      ["America/Los_Angeles", "2026年9月30日", "30 Sept 2026"],
+      ["Asia/Kathmandu", "2026年9月30日", "30 Sept 2026"],
+    ]) {
+      test(`reader dates use ${timezoneId} while archive links and machine timestamps stay fixed`, async () => {
+        await withPage(site, { timezoneId }, async (page) => {
+          for (const [locale, date] of [
+            ["ja", ja],
+            ["en", en],
+          ]) {
+            for (const route of [
+              `/${locale}/posts/browser/`,
+              `/${locale}/`,
+              `/${locale}/archive/2026/10/`,
+            ]) {
+              await page.goto(`${site.origin}${route}`);
+              const times = page.locator(
+                'time[data-cfgb-date][datetime="2026-09-30T16:30:00Z"]',
+              );
+              await page.waitForFunction(
+                ({ date, locale }) =>
+                  document.querySelector(
+                    `time[data-cfgb-date="${locale}"][datetime="2026-09-30T16:30:00Z"]`,
+                  )?.textContent === date,
+                { date, locale },
+              );
+              assert.ok((await times.count()) > 0);
+              for (const element of await times.all()) {
+                assert.equal(await element.textContent(), date);
+                assert.equal(
+                  await element.locator("..").getAttribute("href"),
+                  `/${locale}/archive/2026/10/`,
+                );
+                assert.equal(
+                  await element.getAttribute("datetime"),
+                  "2026-09-30T16:30:00Z",
+                );
+              }
+              if (route.includes("/posts/browser/")) {
+                const json = await page
+                  .locator('script[type="application/ld+json"]')
+                  .textContent();
+                assert.equal(
+                  JSON.parse(json).datePublished,
+                  "2026-09-30T16:30:00Z",
+                );
+              }
+            }
+          }
+        });
+      });
+    }
+
+    test("JavaScript-disabled readers keep UTC dates and the configured archive month", async () => {
+      await withPage(
+        site,
+        { javaScriptEnabled: false, timezoneId: "Asia/Tokyo" },
+        async (page) => {
+          for (const [locale, date] of [
+            ["ja", "2026年9月30日"],
+            ["en", "30 Sept 2026"],
+          ]) {
+            for (const route of [`/${locale}/posts/browser/`, `/${locale}/`]) {
+              await page.goto(`${site.origin}${route}`);
+              const time = page
+                .locator(
+                  'time[data-cfgb-date][datetime="2026-09-30T16:30:00Z"]',
+                )
+                .first();
+              assert.equal(await time.textContent(), date);
+              assert.equal(
+                await time.locator("..").getAttribute("href"),
+                `/${locale}/archive/2026/10/`,
+              );
+            }
+          }
+        },
+      );
+    });
+
     test("aside ID namespaces preserve native popover and dialog targets without JavaScript", async () => {
       await withPage(site, { javaScriptEnabled: false }, async (page) => {
         await page.goto(`${site.origin}/en/`);
