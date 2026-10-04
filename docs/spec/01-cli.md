@@ -12,8 +12,10 @@ when the selected configuration is an in-repository symlink. Decode configuratio
 YAML directly into the Go configuration struct with unknown-field rejection.
 Use the YAML decoder's document/tag behavior; do not impose a separate AST or
 JSON Schema gate on configuration loading. Reject out-of-root paths and symlink
-escapes. Article metadata follows the content validation contract; timestamp
-values are preserved as strings and content accepts UTF-8 without BOM. Hash normalization follows
+escapes. Article front matter likewise decodes directly into its Go metadata struct,
+with Go time fields. YAML-library behavior supplies conversions and errors;
+loaders add no AST/tag/document or mandatory JSON Schema gate. The line reader
+isolates the front-matter block and preserves article body bytes. Hash normalization follows
 the domain contract: [AI summary input](05-ai.md#input-and-output-hashes) normalizes
 body newlines; [migration source/target hashes](06-migration.md#assets-and-restart-safety)
 use exact content bytes as specified there. Do not normalize artifact output bytes.

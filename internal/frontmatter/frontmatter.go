@@ -16,8 +16,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/goccy/go-yaml"
-	"github.com/goccy/go-yaml/parser"
-	"github.com/ymmt2005/cfgb/schemas"
 )
 
 // ValidationError identifies invalid source content without disguising I/O failures.
@@ -34,19 +32,30 @@ func invalid(format string, args ...any) error {
 	return &ValidationError{Code: "E_SCHEMA", Err: fmt.Errorf(format, args...)}
 }
 
-var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 var articleKeyPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+
+// Metadata is the article data decoded directly from its YAML front matter.
+type Metadata struct {
+	Title       string     `yaml:"title" json:"title"`
+	Slug        string     `yaml:"slug" json:"slug"`
+	PublishedAt time.Time  `yaml:"publishedAt" json:"publishedAt"`
+	UpdatedAt   *time.Time `yaml:"updatedAt" json:"updatedAt,omitempty"`
+	Topics      []string   `yaml:"topics" json:"topics,omitempty"`
+	Summary     string     `yaml:"summary" json:"summary,omitempty"`
+	OGImage     string     `yaml:"ogImage" json:"ogImage,omitempty"`
+	Aliases     []string   `yaml:"aliases" json:"aliases,omitempty"`
+}
 
 // Post is one localized article after front matter has been removed.
 type Post struct {
-	ID         string         `json:"id"`
-	File       string         `json:"file"`
-	Body       string         `json:"body"`
-	Group      string         `json:"group"`
-	Year       string         `json:"year"`
-	ArticleKey string         `json:"articleKey"`
-	Locale     string         `json:"locale"`
-	Data       map[string]any `json:"data"`
+	ID         string   `json:"id"`
+	File       string   `json:"file"`
+	Body       string   `json:"body"`
+	Group      string   `json:"group"`
+	Year       string   `json:"year"`
+	ArticleKey string   `json:"articleKey"`
+	Locale     string   `json:"locale"`
+	Data       Metadata `json:"data"`
 }
 
 // Prose is a home, about, or aside file. v1 keeps the whole file as the body.
@@ -71,9 +80,6 @@ type Index struct {
 // delimiter the entire input is the body.
 func Split(r io.Reader) (front []byte, body []byte, found bool, err error) {
 	br := bufio.NewReader(r)
-	if err := rejectBOM(br); err != nil {
-		return nil, nil, false, err
-	}
 	content, raw, err := readLine(br)
 	if err == io.EOF && len(raw) == 0 {
 		return nil, nil, false, nil
@@ -81,7 +87,7 @@ func Split(r io.Reader) (front []byte, body []byte, found bool, err error) {
 	if err != nil && err != io.EOF {
 		return nil, nil, false, err
 	}
-	if content != "---" {
+	if strings.TrimPrefix(content, "\ufeff") != "---" {
 		rest, readErr := io.ReadAll(br)
 		if readErr != nil {
 			return nil, nil, false, readErr
@@ -112,114 +118,27 @@ func Split(r io.Reader) (front []byte, body []byte, found bool, err error) {
 	}
 }
 
-// Document decodes one YAML document. Timestamps and other scalars keep the
-// types produced for a generic value, and strings stay strings.
-func Document(raw []byte) (any, error) {
-	if !utf8.Valid(raw) {
-		return nil, invalid("YAML must be valid UTF-8")
-	}
-	if bytes.HasPrefix(raw, utf8BOM) {
-		return nil, invalid("UTF-8 BOM is not allowed")
-	}
-	parsed, err := parser.ParseBytes(raw, 0)
-	if err != nil {
-		return nil, invalid("YAML: %w", err)
-	}
-	if len(parsed.Docs) == 0 || len(parsed.Docs) == 1 && parsed.Docs[0].Body == nil {
-		return nil, invalid("YAML document is empty")
-	}
-	if len(parsed.Docs) != 1 {
-		return nil, invalid("YAML document must be a single document")
-	}
-	var doc any
-	if err := yaml.NodeToValue(parsed.Docs[0].Body, &doc); err != nil {
-		return nil, invalid("YAML: %w", err)
-	}
-	return doc, nil
-}
-
-// ArticleData converts a decoded mapping into article metadata.
-// A string where an array is required is an error. Missing values are not
-// replaced with empty strings or empty arrays.
-func ArticleData(doc any) (map[string]any, error) {
-	mapping, ok := doc.(map[string]any)
-	if !ok || mapping == nil {
-		return nil, invalid("front matter must be a mapping")
-	}
-	if err := schemas.ValidateArticle(mapping); err != nil {
-		return nil, invalid("article schema: %w", err)
-	}
-	// Schema validation happens before projection so fields cannot disappear
-	// silently. Keep the array representation expected by Go consumers.
-	data := make(map[string]any, len(mapping))
-	for key, value := range mapping {
-		if key == "topics" || key == "aliases" {
-			if strings, ok := value.([]string); ok {
-				data[key] = append([]string{}, strings...)
-			} else {
-				items := value.([]any)
-				strings := make([]string, len(items))
-				for i, item := range items {
-					strings[i] = item.(string)
-				}
-				data[key] = strings
-			}
-		} else {
-			data[key] = value
-		}
-	}
-	return data, nil
-}
-
-// ReadArticle splits a required article and decodes only its front-matter bytes.
-func ReadArticle(r io.Reader) (map[string]any, []byte, error) {
+// ReadArticle splits an article and decodes only its front-matter bytes.
+func ReadArticle(r io.Reader) (Metadata, []byte, error) {
+	var data Metadata
 	front, body, found, err := Split(r)
 	if err != nil {
-		return nil, nil, err
+		return data, nil, err
 	}
 	if !found {
-		return nil, nil, invalid("article front matter is required")
+		return data, nil, invalid("article front matter is required")
 	}
-	if !utf8.Valid(body) {
-		return nil, nil, invalid("Markdown body must be valid UTF-8")
-	}
-	doc, err := Document(front)
-	if err != nil {
-		return nil, nil, err
-	}
-	data, err := ArticleData(doc)
-	if err != nil {
-		return nil, nil, err
+	if err := yaml.UnmarshalWithOptions(front, &data, yaml.DisallowUnknownField()); err != nil {
+		return data, nil, invalid("front matter: %w", err)
 	}
 	return data, body, nil
 }
 
-// Topics decodes a topics.yaml document. Values that are not locale mappings
-// are errors.
+// Topics decodes topics.yaml directly into its typed topic/language/label map.
 func Topics(raw []byte) (map[string]map[string]string, error) {
-	doc, err := Document(raw)
-	if err != nil {
-		return nil, err
-	}
-	mapping, ok := doc.(map[string]any)
-	if !ok || mapping == nil {
-		return nil, invalid("topics.yaml must be a mapping")
-	}
-	topics := make(map[string]map[string]string, len(mapping))
-	for key, value := range mapping {
-		labels, ok := value.(map[string]any)
-		if !ok || labels == nil {
-			return nil, invalid("topic %s must be a mapping", key)
-		}
-		converted := make(map[string]string, len(labels))
-		for locale, label := range labels {
-			text, ok := label.(string)
-			if !ok {
-				return nil, invalid("topic %s label %s must be a string", key, locale)
-			}
-			converted[locale] = text
-		}
-		topics[key] = converted
+	var topics map[string]map[string]string
+	if err := yaml.Unmarshal(raw, &topics); err != nil {
+		return nil, invalid("topics.yaml: %w", err)
 	}
 	return topics, nil
 }
@@ -307,22 +226,16 @@ func collectPosts(contentRoot string, root *os.Root, locales []string) (result [
 		}
 	}
 	seen := map[string]string{}
-	published := make(map[string]time.Time, len(posts))
 	for _, post := range posts {
-		slug := post.Data["slug"].(string) // Required string after article schema validation.
+		slug := post.Data.Slug
 		id := post.Locale + ":" + slug
 		if previous, ok := seen[id]; ok {
 			return nil, &ValidationError{Code: "E_SLUG_DUPLICATE", Err: fmt.Errorf("duplicate slug %s in %s (%s and %s)", slug, post.Locale, previous, post.ID)}
 		}
 		seen[id] = post.ID
-		date, err := time.Parse(time.RFC3339, post.Data["publishedAt"].(string))
-		if err != nil {
-			return nil, invalid("%s publishedAt: %w", post.ID, err)
-		}
-		published[post.ID] = date
 	}
 	sort.Slice(posts, func(i, j int) bool {
-		left, right := published[posts[i].ID], published[posts[j].ID]
+		left, right := posts[i].Data.PublishedAt, posts[j].Data.PublishedAt
 		if !left.Equal(right) {
 			return left.After(right)
 		}
@@ -406,7 +319,7 @@ func collectProse(contentRoot string, root *os.Root, locales []string) ([]Prose,
 			if !utf8.Valid(body) {
 				return nil, invalid("%s: Markdown must be valid UTF-8", name)
 			}
-			if bytes.HasPrefix(body, utf8BOM) {
+			if bytes.HasPrefix(body, []byte("\ufeff")) {
 				return nil, invalid("%s: UTF-8 BOM is not allowed", name)
 			}
 			prose = append(prose, Prose{
@@ -423,17 +336,6 @@ func collectProse(contentRoot string, root *os.Root, locales []string) ([]Prose,
 		prose = []Prose{}
 	}
 	return prose, nil
-}
-
-func rejectBOM(br *bufio.Reader) error {
-	prefix, err := br.Peek(len(utf8BOM))
-	if err != nil && err != io.EOF {
-		return err
-	}
-	if bytes.HasPrefix(prefix, utf8BOM) {
-		return invalid("UTF-8 BOM is not allowed")
-	}
-	return nil
 }
 
 func readLine(br *bufio.Reader) (string, []byte, error) {

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSplitPreservesScalarsArraysAndBody(t *testing.T) {
@@ -16,8 +17,8 @@ func TestSplitPreservesScalarsArraysAndBody(t *testing.T) {
 		"aliases: [\"/ja/posts/old/\"]\n"+
 		"---\n"+
 		"body\n")
-	assertStrings(t, data["topics"], "protobuf", "oss")
-	assertStrings(t, data["aliases"], "/ja/posts/old/")
+	assertStrings(t, data.Topics, "protobuf", "oss")
+	assertStrings(t, data.Aliases, "/ja/posts/old/")
 	if string(body) != "body\n" {
 		t.Fatalf("body = %q", body)
 	}
@@ -29,8 +30,8 @@ func TestSplitPreservesScalarsArraysAndBody(t *testing.T) {
 		"aliases:\n"+
 		"- /ja/posts/old-protobuf-guide/\n"+
 		"---\n")
-	assertStrings(t, data["topics"], "protobuf", "oss")
-	assertStrings(t, data["aliases"], "/ja/posts/old-protobuf-guide/")
+	assertStrings(t, data.Topics, "protobuf", "oss")
+	assertStrings(t, data.Aliases, "/ja/posts/old-protobuf-guide/")
 	if len(body) != 0 {
 		t.Fatalf("body = %q", body)
 	}
@@ -41,7 +42,7 @@ func TestSplitPreservesScalarsArraysAndBody(t *testing.T) {
 		"  - oss\n"+
 		"---\n"+
 		"kept\n")
-	assertStrings(t, data["topics"], "protobuf", "oss")
+	assertStrings(t, data.Topics, "protobuf", "oss")
 	if string(body) != "kept\n" {
 		t.Fatalf("body = %q", body)
 	}
@@ -51,8 +52,8 @@ func TestSplitPreservesScalarsArraysAndBody(t *testing.T) {
 		"  hello\n"+
 		"  world\n"+
 		"---\n")
-	if data["summary"] != "hello world\n" {
-		t.Fatalf("folded = %q", data["summary"])
+	if data.Summary != "hello world\n" {
+		t.Fatalf("folded = %q", data.Summary)
 	}
 
 	data = decodedFront(t, ""+
@@ -60,25 +61,25 @@ func TestSplitPreservesScalarsArraysAndBody(t *testing.T) {
 		"  hello\n"+
 		"  world\n"+
 		"---\n")
-	if data["summary"] != "hello\nworld\n" {
-		t.Fatalf("literal = %q", data["summary"])
+	if data.Summary != "hello\nworld\n" {
+		t.Fatalf("literal = %q", data.Summary)
 	}
 
 	data, _ = article(t, ""+
 		"title: \"say \\\"hi\\\"\"\n"+
 		"---\n")
-	if data["title"] != "say \"hi\"" {
-		t.Fatalf("title = %q", data["title"])
+	if data.Title != "say \"hi\"" {
+		t.Fatalf("title = %q", data.Title)
 	}
-	if published, ok := data["publishedAt"].(string); !ok || published != "2026-01-02T03:04:05Z" {
-		t.Fatalf("publishedAt = %#v", data["publishedAt"])
+	if data.PublishedAt.Format(time.RFC3339) != "2026-01-02T03:04:05Z" {
+		t.Fatalf("publishedAt = %#v", data.PublishedAt)
 	}
 }
 
 func TestSplitLineEndingsAndDelimiters(t *testing.T) {
 	crlf := "---\r\ntitle: T\r\nslug: t\r\npublishedAt: '2026-01-02T03:04:05Z'\r\ntopics:\r\n- protobuf\r\n---\r\nbody\r\n"
 	data, body := mustArticle(t, crlf)
-	assertStrings(t, data["topics"], "protobuf")
+	assertStrings(t, data.Topics, "protobuf")
 	if !bytes.Equal(body, []byte("body\r\n")) {
 		t.Fatalf("body = %q", body)
 	}
@@ -90,8 +91,8 @@ func TestSplitLineEndingsAndDelimiters(t *testing.T) {
 		"  after\n"+
 		"---\n"+
 		"BODY\n")
-	if data["summary"] != "before\n---\nafter\n" {
-		t.Fatalf("summary = %q", data["summary"])
+	if data.Summary != "before\n---\nafter\n" {
+		t.Fatalf("summary = %q", data.Summary)
 	}
 	_, body, _, err := Split(strings.NewReader("---\n" + required + "summary: |\n  before\n  ---\n  after\n---\nBODY\n"))
 	if err != nil || string(body) != "BODY\n" {
@@ -123,8 +124,8 @@ func TestSplitLineEndingsAndDelimiters(t *testing.T) {
 	if err != nil || found || string(proseBody) != prose {
 		t.Fatalf("prose found=%v err=%v body=%q", found, err, proseBody)
 	}
-	if _, _, _, err := Split(strings.NewReader("\ufeff---\n")); err == nil || !strings.Contains(err.Error(), "BOM") {
-		t.Fatalf("bom err = %v", err)
+	if _, _, found, err := Split(strings.NewReader("\ufeff---\n" + required + "---\nBody\n")); err != nil || !found {
+		t.Fatalf("BOM-prefixed delimiter = %v, %v", found, err)
 	}
 
 	spaced := "---\n" + required + "--- \nstill\n----\nalso\n---\nbody\n"
@@ -140,35 +141,22 @@ func TestSplitLineEndingsAndDelimiters(t *testing.T) {
 	}
 }
 
-func TestArticleDataDoesNotCoerce(t *testing.T) {
-	doc, err := Document([]byte(identity + "topics: protobuf\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	mapping := doc.(map[string]any)
-	if _, ok := mapping["topics"].(string); !ok {
-		t.Fatalf("topics = %#v", mapping["topics"])
-	}
-	if _, err := ArticleData(doc); err == nil || !strings.Contains(err.Error(), "topics") {
-		t.Fatalf("topics err = %v", err)
-	}
-	cases := []string{
-		identity + "topics: []\n",
-		identity + "topics: [protobuf]\naliases: /ja/posts/old/\n",
-		"title: 1\nslug: t\npublishedAt: '2026-01-02T03:04:05Z'\ntopics: [protobuf]\n",
-		identity + "topics: [protobuf]\nsummary:\n",
-	}
-	for _, raw := range cases {
-		doc, err := Document([]byte(raw))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := ArticleData(doc); err == nil {
-			t.Fatalf("accepted %q", raw)
+func TestArticleUsesTypedDecoder(t *testing.T) {
+	for _, fields := range []string{
+		"topics: protobuf\n", "aliases: /ja/posts/old/\n", "title: [not, a, string]\n",
+	} {
+		_, _, err := ReadArticle(strings.NewReader("---\n" + fields + "---\nBody\n"))
+		if err == nil {
+			t.Fatalf("incompatible Go field type accepted: %q", fields)
 		}
 	}
-	if _, err := Document([]byte("a: 1\na: 2\n")); err == nil {
-		t.Fatal("duplicate key was accepted")
+	for _, fields := range []string{"", "title: 1\n", "topics: []\n", "summary: null\n"} {
+		if _, _, err := ReadArticle(strings.NewReader("---\n" + fields + "---\nBody\n")); err != nil {
+			t.Fatalf("decodable Go fields rejected: %q: %v", fields, err)
+		}
+	}
+	if _, _, err := ReadArticle(strings.NewReader("---\ntitle: first\ntitle: second\n---\n")); err == nil {
+		t.Fatal("YAML decoder's duplicate-key error was lost")
 	}
 	if _, _, err := ReadArticle(strings.NewReader("---\ntitle: [unterminated\n---\n")); err == nil {
 		t.Fatal("malformed YAML was accepted")
@@ -208,12 +196,12 @@ func TestCollectAgreesOnMetadata(t *testing.T) {
 		t.Fatalf("posts = %#v", index.Posts)
 	}
 	post := index.Posts[0]
-	if post.Data["slug"] != "protobuf-schema-guide" || post.ID != "posts/2026/2026-09-19-protobuf-guide/ja" {
+	if post.Data.Slug != "protobuf-schema-guide" || post.ID != "posts/2026/2026-09-19-protobuf-guide/ja" {
 		t.Fatalf("post = %#v", post)
 	}
-	aliases, _ := post.Data["aliases"].([]string)
+	aliases := post.Data.Aliases
 	if len(aliases) != 1 || aliases[0] != "/ja/posts/old-protobuf-guide/" {
-		t.Fatalf("aliases = %#v", post.Data["aliases"])
+		t.Fatalf("aliases = %#v", post.Data.Aliases)
 	}
 	if post.Body != "## Schema\n\n---\n\n```\n---\n```\n" {
 		t.Fatalf("body = %q", post.Body)
@@ -238,14 +226,14 @@ func TestArticleRejectsUnknownFields(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 			_, _, err := ReadArticle(strings.NewReader("---\n" + required + key + ": value\n---\nBody\n"))
-			if err == nil || !strings.Contains(err.Error(), "additional") || !strings.Contains(err.Error(), key) {
+			if err == nil || !strings.Contains(err.Error(), "unknown") || !strings.Contains(err.Error(), key) {
 				t.Fatalf("unknown field %s: %v", key, err)
 			}
 		})
 	}
 	data, body, err := ReadArticle(strings.NewReader("---\n" + required +
 		"updatedAt: '2026-01-03T03:04:05Z'\nsummary: Summary\nogImage: ./assets/picture.png\naliases: [/ja/posts/old/]\n---\nBody\n---\n"))
-	if err != nil || len(data) != 8 || string(body) != "Body\n---\n" {
+	if err != nil || data.UpdatedAt == nil || data.Summary != "Summary" || data.OGImage != "./assets/picture.png" || len(data.Aliases) != 1 || string(body) != "Body\n---\n" {
 		t.Fatalf("supported fields/body = %#v, %q, %v", data, body, err)
 	}
 }
@@ -334,7 +322,7 @@ func TestCollectKeepsSharedAssetsAndExcludesNonPosts(t *testing.T) {
 	}
 }
 
-func article(t *testing.T, fields string) (map[string]any, []byte) {
+func article(t *testing.T, fields string) (Metadata, []byte) {
 	t.Helper()
 	raw := "---\n"
 	if !strings.Contains(fields, "title:") {
@@ -352,7 +340,7 @@ func article(t *testing.T, fields string) (map[string]any, []byte) {
 	return mustArticle(t, raw+fields)
 }
 
-func mustArticle(t *testing.T, raw string) (map[string]any, []byte) {
+func mustArticle(t *testing.T, raw string) (Metadata, []byte) {
 	t.Helper()
 	data, body, err := ReadArticle(strings.NewReader(raw))
 	if err != nil {
@@ -361,12 +349,8 @@ func mustArticle(t *testing.T, raw string) (map[string]any, []byte) {
 	return data, body
 }
 
-func assertStrings(t *testing.T, value any, want ...string) {
+func assertStrings(t *testing.T, got []string, want ...string) {
 	t.Helper()
-	got, ok := value.([]string)
-	if !ok {
-		t.Fatalf("got %#v", value)
-	}
 	if len(got) != len(want) {
 		t.Fatalf("got %q want %q", got, want)
 	}
@@ -388,58 +372,24 @@ func (c chunkReader) Read(p []byte) (int, error) {
 	return c.r.Read(p[:1])
 }
 
-// YAML scalar preservation is a parser contract; multiline summaries are
-// intentionally invalid articles and should not bypass their JSON Schema.
-func decodedFront(t *testing.T, tail string) map[string]any {
+// Folding/literal values are decoded into the same struct used by consumers.
+func decodedFront(t *testing.T, tail string) Metadata {
 	t.Helper()
-	front, _, _, err := Split(strings.NewReader("---\n" + identity + "topics: [protobuf]\n" + tail))
+	data, _, err := ReadArticle(strings.NewReader("---\n" + identity + "topics: [protobuf]\n" + tail))
 	if err != nil {
 		t.Fatal(err)
 	}
-	doc, err := Document(front)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return doc.(map[string]any)
+	return data
 }
 
-func TestArticleSchemaConstraints(t *testing.T) {
+func TestArticleDoesNotApplySchemaConstraints(t *testing.T) {
 	t.Parallel()
-	cases := []struct{ name, field, value string }{
-		{"slug traversal", "slug", "../outside"},
-		{"slug uppercase", "slug", "Bad"},
-		{"date no zone", "publishedAt", "2026-01-02T03:04:05"},
-		{"date impossible", "publishedAt", "2026-02-30T03:04:05Z"},
-		{"date invalid offset", "publishedAt", "2026-01-02T03:04:05+25:00"},
-		{"date malformed", "publishedAt", "tomorrow"},
-		{"topic syntax", "topics", "[bad_topic]"},
-		{"topic duplicate", "topics", "[protobuf, protobuf]"},
-		{"summary multiline", "summary", "|\n  first\n  second"},
-		{"og path syntax", "ogImage", "../outside.png"},
-		{"alias syntax", "aliases", "[relative/]"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			raw := required
-			if tc.field == "slug" {
-				raw = strings.Replace(raw, "slug: t", "slug: "+tc.value, 1)
-			} else if tc.field == "publishedAt" {
-				raw = strings.Replace(raw, "'2026-01-02T03:04:05Z'", "'"+tc.value+"'", 1)
-			} else if tc.field == "topics" {
-				raw = strings.Replace(raw, "topics: [protobuf]", "topics: "+tc.value, 1)
-			} else {
-				raw += tc.field + ": " + tc.value + "\n"
-			}
-			_, _, err := ReadArticle(strings.NewReader("---\n" + raw + "---\nBody\n"))
-			if err == nil || !strings.Contains(err.Error(), tc.field) {
-				t.Fatalf("accepted invalid %s: %v", tc.field, err)
-			}
-		})
-	}
-	// These are structural allowances; authoring/publish semantics are later.
-	for _, tail := range []string{"", "summary: ''\n", "aliases: [/en/old/, /en/old/]\n", "updatedAt: '2026-01-02T03:04:05.123456Z'\n", "ogImage: ./assets/x/../../outside.png\n"} {
-		if _, _, err := ReadArticle(strings.NewReader("---\n" + required + tail + "---\nBody\n")); err != nil {
-			t.Fatalf("structurally valid allowance %q: %v", tail, err)
+	for _, fields := range []string{
+		"slug: Bad\n", "slug: ../outside\n", "topics: [bad_topic, bad_topic]\n",
+		"summary: |\n  first\n  second\n", "ogImage: ../outside.png\n", "aliases: [relative/]\n",
+	} {
+		if _, _, err := ReadArticle(strings.NewReader("---\n" + fields + "---\nBody\n")); err != nil {
+			t.Fatalf("decodable metadata was schema-gated: %q: %v", fields, err)
 		}
 	}
 }

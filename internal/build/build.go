@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	cfgb "github.com/ymmt2005/cfgb"
 	"github.com/ymmt2005/cfgb/internal/config"
@@ -1049,39 +1050,34 @@ func manifestJSON(cfg *config.File, pins releasePins, tc toolchainCheck, workspa
 	return json.MarshalIndent(manifest, "", "  ")
 }
 
-func publicationSnapshot(index frontmatter.Index) []map[string]any {
-	pubs := make([]map[string]any, 0, len(index.Posts))
-	for _, post := range index.Posts {
-		item := map[string]any{
-			"articleKey":  post.ArticleKey,
-			"locale":      post.Locale,
-			"slug":        stringValue(post.Data["slug"]),
-			"publishedAt": stringValue(post.Data["publishedAt"]),
-		}
-		if summary, ok := post.Data["summary"].(string); ok {
-			item["summary"] = summary
-		}
-		if updated, ok := post.Data["updatedAt"].(string); ok {
-			item["updatedAt"] = updated
-		}
-		pubs = append(pubs, item)
-	}
-	sort.Slice(pubs, func(i, j int) bool {
-		leftKey, _ := pubs[i]["articleKey"].(string)
-		rightKey, _ := pubs[j]["articleKey"].(string)
-		if leftKey != rightKey {
-			return leftKey < rightKey
-		}
-		leftLocale, _ := pubs[i]["locale"].(string)
-		rightLocale, _ := pubs[j]["locale"].(string)
-		return leftLocale < rightLocale
-	})
-	return pubs
+type publicationRecord struct {
+	ArticleKey  string     `json:"articleKey"`
+	Locale      string     `json:"locale"`
+	Slug        string     `json:"slug"`
+	PublishedAt time.Time  `json:"publishedAt"`
+	Summary     string     `json:"summary,omitempty"`
+	UpdatedAt   *time.Time `json:"updatedAt,omitempty"`
 }
 
-func stringValue(value any) string {
-	text, _ := value.(string)
-	return text
+func publicationSnapshot(index frontmatter.Index) []publicationRecord {
+	pubs := make([]publicationRecord, 0, len(index.Posts))
+	for _, post := range index.Posts {
+		pubs = append(pubs, publicationRecord{
+			ArticleKey:  post.ArticleKey,
+			Locale:      post.Locale,
+			Slug:        post.Data.Slug,
+			PublishedAt: post.Data.PublishedAt,
+			Summary:     post.Data.Summary,
+			UpdatedAt:   post.Data.UpdatedAt,
+		})
+	}
+	sort.Slice(pubs, func(i, j int) bool {
+		if pubs[i].ArticleKey != pubs[j].ArticleKey {
+			return pubs[i].ArticleKey < pubs[j].ArticleKey
+		}
+		return pubs[i].Locale < pubs[j].Locale
+	})
+	return pubs
 }
 
 func gitState(repo, out string) (string, string, bool) {

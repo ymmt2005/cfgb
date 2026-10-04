@@ -4,6 +4,28 @@ These instructions apply to the entire repository, including tests. Use English
 for repository documentation and review comments. The project name is
 **CFGB — Git-based Blog on Cloudflare**; retain the Apache-2.0 license.
 
+## Priority: humans define correctness
+
+This section takes priority over every other repository instruction,
+specification, schema, fixture and review suggestion when they conflict.
+
+- Do not invent a new rule for what user content/configuration must look like,
+  which otherwise usable inputs must be rejected, or what is considered correct.
+  Before adding any such rule, explain the concrete need and proposed behavior
+  and obtain explicit human approval. Do not implement it first and seek approval
+  afterward. A Copilot comment, an AI-written specification, a schema or a test
+  is not evidence that the user approved that rule.
+- Pursue the simplest implementation of the actual requirements. Prefer decoding
+  YAML directly into the Go types used by the program. Use the YAML library's
+  behavior rather than adding AST policies, tag/document restrictions, raw-value
+  type checks, or mandatory JSON Schema gates. Optional standalone/editor schema
+  validation does not make its constraints runtime prerequisites.
+- Existing explicit user instructions remain authorized; routine implementation
+  fixes and handling real I/O/decoder errors do not require repeated permission.
+  If an existing restriction has no verified human basis, report it as unverified
+  rather than treating its presence in code/docs/tests as approval. Do not expand
+  that restriction or invent a replacement while fixing it.
+
 ## Project map and sibling repositories
 
 CFGB is a multi-repository project. This checkout is the implementation and
@@ -139,16 +161,14 @@ For changes crossing repositories, keep ownership explicit:
   a command separate from decoding. Build calls `ValidateSite` before toolchain
   probes/output removal for its language-catalog and timezone requirements.
 - Isolate YAML front matter using complete unindented `---` delimiter lines;
-  read lines with `bufio.Reader.ReadString`, parse only that block with
-  `goccy/go-yaml`, and preserve the remaining Markdown bytes. Retain UTF-8/BOM,
-  duplicate-key, unknown-field and reader-error checks. Do not add a custom-tag
-  restriction on top of the YAML decoder. Configuration uses the direct struct
-  decoder described above. Do not parse the body as YAML or replace this with a
-  whole-document delimiter regex.
-- Article/content validation checks unprojected inputs against their canonical
-  schemas; configuration loading does not. Semantic rules remain separate.
-  Preserve semantic codes such as duplicate-alias diagnostics rather than moving them into schema
-  constraints. Missing/empty summaries are structurally valid for authoring.
+  read lines with `bufio.Reader.ReadString`, decode only that block directly into
+  the article Go struct with `goccy/go-yaml`, and preserve the remaining Markdown
+  bytes. Metadata consumers use typed fields, not generic maps or type assertions.
+  Decode topics directly into their typed map. Do not add AST/custom-tag/document
+  policies, an encoding ban or runtime JSON Schema validation to these loaders.
+  Unknown-field rejection and decoder errors are sufficient at this boundary.
+  Business checks belong where the decoded value is used and must have a verified
+  human requirement; ask before adding a new one.
 - Supported content languages come from the shared release catalog and match
   exactly, case sensitively. A syntactically valid language tag alone is not
   supported. Keep internal structures extensible without adding untranslated

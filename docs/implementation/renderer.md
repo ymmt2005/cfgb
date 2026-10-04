@@ -7,18 +7,25 @@ collection ID or an absolute filesystem path.
 
 ## Input boundary
 
-Go isolates the front-matter block, decodes that single YAML document, and
-validates the original mapping against the embedded `article.schema.json`,
-including asserted date-time formats. Only then does it project string arrays
-and pass the untouched Markdown body to Astro. The schema is the source of
-structural constraints; Astro's collection shape supplies types to templates.
-Invalid UTF-8 is rejected before converting source bytes to JSON strings. This
-covers the article body, prose pages, and YAML input; valid UTF-8 body bytes and
-line endings remain unchanged. YAML is parsed as exactly one document, including
-rejection of a trailing empty second document. Content failures carry a typed
-diagnostic (`E_SCHEMA`, `E_SLUG_DUPLICATE`, or `E_TRANSLATION_GROUP`) and make
-`build` exit 1; reader/filesystem errors remain I/O failures with exit 3.
-Semantic validation remains a separate CLI milestone.
+Go isolates the front-matter block with a line reader and unmarshals it directly
+into `frontmatter.Metadata`. Its fields are strings, string slices and Go time
+values; all Go metadata consumers use those typed fields. Topics decode directly
+into a typed topic/language/label map. The untouched Markdown body goes to Astro.
+There is no YAML AST/map projection, document/tag policy or mandatory JSON Schema
+validation in either loader. The optional article schema is a standalone/editor
+aid, not the runtime definition of what a YAML loader may accept. The Astro shape
+supplies collection types without adding nonempty/minimum-length gates.
+
+The opening/closing `---` lines identify the front-matter block, including a BOM
+before the opening delimiter. The YAML library handles decoding, conversions
+and syntax errors. Article body bytes are preserved without an added encoding
+check. Content failures carry a typed diagnostic (`E_SCHEMA`,
+`E_SLUG_DUPLICATE`, or `E_TRANSLATION_GROUP`) and make `build` exit 1;
+reader/filesystem errors remain I/O failures with exit 3. Existing prose encoding
+and other unverified restrictions are listed in the
+[PR #3 policy audit](../reviews/pr-3-policy-audit.md); they are not evidence of
+human approval. New correctness rules require explicit human confirmation under
+`AGENTS.md`.
 
 The normalized index owns group identity, locale, source filename, and article
 route. `content.ts` joins collection entries to that index. `content-urls.mjs`
@@ -101,9 +108,9 @@ selector from authored anchors. Ordinary heading IDs such as `constructor` and
 ## Tests and scope
 
 Fast tests cover URL resolution and rejection, image staging, HTML attribute
-edits, ID associations, locale mapping, and theme/search helpers. Parser tests
-separate YAML fidelity from article structural validity. Schema regression
-cases cover both rejected inputs and authoring/semantic allowances.
+edits, ID associations, locale mapping, and theme/search helpers. Parser tests exercise the actual Go struct decoder, tagged/scalar/list values,
+reader errors and byte-preserved bodies. Optional schemas are separate from
+loading; tests must not turn their constraints into implicit runtime rules.
 
 Astro build tests inspect generated DOM, image dimensions and emitted files,
 article and asset destinations, heading targets, cached-card behavior, layout
@@ -114,7 +121,7 @@ Go CLI, embedded extraction, dependency installation, Astro, and Pagefind.
 
 `renderer/tests/browser/` builds a small actual site and serves its generated
 HTML and scripts with the generated security headers, then builds the real
-Pagefind index. Playwright runs 13 tests across two suites: the existing theme,
+Pagefind index. Playwright runs 15 tests: the existing theme,
 storage and scroll-observer cases plus pre-interaction theme paint, real Mermaid
 SVG rendering and native system-theme changes, invalid-diagram recovery, native
 Unicode clipboard copy, Japanese/English WASM search and result/fragment

@@ -20,7 +20,8 @@ export function loadSite() {
   const seen = new Set();
   for (const post of posts) {
     const id = `${post.locale}:${post.slug}`;
-    if (seen.has(id)) throw new Error(`duplicate slug ${post.slug} in ${post.locale}`);
+    if (seen.has(id))
+      throw new Error(`duplicate slug ${post.slug} in ${post.locale}`);
     seen.add(id);
   }
   posts.sort(comparePosts);
@@ -37,27 +38,13 @@ export function resetSiteCache() {
 
 function normalizePost(post) {
   const data = post.data;
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    throw new Error(`article metadata must be a mapping in ${post.file || post.id}`);
-  }
-  for (const key of ["title", "slug", "publishedAt"]) {
-    if (typeof data[key] !== "string" || !data[key]) {
-      throw new Error(`${key} is required in ${post.file || post.id}`);
-    }
-  }
-  if (!Array.isArray(data.topics) || data.topics.some((topic) => typeof topic !== "string")) {
-    throw new Error(`topics must be an array of strings in ${post.file || post.id}`);
-  }
-  if (data.aliases !== undefined && (!Array.isArray(data.aliases) || data.aliases.some((alias) => typeof alias !== "string"))) {
-    throw new Error(`aliases must be an array of strings in ${post.file || post.id}`);
-  }
   return {
     ...post,
     title: data.title,
     slug: data.slug,
     publishedAt: data.publishedAt,
     updatedAt: data.updatedAt || "",
-    topics: data.topics,
+    topics: data.topics || [],
     summary: data.summary || "",
     ogImage: data.ogImage || "",
     aliases: data.aliases || [],
@@ -180,16 +167,26 @@ function localeEntry(locale) {
 
 function assertConfiguredLocales(site) {
   const locales = site.locales;
-  if (!locales || typeof locales !== "object" || Array.isArray(locales) || Object.keys(locales).length === 0) {
+  if (
+    !locales ||
+    typeof locales !== "object" ||
+    Array.isArray(locales) ||
+    Object.keys(locales).length === 0
+  ) {
     throw new Error("locales must be a nonempty map");
   }
   for (const [locale, item] of Object.entries(locales)) {
-    if (!localeIdentifier.test(locale)) throw new Error(`locale ${locale} is not a path-safe language tag`);
-    if (!catalog.locales[locale]) throw new Error(`locale ${locale} is not supported`);
-    if (typeof item?.label !== "string" || !item.label.trim()) throw new Error(`locale ${locale} requires a nonempty label`);
+    if (!localeIdentifier.test(locale))
+      throw new Error(`locale ${locale} is not a path-safe language tag`);
+    if (!catalog.locales[locale])
+      throw new Error(`locale ${locale} is not supported`);
+    if (typeof item?.label !== "string" || !item.label.trim())
+      throw new Error(`locale ${locale} requires a nonempty label`);
   }
   if (!Object.hasOwn(locales, site.defaultLocale)) {
-    throw new Error(`defaultLocale ${site.defaultLocale} is not one of the configured locales`);
+    throw new Error(
+      `defaultLocale ${site.defaultLocale} is not one of the configured locales`,
+    );
   }
 }
 

@@ -127,7 +127,7 @@ from that root. The example repository retains a reserved non-routable origin.
 ## Schema inventory
 
 - `cfgb.schema.json`: optional standalone/editor validation of site configuration; not applied during configuration loading.
-- `article.schema.json`: article frontmatter structure; omitted/empty summary is structurally valid, with mode-specific semantic requirements.
+- `article.schema.json`: optional standalone/editor article guidance; not a front-matter loading gate. Omitted/empty summary is allowed; mode-specific semantic checks are separate.
 - `topics.schema.json`: localized topic master.
 - `sidecar.schema.json`: AI and import provenance per variant.
 - `linkcard.schema.json`: committed fetch metadata.

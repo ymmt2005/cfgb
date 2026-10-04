@@ -11,19 +11,9 @@ import (
 	"testing"
 )
 
-func TestReadArticleRejectsInvalidUTF8(t *testing.T) {
+func TestReadArticlePreservesBodyBytes(t *testing.T) {
 	t.Parallel()
-	for _, raw := range []string{
-		"---\n" + required + "---\nBody\xff\n",
-		"---\n" + strings.Replace(required, "title: T", "title: T\xff", 1) + "---\nBody\n",
-	} {
-		_, _, err := ReadArticle(strings.NewReader(raw))
-		assertValidationCode(t, err, "E_SCHEMA")
-		if !strings.Contains(err.Error(), "UTF-8") {
-			t.Fatal(err)
-		}
-	}
-	for _, body := range []string{"日本語 😀\r\n", "replacement character is valid: �\n", ""} {
+	for _, body := range []string{"Body\xff\n", "日本語 😀\r\n", "replacement character: �\n", ""} {
 		_, got, err := ReadArticle(strings.NewReader("---\n" + required + "---\n" + body))
 		if err != nil || !bytes.Equal(got, []byte(body)) {
 			t.Fatalf("body = %q, error = %v", got, err)
@@ -59,14 +49,14 @@ func TestCollectRejectsInvalidProseUTF8(t *testing.T) {
 func TestSourceValidationErrors(t *testing.T) {
 	t.Parallel()
 	for _, raw := range []string{
-		"no front matter\n", "---\ntitle: T\n", "\ufeff---\n" + required + "---\n",
+		"no front matter\n", "---\ntitle: T\n",
 		"---\n" + required + "title: duplicate\n---\n",
 		"---\ntitle: [unterminated\n---\n", "---\n" + required + "extra: unknown\n---\n",
 	} {
 		_, _, err := ReadArticle(strings.NewReader(raw))
 		assertValidationCode(t, err, "E_SCHEMA")
 	}
-	for _, raw := range []string{"notes: invalid\n", "notes:\n  ja: Label\xff\n", "notes:\n  ja: 3\n"} {
+	for _, raw := range []string{"notes: invalid\n", "notes: [invalid]\n"} {
 		_, err := Topics([]byte(raw))
 		assertValidationCode(t, err, "E_SCHEMA")
 	}
@@ -99,23 +89,28 @@ func assertValidationCode(t *testing.T, err error, want string) {
 	}
 }
 
-func TestDocumentRejectsExtraYAMLDocuments(t *testing.T) {
+func TestTopicsUsesDecoderDocumentBehavior(t *testing.T) {
 	t.Parallel()
-	for _, raw := range []string{"a: 1\n---\nb: 2\n", "a: 1\n---\n", "a: 1\n...\n---\n"} {
-		_, err := Document([]byte(raw))
-		assertValidationCode(t, err, "E_SCHEMA")
+	for _, raw := range []string{"notes: {ja: Label}\n---\nother: {ja: Ignored}\n", "notes: {ja: Label}\n---\n"} {
+		topics, err := Topics([]byte(raw))
+		if err != nil || topics["notes"]["ja"] != "Label" || len(topics) != 1 {
+			t.Fatalf("topics decoder = %v, %v", topics, err)
+		}
 	}
 }
 
 func TestArticlesAndTopicsDecodeTags(t *testing.T) {
 	t.Parallel()
-	front := strings.Replace(required, "title: T", "title: !custom T", 1)
-	data, body, err := ReadArticle(strings.NewReader("---\n" + front + "---\n!custom Example\n"))
-	if err != nil || data["title"] != "T" || string(body) != "!custom Example\n" {
+	front := strings.Replace(required, "title: T", "title: &title !custom T", 1) + "summary: *title\n"
+	data, body, err := ReadArticle(strings.NewReader("\ufeff---\n" + front + "---\n!custom Example\n"))
+	if err != nil || data.Title != "T" || data.Summary != "T" || string(body) != "!custom Example\n" {
 		t.Fatalf("decoded tag/body = %v, %q, %v", data, body, err)
 	}
 	if topics, err := Topics([]byte("protobuf: {ja: !custom PB}\n")); err != nil || topics["protobuf"]["ja"] != "PB" {
 		t.Fatalf("decoded topic tag = %v, %v", topics, err)
+	}
+	if topics, err := Topics([]byte("protobuf: {ja: 3}\n")); err != nil || topics["protobuf"]["ja"] != "3" {
+		t.Fatalf("native label conversion = %v, %v", topics, err)
 	}
 }
 

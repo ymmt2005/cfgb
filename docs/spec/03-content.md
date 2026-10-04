@@ -16,10 +16,20 @@ inside `assets/` remain shared assets, not article variants. Discovery excludes
 `build` isolates each article's front matter with a line reader and decodes only
 that block with `goccy/go-yaml`. The Markdown body, including a later `---` or
 fenced code, is unchanged. Home, about, and aside files have no front matter, so
-their entire contents stay the body. `topics.yaml` uses the same decoder. The
-renderer consumes those normalized records and does not parse YAML itself.
+their entire contents stay the body. `topics.yaml` decodes into its typed map.
+Article YAML unmarshals directly into the Go metadata struct; fields are strings,
+string slices and Go time values. Consumers use those fields, not generic maps.
+The YAML library supplies conversions and decoding errors; loaders add no AST,
+custom-tag/document restrictions or mandatory JSON Schema validation. Article
+body bytes are preserved. The renderer consumes serialized typed records and
+does not parse YAML itself.
 
-Frontmatter structure requires `title`, `slug`, `publishedAt`, `topics`.
+The following authoring/validation conventions describe the existing corpus and
+optional standalone/editor schema. They are not YAML-loader prerequisites.
+New runtime rejection rules require explicit human approval under `AGENTS.md`;
+see the [PR #3 policy audit](../reviews/pr-3-policy-audit.md) for unverified rules.
+
+The documented article structure includes `title`, `slug`, `publishedAt`, `topics`.
 `summary` is structurally optional and may be empty during authoring. Default
 validation and publication require a nonempty summary as a semantic rule.
 Optionally `updatedAt`, `ogImage`, `aliases`. No other keys.
@@ -80,7 +90,8 @@ slash; reject queries/fragments, encoded separators, dot segments, backslashes,
 using letters/digits/hyphens/underscores. Reject alias loops, duplicate aliases,
 canonical collisions, reserved routes and cross-locale aliases. Emit direct 301s
 to current canonical routes (no chains). Hatena URLs are provenance, not aliases.
-Alias array/item structure is checked by JSON Schema. Duplicate aliases within
+Alias array/item structure is documented by the optional standalone JSON Schema;
+the YAML loader decodes the Go slice directly. Duplicate aliases within
 one variant or across variants are semantic errors: `E_ALIAS_DUPLICATE`, exit 1,
 in default, authoring and publish validation. Do not reject duplicates as
 `E_SCHEMA`; structural alias type/path failures remain schema errors.

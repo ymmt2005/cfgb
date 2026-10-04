@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ymmt2005/cfgb/internal/config"
 	"github.com/ymmt2005/cfgb/internal/frontmatter"
@@ -271,23 +272,24 @@ func TestManifestRecordsOptionalDiagnostics(t *testing.T) {
 			t.Error(err)
 		}
 	})
+	updated := time.Date(2026, 9, 21, 0, 0, 0, 0, time.UTC)
 	index := frontmatter.Index{Posts: []frontmatter.Post{
 		{
 			ArticleKey: "2026-09-20-markdown-showcase",
 			Locale:     "ja",
-			Data: map[string]any{
-				"slug":        "markdown-showcase",
-				"publishedAt": "2026-09-20T00:00:00Z",
-				"summary":     "構文",
-				"updatedAt":   "2026-09-21T00:00:00Z",
+			Data: frontmatter.Metadata{
+				Slug:        "markdown-showcase",
+				PublishedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC),
+				Summary:     "構文",
+				UpdatedAt:   &updated,
 			},
 		},
 		{
 			ArticleKey: "2026-09-19-protobuf-guide",
 			Locale:     "en",
-			Data: map[string]any{
-				"slug":        "reading-protobuf-schemas",
-				"publishedAt": "2026-09-19T00:00:00Z",
+			Data: frontmatter.Metadata{
+				Slug:        "reading-protobuf-schemas",
+				PublishedAt: time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC),
 			},
 		},
 	}}

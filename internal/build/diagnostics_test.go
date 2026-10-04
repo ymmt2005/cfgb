@@ -14,7 +14,7 @@ import (
 
 func TestContentErrorClassification(t *testing.T) {
 	t.Parallel()
-	for _, raw := range []string{"missing front matter", "---\ntitle: [bad\n---\n", "---\ntitle: T\nslug: BAD\npublishedAt: '2026-01-02T00:00:00Z'\ntopics: [notes]\n---\n"} {
+	for _, raw := range []string{"missing front matter", "---\ntitle: [bad\n---\n"} {
 		_, _, err := frontmatter.ReadArticle(strings.NewReader(raw))
 		got := contentError(fmt.Errorf("article.md: %w", err))
 		if got.Code != 1 || !strings.Contains(got.Error(), "E_SCHEMA") || !strings.Contains(got.Error(), "article.md") {
@@ -56,7 +56,6 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 	}{
 		{"bad YAML", "posts/2026/example/ja.md", "---\ntitle: [bad\n---\n", "E_SCHEMA", 1},
 		{"unknown field", "posts/2026/example/ja.md", strings.Replace(article, "---\nBody", "summray: unknown\n---\nBody", 1), "E_SCHEMA", 1},
-		{"invalid UTF-8", "posts/2026/example/ja.md", article + "\xff", "E_SCHEMA", 1},
 		{"invalid prose", "home/ja.md", "Body\xff\n", "E_SCHEMA", 1},
 		{"disabled locale", "posts/2026/example/en.md", article, "E_TRANSLATION_GROUP", 1},
 		{"invalid article key", "posts/2026/Bad Key/ja.md", article, "E_TRANSLATION_GROUP", 1},
