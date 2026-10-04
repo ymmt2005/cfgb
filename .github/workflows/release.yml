@@ -82,8 +82,16 @@ jobs:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: gh release edit "$RELEASE_TAG" --repo ymmt2005/cfgb --draft=false --latest
       - name: Verify published release
-        if: steps.version.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
-        run: gh release verify "$RELEASE_TAG" --repo ymmt2005/cfgb
+        # GitHub generates the release attestation after publication. A rerun
+        # verifies the existing immutable release without publishing it again.
+        run: |
+          for attempt in $(seq 1 12); do
+            if gh release verify "$RELEASE_TAG" --repo ymmt2005/cfgb; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 12 ]; then sleep 10; fi
+          done
+          exit 1
