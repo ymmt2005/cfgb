@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/goccy/go-yaml"
-
 	"github.com/ymmt2005/cfgb/schemas"
 )
 
