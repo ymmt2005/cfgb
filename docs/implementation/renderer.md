@@ -176,7 +176,7 @@ positive conformance cases. Native paths continue to use Node's platform-aware
 
 This PR remains the renderer/build foundation. Full semantic validation,
 deploy/preview upload, and complete social image metadata are documented in
-`progress.md` as unfinished. They are not claims made by the current renderer.
+the remaining delivery/CLI specifications as unfinished. They are not claims made by the current renderer.
 
 ## Generated-site link checks
 
