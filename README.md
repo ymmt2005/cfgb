@@ -79,6 +79,21 @@ account resources, credentials or active deployment workflows are included.
 The executable currently implements `version` and `build`; later commands are
 documented design work.
 
+## Releasing
+
+`internal/version/version.go` is the source of truth for the CLI release version.
+Bump its `Version` string (for example, `v0.2.0`) in a PR. As in pbschema-lens,
+the release workflow runs on `main` and compares that value with the parent
+commit, assuming squash merges. An unchanged or development version skips
+release setup and publishing.
+
+For a version bump, the workflow tests the code, pushes the matching tag, and
+uses GoReleaser to build a draft. It checks the binary's reported version before
+publishing the immutable release and verifying its attestation. Rerun the same
+workflow run to retry a failed release; an existing published immutable release
+is verified without being rebuilt. Toolchain metadata reads the same Go version
+string. The workflow can also be started manually for its selected commit.
+
 ## License
 
 This project, including its documentation, schemas and prompt specifications,

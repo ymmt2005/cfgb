@@ -1,4 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readVersion } from "./release-version.mjs";
 
 const pkg = JSON.parse(readFileSync("renderer/package.json", "utf8"));
 const build = readFileSync("internal/build/build.go", "utf8");
@@ -13,7 +14,7 @@ writeFileSync(
   ".release/toolchain-requirements.json",
   JSON.stringify(
     {
-      cfgbVersion: readFileSync("VERSION", "utf8").trim(),
+      cfgbVersion: readVersion(),
       nodeRange: pkg.engines.node,
       npmMinimum: constant(build, "minimumNpmVersion"),
       pnpmMinimum: constant(build, "minimumPnpmVersion"),
