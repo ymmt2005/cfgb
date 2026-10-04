@@ -19,8 +19,7 @@ const { Content, headings } = await render(post);
 const counterparts = groupCounterparts(all, post.group);
 const aside = await renderedProse("aside", locale);
 const { site, topics } = loadSite();
-const other = Object.keys(site.locales).find((item) => item !== locale) || "";
-const untranslated = Boolean(other) && !Object.hasOwn(counterparts, other);
+const untranslated = Object.keys(site.locales).length > 1 && Object.keys(counterparts).length === 1;
 const month = post.archive;
 const jsonLd = {
   "@context": "https://schema.org",

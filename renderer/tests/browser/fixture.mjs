@@ -18,8 +18,17 @@ import { chromium } from "playwright";
 const rendererRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const code = 'const greeting = "こんにちは";\nconsole.log(greeting);';
 export const diagram = "flowchart TD\nBrowser --> Search";
+const languages = {
+  ja: { label: "日本語" },
+  en: { label: "English" },
+  "zh-Hans": { label: "简体中文" },
+  ko: { label: "한국어" },
+};
 
-export async function startSite({ basePath = "", static: staticSite = false } = {}) {
+export async function startSite({
+  basePath = "",
+  static: staticSite = false,
+} = {}) {
   const work = buildSite(basePath, staticSite);
   let browser, server;
   try {
@@ -46,7 +55,8 @@ export async function startSite({ basePath = "", static: staticSite = false } = 
         const pathname = decodeURIComponent(
           new URL(request.url, "http://localhost").pathname,
         );
-        if (!pathname.startsWith(`${basePath}/`)) throw new Error("outside hosting prefix");
+        if (!pathname.startsWith(`${basePath}/`))
+          throw new Error("outside hosting prefix");
         const route = pathname.slice(basePath.length);
         const relative = route.endsWith("/") ? `${route}index.html` : route;
         const file = path.resolve(dist, `.${relative}`);
@@ -165,17 +175,28 @@ function buildSite(basePath, staticSite) {
       '<img id="responsive-width" alt="Width image" srcset="./assets/responsive-1.svg 64w, ./assets/responsive-2.svg 128w" sizes="64px" width="64" height="32">',
       '<img id="responsive-data" alt="Data image" srcset="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2264%22%20height=%2232%22%3E%3C/svg%3E 1x, ./assets/responsive-2.svg 2x" width="64" height="32">',
     ].join("\n\n");
-    const posts = ["ja", "en"].map((locale) => ({
+    const posts = Object.keys(languages).map((locale) => ({
       id: `posts/2026/browser/${locale}`,
       file: path.join(content, "posts", "2026", "browser", `${locale}.md`),
-      body,
+      body:
+        body +
+        "\n\n" +
+        ({
+          "zh-Hans": "简体中文示例文章，支持语言切换。",
+          ko: "한국어 예제 글에서 언어 전환을 확인합니다.",
+        }[locale] || ""),
       group: "2026/browser",
       year: "2026",
       articleKey: "browser",
       locale,
       archive: { year: "2026", month: "10" },
       data: {
-        title: locale === "ja" ? "ブラウザの操作" : "Browser interactions",
+        title: {
+          ja: "ブラウザの操作",
+          en: "Browser interactions",
+          "zh-Hans": "浏览器交互",
+          ko: "브라우저 상호작용",
+        }[locale],
         slug: "browser",
         publishedAt: "2026-09-30T16:30:00Z",
         topics: ["notes"],
@@ -183,6 +204,25 @@ function buildSite(basePath, staticSite) {
         aliases: [`/${locale}/posts/old-browser/`],
       },
     }));
+    for (const locale of ["ja", "ko"]) {
+      posts.push({
+        id: `posts/2026/partial/${locale}`,
+        file: path.join(content, "posts", "2026", "partial", `${locale}.md`),
+        body: "## Partial translation\n\nAn article available in Japanese and Korean only.",
+        group: "2026/partial",
+        year: "2026",
+        articleKey: "partial",
+        locale,
+        archive: { year: "2026", month: "10" },
+        data: {
+          title: "Partial translation",
+          slug: `partial-${locale}`,
+          publishedAt: "2026-09-30T16:30:00Z",
+          topics: ["notes"],
+          summary: "Partial translation group.",
+        },
+      });
+    }
     posts.push({
       id: "posts/2026/diagram-error/en",
       file: path.join(content, "posts", "2026", "diagram-error", "en.md"),
@@ -238,7 +278,9 @@ function buildSite(basePath, staticSite) {
             body: asideBody,
           },
         ],
-        topics: { notes: { ja: "メモ", en: "Notes" } },
+        topics: {
+          notes: { ja: "メモ", en: "Notes", "zh-Hans": "笔记", ko: "메모" },
+        },
       }),
     );
     mkdirSync(path.join(work, "linkcards"));
@@ -251,7 +293,7 @@ function buildSite(basePath, staticSite) {
         static: staticSite,
         defaultLocale: "ja",
 
-        locales: { ja: { label: "日本語" }, en: { label: "English" } },
+        locales: languages,
         contentRoot: content,
         topicsFile: path.join(work, "topics.yaml"),
         linkcardsDir: path.join(work, "linkcards"),

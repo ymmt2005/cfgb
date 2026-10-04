@@ -205,8 +205,8 @@ test("prose pages publish local images and untranslated articles stay in their g
     assert.equal(jaArticle.includes("next=%2Fen%2Fposts%2Fshared%2F"), false);
     assert.match(enArticle, /href="\/__locale\?lang=ja&amp;next=%2Fja%2F"/);
     assert.equal(enArticle.includes("next=%2Fja%2Fposts%2Fshared%2F"), false);
-    assert.match(jaArticle, /このページの対訳はありません/);
-    assert.match(enArticle, /This page has no translation/);
+    assert.match(jaArticle, /この記事には他の言語の翻訳がありません/);
+    assert.match(enArticle, /This article has no translations/);
     assert.equal(jaArticle.includes("__ASTRO_IMAGE_"), false);
     assertProcessedImage(jaArticle, "Inline article", "64", "32", dist);
     assertProcessedImage(jaArticle, "Reference article", "64", "32", dist);

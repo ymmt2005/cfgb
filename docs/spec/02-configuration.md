@@ -95,7 +95,8 @@ change with the reader's timezone. `new` also uses UTC for timestamps/group name
 
 Supported content languages are exact, case-sensitive keys in
 `renderer/src/lib/locales.json`, shared by the CLI and renderer. This release's
-catalog contains `ja` and `en`. There is no separate runtime language-tag syntax
+catalog contains `ja`, `en`, `zh-Hans` (Simplified Chinese) and `ko` (Korean).
+There is no separate runtime language-tag syntax
 check: `pt-BR`, `EN`, `en-US`, and any other key absent from the catalog are
 unsupported. The optional identifier schema is editor guidance, not a build gate.
 UI copy, date presentation, and OpenGraph locale metadata live in that catalog.
@@ -104,8 +105,12 @@ label, and a default language absent from the configured keys; those remaining
 required-value policies are listed separately in the input-policy audit.
 Checks happen after decoding and before output removal or rendering. The renderer
 does not treat an unknown language as English. Adding a language means extending
-the catalog and providing its translations; the shipped pages retain the current
-two-language header.
+the catalog and providing its UI translations and date presentation. The header
+lists every configured language using its configured label, with the current
+language marked. Configuration keys remain exact; HTTP language negotiation is
+case-insensitive and can match regional browser preferences by language/script
+(for example `zh-CN` to `zh-Hans`, and `ko-KR` to `ko`). Traditional Chinese
+preferences do not match the Simplified Chinese language.
 
 Topic IDs match `[a-z0-9]+(-[a-z0-9]+)*`. Every topic must have exactly the configured
 locale labels, even when it currently has articles in only one locale. JSON Schema

@@ -39,7 +39,12 @@ func TestValidateConfiguredLocales(t *testing.T) {
 
 func TestLanguageCatalogRequiresExactSupportedIdentifier(t *testing.T) {
 	t.Parallel()
-	for _, language := range []string{"EN", "JA", "en-US", "ja-JP", "pt-BR", "fr", "../../escape", "%2e%2e", "", "constructor", "__proto__"} {
+	for _, language := range []string{"ja", "en", "zh-Hans", "ko"} {
+		if err := Validate(map[string]Entry{language: {Label: "Label"}}, language); err != nil {
+			t.Fatalf("supported language %q: %v", language, err)
+		}
+	}
+	for _, language := range []string{"EN", "JA", "en-US", "ja-JP", "zh-hans", "zh-CN", "KO", "ko-KR", "pt-BR", "fr", "../../escape", "%2e%2e", "", "constructor", "__proto__"} {
 		if err := Validate(map[string]Entry{language: {Label: "Label"}}, language); err == nil || !strings.Contains(err.Error(), "not supported") {
 			t.Fatalf("unsupported identifier %q: %v, want catalog-membership error", language, err)
 		}

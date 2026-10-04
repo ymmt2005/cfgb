@@ -338,7 +338,7 @@ describe(
       });
     });
 
-    for (const locale of ["ja", "en"]) {
+    for (const locale of ["ja", "en", "zh-Hans", "ko"]) {
       test(`Pagefind ${locale} search runs WASM, restricts locale and navigates results`, async () => {
         await withPage(
           site,

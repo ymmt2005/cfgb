@@ -369,7 +369,7 @@ a:hover { color: var(--accent); }
   z-index: 3;
 }
 
-.mast-row, .sections, .tools, .locales {
+.mast-row, .sections, .tools {
   display: flex;
   align-items: center;
 }
@@ -398,22 +398,55 @@ a:hover { color: var(--accent); }
 
 .tools { gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
 
-.locales {
+.language-switch { position: relative; font-size: 0.85rem; }
+.language-switch summary, .language-single {
   border: 1px solid var(--line);
   border-radius: 999px;
-  overflow: hidden;
   background: var(--bg-raised);
+  padding: 0.35rem 0.7rem;
 }
-.locales a {
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.82rem;
-  padding: 0.28rem 0.7rem;
+.language-switch summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  list-style: none;
   white-space: nowrap;
 }
-.locales a[aria-current="true"] {
-  background: var(--ink);
-  color: var(--bg);
+.language-switch summary::-webkit-details-marker { display: none; }
+.language-switch[open] .language-chevron { transform: rotate(180deg); }
+.language-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  min-width: 12rem;
+  max-width: calc(100vw - 2rem);
+  max-height: min(24rem, 70vh);
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--ink) 15%, transparent);
+}
+.language-list a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.7rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 0.3rem;
+}
+.language-list a > span:first-child { flex: 1; }
+.language-list a[aria-current="true"], .language-list a:hover { background: var(--bg); }
+.language-list small { color: var(--muted); }
+@media (max-width: 860px) {
+  .mast-row { position: relative; }
+  .language-switch { position: static; }
+  .language-list { left: 0; right: auto; }
 }
 
 .menu { position: relative; }
@@ -609,6 +642,7 @@ h1, h2, h3 { font-weight: 600; line-height: 1.35; }
   color: var(--muted);
   font-size: 0.92rem;
 }
+.translation a { display: inline-block; margin-inline-start: 0.65rem; }
 
 .prose h2 {
   font-family: var(--sans);

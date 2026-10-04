@@ -29,7 +29,7 @@ var (
 
 // Validate checks configured languages before site rendering.
 // Support is exact, case-sensitive membership in the shared catalog.
-// This release defines ja and en.
+// Available languages are defined in the embedded renderer catalog.
 func Validate(configured map[string]Entry, defaultLocale string) error {
 	cat, err := releaseCatalog()
 	if err != nil {

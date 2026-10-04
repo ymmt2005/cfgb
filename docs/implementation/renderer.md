@@ -93,6 +93,12 @@ spacing and comma-containing URLs (including data URLs). Descriptor validation
 remains with the browser; the rewrite does not add or repair descriptors.
 The existing HTML attribute editor handles entity decoding/re-escaping and
 quote styles. Article, home, about and aside scopes share source metadata.
+Language UI and date metadata come from the shared catalog for Japanese, English,
+Simplified Chinese and Korean. A native disclosure lists every configured language;
+article notices show all actual translations. Both work without JavaScript, while
+browser enhancement adds Escape and outside-focus/click dismissal. Browser tests
+exercise narrow layouts, native-language search and direct static-host destinations.
+
 Tests inspect the actual built candidate URLs/files and Chromium's selected
 images at different device pixel ratios and picture media-query breakpoints.
 

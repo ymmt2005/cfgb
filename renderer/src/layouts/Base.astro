@@ -28,10 +28,9 @@ const {
 } = Astro.props;
 const { site, routes } = loadSite();
 const copy = copyFor(locale);
-const other = Object.keys(site.locales).find((item) => item !== locale) || "";
+const languages = Object.keys(site.locales);
 const members = alternateMembers(counterparts);
-const otherMember = members.find((item) => item.locale === other);
-const otherDestination = languageDestination({ path, locale, destination: other, counterparts, routes });
+const translations = members.filter((item) => item.locale !== locale);
 const canonical = absolute(site, path);
 const pageTitle = path === `/${locale}/` ? site.title : `${title} · ${site.title}`;
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
@@ -86,10 +85,25 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     <div class="mast-row">
       <a class="brand" href={sitePath(site, `/${locale}/`)}>{site.title.split(" ")[0]} <span>{site.title.split(" ").slice(1).join(" ")}</span></a>
       <div class="tools">
-        <nav class="locales" aria-label={copy.language}>
-          <a href={localeChoice(locale, path)} aria-current="true" hreflang={locale}>{site.locales[locale].label}</a>
-          {other && <a href={localeChoice(other, otherDestination)} hreflang={other}>{site.locales[other].label}</a>}
-        </nav>
+        {languages.length > 1 ? (
+          <details class="language-switch">
+            <summary aria-label={`${copy.language}: ${site.locales[locale].label}`}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>
+              <span lang={locale}>{site.locales[locale].label}</span><span class="language-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <nav aria-label={copy.language}>
+              <ul class="language-list">
+                {languages.map((language) => (
+                  <li><a href={localeChoice(language, languageDestination({ path, locale, destination: language, counterparts, routes }))} hreflang={language} lang={language} aria-current={language === locale ? "true" : undefined}>
+                    <span>{site.locales[language].label}</span>
+                    {language === locale && <span aria-hidden="true">✓</span>}
+                    {counterparts && language !== locale && !Object.hasOwn(counterparts, language) && <small lang={locale}>{copy.home}</small>}
+                  </a></li>
+                ))}
+              </ul>
+            </nav>
+          </details>
+        ) : <span class="language-single" lang={locale}>{site.locales[locale].label}</span>}
         <div class="menu">
           <button class="menu-button" id="cfgb-theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="cfgb-theme-list">{copy.theme}</button>
           <ul class="menu-list" id="cfgb-theme-list" role="listbox" aria-labelledby="cfgb-theme" hidden>
@@ -121,7 +135,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     )}
     <div class="frame-main">
       <slot name="before" />
-      {otherMember && <p class="translation">{copy.hasTranslation} <a href={sitePath(site, otherMember.href)}>{copy.openTranslation}</a></p>}
+      {translations.length > 0 && <p class="translation">{copy.hasTranslation} {translations.map((item) => <a href={sitePath(site, item.href)} lang={item.locale} hreflang={item.locale}>{site.locales[item.locale].label}</a>)}</p>}
       {untranslated && <p class="translation">{copy.noTranslation}</p>}
       {hasToc && (
         <details class="toc-mobile" open>

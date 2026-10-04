@@ -113,6 +113,21 @@
     if (event.key === "Escape") closeMenus(null);
   });
 
+  document.querySelectorAll(".language-switch").forEach(function (selector) {
+    selector.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || !selector.open) return;
+      event.preventDefault();
+      selector.open = false;
+      selector.querySelector("summary").focus();
+    });
+    selector.addEventListener("focusout", function (event) {
+      if (!selector.contains(event.relatedTarget)) selector.open = false;
+    });
+    document.addEventListener("click", function (event) {
+      if (!selector.contains(event.target)) selector.open = false;
+    });
+  });
+
   var links = Array.prototype.slice.call(document.querySelectorAll(".toc a, .toc-mobile a"));
   if (!links.length || !("IntersectionObserver" in window)) return;
   var byId = new Map();
