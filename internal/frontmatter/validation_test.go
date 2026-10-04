@@ -13,7 +13,7 @@ import (
 
 func TestReadArticlePreservesBodyBytes(t *testing.T) {
 	t.Parallel()
-	for _, body := range []string{"Body\xff\n", "日本語 😀\r\n", "replacement character: �\n", ""} {
+	for _, body := range []string{"日本語 😀\r\n", "interior: \ufeff\n", "replacement character: �\n", ""} {
 		_, got, err := ReadArticle(strings.NewReader("---\n" + required + "---\n" + body))
 		if err != nil || !bytes.Equal(got, []byte(body)) {
 			t.Fatalf("body = %q, error = %v", got, err)
@@ -107,4 +107,50 @@ func TestCollectDuplicateSlugDiagnostic(t *testing.T) {
 	}
 	_, err := Collect(dir, topics, []string{"ja"})
 	assertValidationCode(t, err, "E_SLUG_DUPLICATE")
+}
+
+func TestArticleAndTopicsEncoding(t *testing.T) {
+	t.Parallel()
+	for _, raw := range []string{
+		"---\n" + required + "summary: Bad\xff\n---\nBody\n",
+		"---\n" + required + "---\nBody\xff\n",
+	} {
+		_, _, err := ReadArticle(strings.NewReader(raw))
+		assertValidationCode(t, err, "E_SCHEMA")
+		if !strings.Contains(err.Error(), "invalid UTF-8") {
+			t.Fatal(err)
+		}
+	}
+	if _, err := Topics([]byte("notes: {ja: Bad\xff}\n")); err == nil {
+		t.Fatal("invalid topic UTF-8 accepted")
+	}
+	topics, err := Topics([]byte("\ufeffnotes: {ja: 日本語}\r\n"))
+	if err != nil || topics["notes"]["ja"] != "日本語" {
+		t.Fatalf("BOM topics = %v, %v", topics, err)
+	}
+}
+
+func TestCollectRejectsMalformedProseUTF8(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"home/ja.md", "pages/about/ja.md", "aside/ja.md"} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, filepath.FromSlash(name))
+			if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(file, []byte("Body\xff\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			topics := filepath.Join(dir, "topics.yaml")
+			if err := os.WriteFile(topics, []byte("{}\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Collect(dir, topics, []string{"ja"})
+			assertValidationCode(t, err, "E_SCHEMA")
+			if !strings.Contains(err.Error(), name) || !strings.Contains(err.Error(), "invalid UTF-8") {
+				t.Fatal(err)
+			}
+		})
+	}
 }

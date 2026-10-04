@@ -174,13 +174,20 @@ For changes crossing repositories, keep ownership explicit:
   the article Go struct with `goccy/go-yaml`, and preserve the remaining Markdown
   bytes. Metadata consumers use typed fields, not generic maps or type assertions.
   Decode topics directly into their typed map. Do not add AST/custom-tag/document
-  policies, an encoding ban or runtime JSON Schema validation to these loaders.
-  Read home/about/aside prose as ordinary body text, without an independent
-  BOM/UTF-8 ban. Preserve bytes at the loader boundary; JSON serialization and
-  rendering retain their native text behavior. Unknown-field rejection and
-  decoder errors are sufficient at the YAML boundary.
+  policies or runtime JSON Schema validation to these loaders.
+  The user has explicitly requested source encoding checks: reject malformed
+  UTF-8 before decoding/JSON serialization; detect and remove a file-start UTF-8
+  BOM. Preserve interior U+FEFF characters and line endings. Apply the shared
+  text-input boundary to configuration, topics, articles and home/about/aside.
+  Beyond this encoding check, unknown-field rejection and native decoder errors
+  are sufficient at the YAML boundary.
   Business checks belong where the decoded value is used and must have a verified
   human requirement; ask before adding a new one.
+- Convert article publication/update timestamps to the configured site timezone
+  in Go, using the bundled tzdata, before passing metadata to the renderer.
+  Archive and visible dates use the resulting RFC3339 calendar fields. JavaScript
+  may format language-specific labels but must not reinterpret the site timezone;
+  machine timestamps and chronological ordering retain the same instant.
 - Supported content languages come from the shared release catalog and match
   exactly, case sensitively, without a separate syntax gate. Use own-property
   membership for JavaScript catalogs, not inherited object properties. A

@@ -19,7 +19,7 @@ in parallel.
 Go isolates the front-matter block with a line reader and unmarshals it directly
 into `frontmatter.Metadata`. Its fields are strings, string slices and Go time
 values; all Go metadata consumers use those typed fields. Topics decode directly
-into a typed topic/language/label map. The untouched Markdown body goes to Astro.
+into a typed topic/language/label map. The Markdown body goes to Astro after UTF-8 validation.
 There is no YAML AST/map projection, document/tag policy or mandatory JSON Schema
 validation in either loader. The optional article schema is a standalone/editor
 aid, not the runtime definition of what a YAML loader may accept. The Astro shape
@@ -27,15 +27,21 @@ supplies collection types without adding nonempty/minimum-length gates.
 
 The opening/closing `---` lines identify the front-matter block, including a BOM
 before the opening delimiter. The YAML library handles decoding, conversions
-and syntax errors. Article bodies and home/about/aside prose preserve the read bytes without
-an added BOM/UTF-8 check. Go JSON serialization supplies its native text handling,
-including replacement of invalid UTF-8; arbitrary invalid bytes are not promised
-to survive through HTML. Content failures carry a typed diagnostic (`E_SCHEMA`,
+and syntax errors. A shared text-input boundary rejects malformed UTF-8 before
+YAML decoding or JSON serialization. A file-start UTF-8 BOM is removed; interior
+U+FEFF characters and line endings remain. This explicitly requested encoding
+check applies to configuration, topics, article front matter/body and all prose. Content failures carry a typed diagnostic (`E_SCHEMA`,
 `E_SLUG_DUPLICATE`, or `E_TRANSLATION_GROUP`) and make `build` exit 1;
 reader/filesystem errors remain I/O failures with exit 3. Other unverified restrictions are listed in the
 [PR #3 policy audit](../reviews/pr-3-policy-audit.md); they are not evidence of
 human approval. New correctness rules require explicit human confirmation under
 `AGENTS.md`.
+
+Go converts publication/update timestamps to the configured site location using
+`time.Time.In` before JSON serialization. Archive grouping and visible date
+labels read the resulting RFC3339 calendar fields directly. JavaScript does not
+interpret the site timezone; Intl only formats a synthetic UTC calendar date for
+language-specific labels. RSS and chronological ordering preserve the instant.
 
 The normalized index owns group identity, locale, source filename, and article
 route. `content.ts` joins collection entries to that index. `content-urls.mjs`

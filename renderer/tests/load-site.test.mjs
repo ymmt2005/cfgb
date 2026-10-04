@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  archiveParts,
+  formatDate,
   comparePosts,
   copyFor,
   loadSite,
@@ -32,7 +34,7 @@ test("routes and aliases come from the Go metadata index", () => {
             data: {
               title: "ガイド",
               slug: "protobuf-schema-guide",
-              publishedAt: "2026-09-19T13:12:40+09:00",
+              publishedAt: "2026-10-01T01:30:00+09:00",
               topics: ["protobuf"],
               aliases: ["/ja/posts/old-protobuf-guide/"],
             },
@@ -48,7 +50,7 @@ test("routes and aliases come from the Go metadata index", () => {
         title: "Example",
         baseUrl: "https://example.invalid",
         defaultLocale: "ja",
-        timezone: "Asia/Tokyo",
+        timezone: "Factory",
         locales: { ja: { label: "日本語" }, en: { label: "English" } },
         contentRoot: dir,
         topicsFile: path.join(dir, "topics.yaml"),
@@ -69,6 +71,8 @@ test("routes and aliases come from the Go metadata index", () => {
     assert.equal(site.topics.protobuf.ja, "Protocol Buffers");
     assert.equal(site.routes.has("/ja/posts/protobuf-schema-guide/"), true);
     assert.equal(site.routes.has("/ja/topics/protobuf/"), true);
+    assert.equal(site.routes.has("/ja/archive/2026/10/"), true);
+    assert.equal(site.routes.has("/ja/archive/2026/09/"), false);
     assert.equal(site.routes.has("/en/topics/protobuf/"), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -138,4 +142,28 @@ test("publication ordering includes the full article group identity", () => {
     ["2026/alpha", "2025/guide", "2026/guide", "2024/zebra"],
   );
   assert.ok(comparePosts(entry("2026/zebra", "2026-01-02T00:00:00Z"), old) < 0);
+});
+
+test("calendar dates use Go-localized fields, independent of host timezone", () => {
+  const previous = process.env.TZ;
+  try {
+    for (const host of ["Pacific/Honolulu", "Asia/Tokyo"]) {
+      process.env.TZ = host;
+      for (const [stamp, year, month, day, en] of [
+        ["2026-10-01T01:30:00+09:00", "2026", "10", "1", "1 Oct 2026"],
+        ["2025-12-31T20:00:00-05:00", "2025", "12", "31", "31 Dec 2025"],
+        ["2026-10-01T01:45:00+05:45", "2026", "10", "1", "1 Oct 2026"],
+      ]) {
+        assert.deepEqual(archiveParts(stamp), { year, month });
+        assert.equal(
+          formatDate(stamp, "ja"),
+          `${year}年${Number(month)}月${day}日`,
+        );
+        assert.equal(formatDate(stamp, "en"), en);
+      }
+    }
+  } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
 });

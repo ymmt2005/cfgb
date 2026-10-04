@@ -84,9 +84,12 @@ stays inside the repository is followed. A symlink that leaves the repository is
 rejected. Relative paths must stay inside the repository after symlink resolution.
 
 Build uses Go's native timezone interpretation after decoding. An omitted/empty
-`site.timezone` resolves to UTC; the renderer adapter writes `UTC` to site JSON
-because `Intl.DateTimeFormat` does not accept an empty timezone string. This does
-not add a new required-value rule or mutate the decoded configuration.
+`site.timezone` resolves to UTC. Before serializing renderer metadata, Go converts
+publication/update timestamps with `time.Time.In` using its bundled timezone
+database. The renderer reads archive/display calendar fields from those RFC3339
+values; it does not interpret the configured timezone identifier. Language-specific
+date formatting may use Intl with UTC for a synthetic calendar date. This preserves
+the timestamp instant and does not mutate the decoded configuration.
 
 Supported content languages are exact, case-sensitive keys in
 `renderer/src/lib/locales.json`, shared by the CLI and renderer. This release's
@@ -148,3 +151,9 @@ gate. Breaking upgrades are explicit migrations with
 a dry-run diff. Decoder fixtures exercise the YAML library's behavior, including
 its duplicate-key errors; do not add an independent YAML syntax policy. Optional
 Schema scenarios are separate from loading/build acceptance.
+
+Source configuration, topics and Markdown must be valid UTF-8. Detect and remove
+a UTF-8 BOM only at the start of a file; preserve interior U+FEFF and line endings.
+Reject malformed UTF-8 before YAML decoding or JSON serialization, with source
+file context, rather than silently replacing bytes with U+FFFD. YAML still decodes
+directly into Go structs/maps; this encoding check adds no YAML tag/document policy.

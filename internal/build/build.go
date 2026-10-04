@@ -80,7 +80,6 @@ type siteJSON struct {
 	Title         string `json:"title"`
 	BaseURL       string `json:"baseUrl"`
 	DefaultLocale string `json:"defaultLocale"`
-	Timezone      string `json:"timezone"`
 	Locales       map[string]struct {
 		Label string `json:"label"`
 	} `json:"locales"`
@@ -166,6 +165,11 @@ func Run(opts Options) (err error) {
 	if err != nil {
 		return contentError(err)
 	}
+	location, err := time.LoadLocation(cfg.Site.Timezone)
+	if err != nil {
+		return &ExitError{Code: 2, Err: err}
+	}
+	index.LocalizeDates(location)
 	metadataPath := filepath.Join(workspace, "metadata.json")
 	metadata, err := json.Marshal(index)
 	if err != nil {
@@ -805,17 +809,10 @@ func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkc
 			Label string `json:"label"`
 		}{Label: item.Label}
 	}
-	timezone := cfg.Site.Timezone
-	// Go treats the empty location name as UTC; supply the equivalent name
-	// to Intl.DateTimeFormat instead of inventing an omitted-timezone ban.
-	if timezone == "" {
-		timezone = "UTC"
-	}
 	raw, err := json.Marshal(siteJSON{
 		Title:         cfg.Site.Title,
 		BaseURL:       cfg.Site.BaseURL,
 		DefaultLocale: cfg.Site.DefaultLocale,
-		Timezone:      timezone,
 		Locales:       locales,
 		ContentRoot:   contentRoot,
 		TopicsFile:    topicsFile,

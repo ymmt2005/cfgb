@@ -90,7 +90,7 @@ function buildRoutes(site, posts, topics) {
     const months = new Set();
     const usedTopics = new Set();
     for (const post of posts.filter((item) => item.locale === locale)) {
-      const parts = archiveParts(post.publishedAt, site.timezone);
+      const parts = archiveParts(post.publishedAt);
       months.add(`${parts.year}/${parts.month}`);
       for (const topic of post.topics) usedTopics.add(topic);
     }
@@ -105,37 +105,28 @@ function buildRoutes(site, posts, topics) {
   return routes;
 }
 
-export function archiveParts(iso, timeZone) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(new Date(iso));
-  const year = parts.find((part) => part.type === "year").value;
-  const month = parts.find((part) => part.type === "month").value;
-  return { year, month };
+// Go supplies RFC3339 timestamps already converted to the site location.
+// Read their calendar date directly; do not reinterpret the configured zone in JS.
+export function archiveParts(iso) {
+  return { year: iso.slice(0, 4), month: iso.slice(5, 7) };
 }
 
-export function formatDate(iso, locale, timeZone) {
+export function formatDate(iso, locale) {
   const entry = localeEntry(locale);
-  const date = new Date(iso);
+  const { year, month } = archiveParts(iso);
+  const day = iso.slice(8, 10);
   if (entry.date.form === "ymd-kanji") {
-    const parts = new Intl.DateTimeFormat(entry.date.intl, {
-      timeZone,
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    }).formatToParts(date);
-    const value = (type) => parts.find((part) => part.type === type).value;
-    return `${value("year")}年${value("month")}月${value("day")}日`;
+    return `${Number(year)}年${Number(month)}月${Number(day)}日`;
   }
   if (entry.date.form === "intl-medium") {
+    // A synthetic UTC date formats the supplied calendar fields without a
+    // second timezone conversion, even if Node and Go use different tzdata.
     return new Intl.DateTimeFormat(entry.date.intl, {
-      timeZone,
+      timeZone: "UTC",
       day: "numeric",
       month: "short",
       year: "numeric",
-    }).format(date);
+    }).format(new Date(`${iso.slice(0, 10)}T12:00:00Z`));
   }
   throw new Error(`locale ${locale} has no date form`);
 }

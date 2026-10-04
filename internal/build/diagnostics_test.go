@@ -54,6 +54,8 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 		name, file, body, code string
 		exit                   int
 	}{
+		{"invalid article encoding", "posts/2026/example/ja.md", article + "\xff", "E_SCHEMA", 1},
+		{"invalid prose encoding", "home/ja.md", "Body\xff\n", "E_SCHEMA", 1},
 		{"bad YAML", "posts/2026/example/ja.md", "---\ntitle: [bad\n---\n", "E_SCHEMA", 1},
 		{"unknown field", "posts/2026/example/ja.md", strings.Replace(article, "---\nBody", "summray: unknown\n---\nBody", 1), "E_SCHEMA", 1},
 		{"disabled locale", "posts/2026/example/en.md", article, "E_TRANSLATION_GROUP", 1},

@@ -47,7 +47,7 @@ const jsonLd = {
 >
   {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
   <article data-pagefind-filter={`locale:${locale}`}>
-    <p class="kicker"><a href={`/${locale}/archive/${month.year}/${month.month}/`} data-pagefind-filter={`year:${month.year}`}><time datetime={post.data.publishedAt} data-pagefind-meta="published[datetime]">{formatDate(post.data.publishedAt, locale, site.timezone)}</time></a></p>
+    <p class="kicker"><a href={`/${locale}/archive/${month.year}/${month.month}/`} data-pagefind-filter={`year:${month.year}`}><time datetime={post.data.publishedAt} data-pagefind-meta="published[datetime]">{formatDate(post.data.publishedAt, locale)}</time></a></p>
     <h1 class="article-title" data-pagefind-body data-pagefind-meta="title">{post.data.title}</h1>
     <div class="meta-row">
       <p class="topics">

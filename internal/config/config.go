@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/goccy/go-yaml"
+
+	"github.com/ymmt2005/cfgb/internal/textinput"
 )
 
 // IOError marks a filesystem failure while locating or reading configuration.
@@ -140,6 +142,10 @@ func load(repo, file string) (*File, error) {
 	raw, err := readConfig(repo, file)
 	if err != nil {
 		return nil, err
+	}
+	raw, err = textinput.Normalize(raw)
+	if err != nil {
+		return nil, fmt.Errorf("cfgb.yaml: %w", err)
 	}
 	var cfg File
 	// Seed defaults before decoding so explicitly supplied values remain intact.

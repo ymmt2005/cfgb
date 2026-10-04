@@ -464,3 +464,18 @@ func TestLoadingDistinguishesIOFromConfigurationErrors(t *testing.T) {
 		t.Fatalf("missing discovery should remain config error: %v", err)
 	}
 }
+
+func TestConfigurationEncoding(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, "\ufeff"+minimalConfig)
+	if _, err := Load(dir); err != nil {
+		t.Fatalf("BOM: %v", err)
+	}
+	writeConfig(t, dir, minimalConfig+"# malformed \xff\n")
+	_, err := Load(dir)
+	var ioErr *IOError
+	if err == nil || !strings.Contains(err.Error(), "invalid UTF-8") || errors.As(err, &ioErr) {
+		t.Fatalf("encoding error = %v", err)
+	}
+}

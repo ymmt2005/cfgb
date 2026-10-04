@@ -839,7 +839,7 @@ func TestMediaComesFromCapturedContent(t *testing.T) {
 	}
 }
 
-func TestRendererTimezoneUsesNativeUTCForEmptyName(t *testing.T) {
+func TestRendererDoesNotReceiveTimezone(t *testing.T) {
 	cfg, _ := testRepo(t)
 	cfg.Site.Timezone = ""
 	if err := cfg.ValidateSite(); err != nil {
@@ -857,7 +857,11 @@ func TestRendererTimezoneUsesNativeUTCForEmptyName(t *testing.T) {
 	if err := json.Unmarshal(raw, &site); err != nil {
 		t.Fatal(err)
 	}
-	if site.Timezone != "UTC" || cfg.Site.Timezone != "" {
-		t.Fatalf("renderer timezone=%q, original=%q", site.Timezone, cfg.Site.Timezone)
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := fields["timezone"]; exists || cfg.Site.Timezone != "" {
+		t.Fatal("renderer must not interpret the configured timezone")
 	}
 }

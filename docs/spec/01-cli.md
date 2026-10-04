@@ -15,7 +15,9 @@ JSON Schema gate on configuration loading. Reject out-of-root paths and symlink
 escapes. Article front matter likewise decodes directly into its Go metadata struct,
 with Go time fields. YAML-library behavior supplies conversions and errors;
 loaders add no AST/tag/document or mandatory JSON Schema gate. The line reader
-isolates the front-matter block and preserves article body bytes. Hash normalization follows
+isolates the front-matter block and preserves valid UTF-8 article body bytes.
+Source-file encoding checks reject malformed UTF-8 and remove a file-start BOM;
+interior characters and line endings remain. Hash normalization follows
 the domain contract: [AI summary input](05-ai.md#input-and-output-hashes) normalizes
 body newlines; [migration source/target hashes](06-migration.md#assets-and-restart-safety)
 use exact content bytes as specified there. Do not normalize artifact output bytes.

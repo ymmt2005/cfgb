@@ -58,6 +58,5 @@ export async function renderedProse(
 }
 
 export function monthOf(iso: string) {
-  const { site } = loadSite();
-  return archiveParts(iso, site.timezone);
+  return archiveParts(iso);
 }

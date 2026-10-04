@@ -29,9 +29,9 @@ is not a new rule banning some otherwise usable article.
 - Raw-YAML scalar type/presence rules that reject values the Go decoder accepts.
   Empty fields, numeric text converted by the decoder, folded/literal strings and
   empty slices are not rejected by an additional loader policy.
-- The front-matter BOM ban and independent YAML/article-body UTF-8 rejection
-  passes. The opening delimiter can have a BOM, and the remaining article body
-  bytes are preserved.
+- The front-matter BOM rejection. A file-start UTF-8 BOM is accepted and
+  removed. Following the user's subsequent encoding-check request, malformed
+  UTF-8 is rejected before YAML decoding or renderer JSON serialization.
 - Astro's additional nonempty-title/slug/date and nonempty-topics shape gates.
   Its schema supplies collection types, not extra authoring requirements.
 
@@ -68,22 +68,20 @@ and remains in the unverified list below.
 ## Follow-through on already explicit input boundaries
 
 The user's existing instructions require exact, case-sensitive membership in the
-translated-language catalog and ordinary Markdown body loading without extra
-encoding rules. The continuation removes two inconsistent leftover gates:
+translated-language catalog. Go and JavaScript no longer apply a language-tag
+regex before catalog lookup. JavaScript checks own properties so inherited names
+such as `constructor` are not mistaken for translated languages.
 
-- Go and JavaScript no longer apply a language-tag regex before catalog lookup.
-  JavaScript checks own properties so inherited names such as `constructor` are
-  not mistaken for translated languages. This applies both to configuration and
-  direct UI-copy lookup. The optional identifier schema remains editor guidance.
-- Home/about/aside loaders no longer reject BOMs or invalid UTF-8 independently
-  of the Markdown/JSON pipeline. Their read bytes are preserved just like article
-  bodies. JSON serialization still performs its native replacement of invalid
-  UTF-8; this is not a promise of arbitrary-byte preservation in HTML.
+The continuation initially interpreted the no-extra-correctness instruction too
+broadly and removed prose encoding checks. The user subsequently requested BOM
+and invalid UTF-8 checks explicitly. The current shared text-input boundary rejects
+malformed UTF-8 before decoding/JSON serialization and strips a file-start UTF-8
+BOM. Interior U+FEFF characters and original line endings remain. This applies to
+configuration, topics, article front matter/body and all three prose kinds.
 
-Tests cover exact unsupported identifiers in both implementations, inherited
-JavaScript names, all three prose kinds, BOMs, invalid bytes and line endings.
-The extended real example build verifies those prose files render through the
-native JSON/Markdown path. No other unverified restriction is changed here.
+Tests cover supported-language membership, source encoding diagnostics, BOM
+normalization, interior characters and line endings. Actual site generation checks
+BOM-prefixed prose. No YAML AST/tag/document policy is added.
 
 ## Additional Copilot review checked against the current implementation
 
@@ -96,11 +94,11 @@ namespacing omitted three standard HTML ID-reference attributes.
 These fixes implement existing behavior without new input bans. I/O failures use
 exit 3 while decoder/discovery errors remain exit 2 (temporary workspace creation
 is covered by the same distinction). Media reads the captured snapshot. Empty
-timezone follows Go's UTC interpretation at the renderer adapter, rather than
+timezone follows Go's UTC interpretation before metadata serialization, rather than
 Copilot's suggested rejection. Publication order uses the full group as a final
 tie-break. `itemref`, `popovertarget` and `commandfor` follow namespaced aside IDs.
 Coverage includes real deleted-cwd/config-read failures, output preservation,
-media delivery after live-source removal, empty-timezone CLI rendering, actual
+media delivery after live-source removal, native timezone handling, actual
 home/feed ordering and native popover/dialog interaction without JavaScript.
 
 ## Remaining restrictions with no verified explicit human instruction
@@ -175,11 +173,10 @@ The standalone Go schema helper remains available but is not imported by the
 configuration/front-matter/build packages. Its presence is not a CLI integration
 or a requirement to add one. No new Schema command was implemented.
 
-Text handling also has separate stages: loaders preserve article and prose body bytes,
-but Go's JSON encoder applies its native string encoding when those records go
-to the renderer. The loader test is not proof of byte-for-byte preservation of
-arbitrary invalid UTF-8 through JSON and HTML. This does not authorize adding an
-encoding rejection policy.
+Text handling now checks valid UTF-8 before YAML decoding and renderer JSON.
+This encoding requirement was explicitly requested by the user after the initial
+simplification. It prevents Go's JSON replacement behavior from silently changing
+source text, without reinstating YAML AST or document policies.
 
 The sibling example fixtures are now separated accordingly. The nine null,
 numeric and boolean summary cases check the decoded Go string: null follows
@@ -213,3 +210,13 @@ command acceptance.
 Generic permission to fix bugs or add tests is not approval to invent a new
 input restriction. New policy needs its own concrete explanation and explicit
 human confirmation, including when suggested by Copilot.
+
+## Final date and CI adjustments
+
+Go converts publication/update timestamps to the configured location before
+renderer JSON serialization. JavaScript reads the calendar fields from the
+converted RFC3339 timestamps and does not load the site timezone. Tests cover
+month/year rollover, DST, fractional-hour offsets, empty-name UTC and `Factory`
+(a Go timezone not recognized by Intl), plus display under different host zones.
+CI runs for pull requests and for pushes to `main` only, avoiding duplicate runs
+for feature-branch pushes.

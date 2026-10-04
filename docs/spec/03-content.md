@@ -85,7 +85,10 @@ valid. Monthly/topic pages exist only where that locale has matching articles.
 Default lists are unpaginated in v1. Latest = descending publication instant,
 then ascending article key and full year/group identity as deterministic tie
 breaks. `updatedAt` never
-reorders publication feeds. Archive year/month and visible dates use site timezone.
+reorders publication feeds. Go converts publication/update timestamps to the site timezone before emitting
+renderer metadata. Archive year/month and visible dates read that RFC3339 calendar
+date without a second timezone conversion in JavaScript. Feeds, structured data
+and ordering keep the same publication instant.
 
 An article's URL never depends on directory year, title, or date. Build a single
 route registry before rendering. Aliases are origin-relative paths with a trailing

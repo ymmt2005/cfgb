@@ -437,9 +437,9 @@ func TestArticleDoesNotApplySchemaConstraints(t *testing.T) {
 	}
 }
 
-func TestCollectProsePreservesReadBytes(t *testing.T) {
+func TestCollectProseNormalizesFileBOM(t *testing.T) {
 	t.Parallel()
-	for _, body := range []string{"\ufeffBody\n", "Body\xff\n", "whole\r\n\r\n---\r\nfile\r\n"} {
+	for _, body := range []string{"\ufeffBody\n", "Body\ufeffinside\n", "whole\r\n\r\n---\r\nfile\r\n"} {
 		t.Run(fmt.Sprintf("%q", body), func(t *testing.T) {
 			dir := t.TempDir()
 			for _, name := range []string{"home/ja.md", "pages/about/ja.md", "aside/ja.md"} {
@@ -464,8 +464,8 @@ func TestCollectProsePreservesReadBytes(t *testing.T) {
 				t.Fatalf("prose = %#v", prose)
 			}
 			for _, item := range prose {
-				if item.Body != body {
-					t.Errorf("%s body = %q, want %q", item.ID, item.Body, body)
+				if want := strings.TrimPrefix(body, "\ufeff"); item.Body != want {
+					t.Errorf("%s body = %q, want %q", item.ID, item.Body, want)
 				}
 			}
 		})

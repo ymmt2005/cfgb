@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/goccy/go-yaml"
+
+	"github.com/ymmt2005/cfgb/internal/textinput"
 )
 
 // ValidationError identifies invalid source content without disguising I/O failures.
@@ -124,6 +126,12 @@ func ReadArticle(r io.Reader) (Metadata, []byte, error) {
 	if !found {
 		return data, nil, invalid("article front matter is required")
 	}
+	if err := textinput.Validate(front); err != nil {
+		return data, nil, invalid("front matter: %w", err)
+	}
+	if err := textinput.Validate(body); err != nil {
+		return data, nil, invalid("article body: %w", err)
+	}
 	if err := yaml.UnmarshalWithOptions(front, &data, yaml.DisallowUnknownField()); err != nil {
 		return data, nil, invalid("front matter: %w", err)
 	}
@@ -132,6 +140,10 @@ func ReadArticle(r io.Reader) (Metadata, []byte, error) {
 
 // Topics decodes topics.yaml directly into its typed topic/language/label map.
 func Topics(raw []byte) (map[string]map[string]string, error) {
+	raw, err := textinput.Normalize(raw)
+	if err != nil {
+		return nil, invalid("topics.yaml: %w", err)
+	}
 	var topics map[string]map[string]string
 	if err := yaml.Unmarshal(raw, &topics); err != nil {
 		return nil, invalid("topics.yaml: %w", err)
@@ -309,6 +321,10 @@ func collectProse(contentRoot string, root *os.Root, locales []string) ([]Prose,
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", name, err)
 			}
+			body, err = textinput.Normalize(body)
+			if err != nil {
+				return nil, invalid("%s: %w", name, err)
+			}
 			prose = append(prose, Prose{
 				ID:     spec.id + "/" + locale,
 				Kind:   spec.kind,
@@ -361,4 +377,18 @@ func isYear(name string) bool {
 		}
 	}
 	return true
+}
+
+// LocalizeDates converts article timestamps to the site location before JSON
+// serialization. The instant is unchanged; the RFC3339 calendar date and offset
+// become authoritative for archive grouping and visible dates in the renderer.
+func (index *Index) LocalizeDates(location *time.Location) {
+	for i := range index.Posts {
+		data := &index.Posts[i].Data
+		data.PublishedAt = data.PublishedAt.In(location)
+		if data.UpdatedAt != nil {
+			updated := data.UpdatedAt.In(location)
+			data.UpdatedAt = &updated
+		}
+	}
 }

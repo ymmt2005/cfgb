@@ -165,6 +165,23 @@ func TestExampleCorpus(t *testing.T) {
 	if published == "" || published != stamp {
 		t.Fatalf("pagefind published = %q, datetime = %q", published, stamp)
 	}
+	boundary, err := os.ReadFile(filepath.Join(out, "site", "ja", "posts", "archive-timezone-boundary", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if publicationStamp(boundary) != "2026-10-01T01:30:00+09:00" ||
+		!bytes.Contains(boundary, []byte("2026年10月1日")) ||
+		!bytes.Contains(boundary, []byte(`href="/ja/archive/2026/10/"`)) {
+		t.Fatal("Go-localized timestamp, visible date and archive route disagree")
+	}
+	archive, err := os.ReadFile(filepath.Join(out, "site", "ja", "archive", "2026", "10", "index.html"))
+	if err != nil || !bytes.Contains(archive, []byte(`href="/ja/posts/archive-timezone-boundary/"`)) {
+		t.Fatalf("boundary article missing from October archive: %v", err)
+	}
+	feed, err := os.ReadFile(filepath.Join(out, "site", "ja", "feed.xml"))
+	if err != nil || !bytes.Contains(feed, []byte("Wed, 30 Sep 2026 16:30:00 GMT")) {
+		t.Fatalf("publication instant changed in RSS: %v", err)
+	}
 	root404, err := os.ReadFile(filepath.Join(out, "site", "404.html"))
 	if err != nil {
 		t.Fatal(err)
@@ -251,12 +268,11 @@ func buildExtendedExample(t *testing.T, source string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configRaw = bytes.ReplaceAll(configRaw, []byte("timezone: Asia/Tokyo"), []byte("timezone: ''"))
+	configRaw = bytes.ReplaceAll(configRaw, []byte("timezone: Asia/Tokyo"), []byte("timezone: Factory"))
 	if err := os.WriteFile(configPath, configRaw, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// Prose uses the same native text path as article bodies: the loader adds
-	// no encoding ban. JSON serialization supplies its own replacement behavior.
+	// File-start BOMs are removed before Markdown rendering.
 	for _, name := range []string{"home/ja.md", "pages/about/ja.md", "aside/ja.md"} {
 		filename := filepath.Join(repo, "src", "content", filepath.FromSlash(name))
 		raw, err := os.ReadFile(filename)
@@ -267,7 +283,7 @@ func buildExtendedExample(t *testing.T, source string) {
 			t.Fatal(err)
 		}
 		raw = append([]byte("\ufeff"), raw...)
-		raw = append(raw, []byte("\n\nProse regression "+name+" \xff\n")...)
+		raw = append(raw, []byte("\n\nProse regression "+name+" 日本語\n")...)
 		if err := os.WriteFile(filename, raw, 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -326,6 +342,13 @@ func buildExtendedExample(t *testing.T, source string) {
 	if _, err := os.Stat(filepath.Join(out, "old.txt")); !os.IsNotExist(err) {
 		t.Fatalf("external output was not replaced: %v", err)
 	}
+	boundary, err := os.ReadFile(filepath.Join(out, "site", "ja", "posts", "archive-timezone-boundary", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if publicationStamp(boundary) != "2026-09-30T16:30:00Z" || !bytes.Contains(boundary, []byte("2026年9月30日")) {
+		t.Fatal("Go-only Factory zone did not render its UTC calendar date")
+	}
 	for _, route := range []string{"ja/posts/protobuf-schema-guide", "en/posts/reading-protobuf-schemas"} {
 		html, err := os.ReadFile(filepath.Join(out, "site", route, "index.html"))
 		if err != nil {
@@ -344,8 +367,8 @@ func buildExtendedExample(t *testing.T, source string) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Contains(html, []byte("Prose regression "+tc.marker+" \ufffd")) {
-			t.Fatalf("prose did not render through native JSON text handling: %s", tc.marker)
+		if !bytes.Contains(html, []byte("Prose regression "+tc.marker+" 日本語")) {
+			t.Fatalf("BOM-prefixed prose did not render: %s", tc.marker)
 		}
 	}
 	leaf := filepath.Join(out, "site", "media", "2026", key, strings.TrimPrefix(deep, "assets"+string(filepath.Separator)), "leaf.txt")

@@ -91,9 +91,9 @@ string/slice/time fields and unknown-field rejection. Go consumers and the
 publication snapshot use typed fields rather than input maps/type assertions.
 Topics decode into their typed map. The article schema is optional standalone/
 editor guidance; loaders do not apply it or add YAML AST/document/tag policies.
-Markdown article and home/about/aside body bytes and line endings are preserved
-at the loader boundary, without an independent BOM/UTF-8 ban. JSON serialization
-and rendering use their native text behavior. The Astro collection
+The user subsequently requested encoding checks: malformed UTF-8 is rejected
+before YAML decoding or JSON serialization, and a file-start BOM is removed.
+Interior U+FEFF characters and line endings remain unchanged. The Astro collection
 shape provides types without extra nonempty/minimum-length constraints.
 Discovery still uses four-digit years and checks disabled variants and group directories;
 other unverified input policies are inventoried in the
@@ -175,3 +175,11 @@ shared `node_modules`: Astro's cache setting alone did not isolate Vite's
 `node_modules/.vite` writes. Vite now has its own workspace-local
 `.astro/vite/` cache. Both actual Astro integration tests verify that cache is
 created in their own workspace; parallel tests remain enabled.
+
+
+Go now converts publication/update timestamps to the site location before passing
+metadata to Astro. Archive dates and visible labels use the RFC3339 calendar
+fields without JavaScript interpreting the site timezone. Tests cover Tokyo
+month rollover, New York year/DST boundaries, fractional offsets, empty-name UTC
+and a Go-only timezone, including actual HTML/RSS generation. CI triggers only
+on pull requests and pushes to `main`.

@@ -7,14 +7,14 @@ interface Props {
   posts: PostEntry[];
 }
 const { locale, posts } = Astro.props;
-const { site, topics } = loadSite();
+const { topics } = loadSite();
 ---
 <ol class="post-list">
   {posts.map((post) => {
-    const month = archiveParts(post.data.publishedAt, site.timezone);
+    const month = archiveParts(post.data.publishedAt);
     return (
       <li>
-        <p class="post-meta"><a href={`/${locale}/archive/${month.year}/${month.month}/`}>{formatDate(post.data.publishedAt, locale, site.timezone)}</a></p>
+        <p class="post-meta"><a href={`/${locale}/archive/${month.year}/${month.month}/`}>{formatDate(post.data.publishedAt, locale)}</a></p>
         <h2><a href={post.url}>{post.data.title}</a></h2>
         {post.data.summary && <p class="summary">{post.data.summary}</p>}
         <p class="topics">
