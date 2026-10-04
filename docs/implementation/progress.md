@@ -48,7 +48,7 @@ handwritten dispatcher. Only `version` and `build` are currently registered;
 works before/after `build`, including `--config=PATH`, and selects that exact
 file. Its relative selector is resolved from the invocation directory, while
 content and `--out` are resolved from the selected file's directory. Default
-ancestor discovery and repository-rooted YAML/Schema checks remain unchanged.
+ancestor discovery and repository-rooted YAML decoding remain unchanged.
 Help and version do not load configuration or probe the build toolchain. Parser
 errors exit 2, domain errors retain their existing exit codes, and each invocation
 creates a fresh command tree. Tests cover those parsing/selection boundaries,

@@ -94,8 +94,9 @@ Alias array/item structure is documented by the optional standalone JSON Schema;
 the YAML loader decodes the Go slice directly. Duplicate aliases within
 one variant or across variants are semantic errors: `E_ALIAS_DUPLICATE`, exit 1,
 in default, authoring and publish validation. Do not reject duplicates as
-`E_SCHEMA`; structural alias type/path failures remain schema errors.
-A schema-valid alias must begin with its owning variant's `/<locale>/` prefix.
+`E_SCHEMA`; values that cannot decode into the Go slice remain decoder errors.
+Optional Schema path checks are separate from YAML loading. The existing
+semantic alias-ownership rule requires the owning variant's `/<locale>/` prefix.
 A cross-locale alias is `E_URL_COLLISION`, exit 1, in every validation mode,
 even when its path does not otherwise exist in the route registry.
 

@@ -1,4 +1,5 @@
-// Package schemas validates normalized inputs against the checked-in contracts.
+// Package schemas provides optional standalone validation against bundled schemas.
+// Configuration and front-matter loading do not call this package.
 package schemas
 
 import (
@@ -51,8 +52,8 @@ func ValidateArticle(value any) error {
 	return validate(schema, value)
 }
 
-// ValidateConfig checks the unprojected YAML value, including URI formats.
-// Defaults and semantic checks are the configuration loader's responsibility.
+// ValidateConfig optionally checks a caller-supplied value, including URI formats.
+// Loading/defaults use typed Go decoding; command-specific checks are separate.
 func ValidateConfig(value any) error {
 	schema, err := configSchema()
 	if err != nil {

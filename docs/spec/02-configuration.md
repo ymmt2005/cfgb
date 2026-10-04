@@ -5,8 +5,9 @@ into the complete Go configuration struct with `goccy/go-yaml`, rejecting unknow
 fields. The YAML decoder determines which document/tag syntax can be decoded;
 configuration loading adds no AST syntax policy or JSON Schema validation gate.
 `schemas/cfgb.schema.json` remains an optional editor/standalone validation aid,
-not a prerequisite for using the CLI. JSON Schema 2020-12 validation of content
-is separate and asserts `date-time` and `uri` formats.
+not a prerequisite for using the CLI. Optional standalone JSON Schema 2020-12
+validation asserts `date-time` and `uri` formats; the CLI does not require that
+validation before consuming typed values.
 
 The table describes site settings, defaults and the requirements of commands
 that consume them. Decoding does not itself enforce every publishing/provider
@@ -138,5 +139,6 @@ Schema versions are not CLI release numbers. Commands that consume versioned
 content reject unsupported versions with a clear upgrade diagnostic; the
 configuration decoder preserves the supplied `schemaVersion` without a Schema
 gate. Breaking upgrades are explicit migrations with
-a dry-run diff. Renderer and CLI must run the same conformance fixtures, including
-duplicate YAML key rejection; schema validation alone is insufficient.
+a dry-run diff. Decoder fixtures exercise the YAML library's behavior, including
+its duplicate-key errors; do not add an independent YAML syntax policy. Optional
+Schema scenarios are separate from loading/build acceptance.

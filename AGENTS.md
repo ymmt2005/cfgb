@@ -129,7 +129,8 @@ For changes crossing repositories, keep ownership explicit:
 - Use `os.Root` for reading untrusted repository inputs, not lexical path checks
   alone. Test repository-contained symlinks and escapes through the actual
   staging/build path. A helper test that bypasses prior validation is not proof
-  of a user-facing bug. Preserve the documented narrower boundary of local assets.
+  of a user-facing bug. The existing narrower local-asset boundary is unverified;
+  do not treat its presence in a specification as human approval.
 - Validate configuration and output selection before removing output. For the
   selected `--out` entry, call `os.RemoveAll(out)` and stop on failure. Do not
   `EvalSymlinks(out)` and delete the target instead: an output symlink is the

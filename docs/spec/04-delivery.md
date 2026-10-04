@@ -125,8 +125,9 @@ use a gated deployment pipeline, such as GitHub Actions with a protected
 Environment; do not assume the automatic Workers Builds setup enforces that gate.
 
 1. Run read-only `validate --authoring` checks on the PR head with `contents: read`,
-   no secrets and no persisted checkout credentials. Non-string summaries
-   remain schema errors; missing/empty summaries are warnings in this mode.
+   no secrets and no persisted checkout credentials. Summary checks use the
+   decoded Go string; decoder failures are errors, and missing/empty summaries
+   are warnings in this mode. Do not impose a separate raw-YAML type gate.
 2. For trusted authoring automation, use a reviewed pinned CFGB release and
    trusted configuration. Generate only eligible summaries; protect human edits.
    Use trusted base-branch configuration/prompts, never PR scripts. Restrict writes

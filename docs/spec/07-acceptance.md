@@ -1,7 +1,10 @@
 # Acceptance and fixture guide
 
-The documents define the desired behavior. The example corpus is acceptance data, not a CLI or renderer implementation.
-Initial preparation checks only its structural and referential integrity.
+The documents describe existing design work, subject to the human-approval
+priority in [AGENTS.md](../../AGENTS.md). A document or fixture is not approval
+for a new input-rejection policy. The example corpus is acceptance data, not a
+CLI or renderer implementation. Standalone Schema checks are optional and
+separate from typed YAML loading and build acceptance.
 
 | Gate | Evidence / fixture | Implementing component |
 | --- | --- | --- |
@@ -28,11 +31,11 @@ Initial preparation checks only its structural and referential integrity.
 | Retained toolchain and runtime validation | Delivery cases; Node/npm/Wrangler, the optional pnpm path, a fresh workspace per build, and basename session IDs that are not derived from the build identifier | CFGB build/deploy/preview |
 | Diagnostic CI metadata | Detached HEAD records an available CI branch; a missing or differing commit, branch, or build ID stays successful | CFGB build |
 | Separate build/upload stages | `tests/build-delivery/cases.json`; supplied-artifact upload, publication timestamps, and the current-branch gate | CFGB build/deploy/preview |
-| Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
+| Summary validation modes | Mode checks on decoded strings; decoder failures; optional standalone raw-type Schema scenarios | CLI / optional Schema tooling |
 | Future-date validation modes | Default/authoring `W_FUTURE_DATE`, exit 0; publish `E_FUTURE_DATE`, exit 1 | CLI |
 | Cross-locale alias rejection | Schema-valid alias in another locale; `E_URL_COLLISION`, exit 1 | CLI |
-| Semantic alias uniqueness | Duplicate arrays in every mode and duplicates across variants; `E_ALIAS_DUPLICATE` after Schema | CLI |
-| Configuration defaults and semantics | `tests/fixtures/configuration/cases.json`; preview access, production branch and enabled AI with an empty summary map | Configuration loader |
+| Semantic alias uniqueness | Duplicate arrays in every mode and duplicates across variants; `E_ALIAS_DUPLICATE` on decoded aliases | CLI |
+| Configuration defaults and semantics | `tests/fixtures/configuration/cases.json`; typed loading/defaults followed by checks only in the command that uses each setting | Configuration loader + relevant commands |
 | Setup Action and immutable-release verification | [Action contract](09-github-action.md), attestation/platform/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
@@ -54,9 +57,10 @@ isolation are separate security concerns.
 
 ## Test execution levels
 
-1. Corpus preparation: verify schema validity, routes, links, asset references,
-   target hashes and summary lifecycle expectations with temporary tooling. Do not
-   treat this as implementation acceptance.
+1. Corpus preparation: inspect routes, links, asset references, target hashes
+   and summary lifecycle expectations with temporary tooling. Optional standalone
+   Schema checks report their own results; they are not CLI loading prerequisites
+   or implementation acceptance.
 2. During CLI implementation: copy each mutation onto a fresh positive tree, run
    the real `cfgb validate` in the specified mode, and require the expected error or warning
    code and exit status. Keep fixtures out of normal content discovery. Do not compare full English

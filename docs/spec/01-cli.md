@@ -62,9 +62,9 @@ an empty/whitespace-only body without writing a summary or ownership record.
 
 | Rule | `--authoring` | default | `--publish` |
 | --- | --- | --- | --- |
-| Invalid schema/topic/path/date/URL/asset/link | Error | Error | Error |
+| Decoder failure or an approved topic/path/date/URL/asset/link violation | Error | Error | Error |
 | Missing, empty or whitespace-only summary | Warning | Error | Error |
-| Summary null, numeric or another non-string value | Error | Error | Error |
+| Summary value that cannot decode into the Go string field | Error | Error | Error |
 | Valid future `publishedAt` | Warning | Warning | Error |
 | Summary outside recommended length | Warning | Warning | Warning |
 | Unknown generated sidecar version | Error | Error | Error |
@@ -76,12 +76,13 @@ does not override the clock. `updatedAt >= publishedAt`; publication requires
 both timestamps not later than now. Warnings do not become errors implicitly.
 Default `validate` is the final PR content gate after summary generation.
 
-The article Schema permits omitted/empty summary structurally in all modes; its
-newline constraint still applies to present strings. After structure checks, a
-summary is missing when absent or empty after trimming Unicode White_Space
-characters. Emit `W_SUMMARY_REQUIRED` in authoring and `E_SUMMARY_REQUIRED`
-otherwise, without a second length warning for that field. Non-string values
-fail with `E_SCHEMA` in every mode. Other required fields are not relaxed.
+Apply mode-specific summary checks to the decoded Go string. A summary is missing
+when absent or empty after trimming Unicode White_Space characters. Emit
+`W_SUMMARY_REQUIRED` in authoring and `E_SUMMARY_REQUIRED` otherwise, without a
+second length warning for that field. Values converted to strings by the decoder
+are strings for these checks; only a decoding failure produces `E_SCHEMA` at the
+loading boundary. The optional article Schema has its own string/newline rules;
+those are not mandatory CLI checks. New runtime constraints require human approval.
 
 ## GitHub Action setup
 
@@ -210,9 +211,11 @@ Warnings include `W_SUMMARY_LENGTH`, `W_SUMMARY_REQUIRED`, `W_FUTURE_DATE`,
 `W_LINKCARD_MISSING`. Collect independent errors; don't invent cascading results
 from a file that cannot be parsed.
 
-Alias uniqueness is semantic validation after structural Schema validation.
+Alias uniqueness is a semantic check on the decoded aliases, without a mandatory
+Schema pass.
 Duplicates within an alias array or across variants use `E_ALIAS_DUPLICATE`,
-exit 1, in every validation mode; malformed alias types/paths use `E_SCHEMA`.
+exit 1, in every validation mode. Alias values that cannot decode into the Go
+slice use `E_SCHEMA`; optional Schema path patterns do not define loader failures.
 
 ## Safe writes and network
 
