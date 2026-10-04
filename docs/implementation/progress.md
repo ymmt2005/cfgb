@@ -164,8 +164,9 @@ Configuration discovery/read failures are distinguished from decoder/usage
 errors: real I/O (including a deleted working directory and temporary workspace
 creation) exits 3, while invalid configuration exits 2. Public article and prose
 media are copied from the staged content snapshot, rather than rereading the live
-repository. An empty timezone uses Go's native UTC interpretation and is sent to
-Intl as `UTC`. Equal publication times sort by article key, then the complete
+repository. An empty timezone uses Go's native UTC interpretation when timestamps
+are localized in Go; the site timezone is not passed to Intl. Equal publication
+times sort by article key, then the complete
 year/group identity; generated homes and feeds exercise that ordering. Aside ID
 references include microdata and native popover/dialog targets, with a browser
 regression test that runs without JavaScript.
