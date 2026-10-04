@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -150,8 +151,13 @@ func TestExampleCorpus(t *testing.T) {
 	if !bytes.Contains(article, []byte("data-footnote-ref")) || (!bytes.Contains(article, []byte("id=\"補足-1\"")) && !bytes.Contains(article, []byte("id=\"テスト-1\""))) {
 		t.Fatal("japanese showcase is missing the footnote or duplicate heading")
 	}
-	if !bytes.Contains(article, []byte(`data-pagefind-filter="year:2026"`)) || !bytes.Contains(article, []byte("data-pagefind-meta=\"published[")) {
+	if !bytes.Contains(article, []byte(`data-pagefind-filter="year:2026"`)) || !bytes.Contains(article, []byte(`data-pagefind-meta="published[datetime]"`)) {
 		t.Fatal("article is missing the site-local year or publication metadata")
+	}
+	published := pagefindPublished(t, filepath.Join(out, "site", "ja", "posts", "markdown-showcase", "index.html"))
+	stamp := publicationStamp(article)
+	if published == "" || published != stamp {
+		t.Fatalf("pagefind published = %q, datetime = %q", published, stamp)
 	}
 	root404, err := os.ReadFile(filepath.Join(out, "site", "404.html"))
 	if err != nil {
@@ -186,6 +192,49 @@ func TestExampleCorpus(t *testing.T) {
 	default:
 		t.Fatalf("CFGB_PACKAGE_MANAGER = %s", manager)
 	}
+}
+
+var publicationStampPattern = regexp.MustCompile(`<time datetime="([^"]+)" data-pagefind-meta="published\[datetime\]">`)
+
+func publicationStamp(article []byte) string {
+	match := publicationStampPattern.FindSubmatch(article)
+	if match == nil {
+		return ""
+	}
+	return string(match[1])
+}
+
+func pagefindPublished(t *testing.T, htmlPath string) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot locate test file")
+	}
+	script := `
+import { createIndex } from "pagefind";
+import { readFileSync } from "node:fs";
+const html = readFileSync(process.argv[1], "utf8");
+const created = await createIndex();
+if (created.errors?.length) throw new Error(created.errors.join("\n"));
+const added = await created.index.addHTMLFile({ url: "/article/", content: html });
+if (added.errors?.length) throw new Error(added.errors.join("\n"));
+process.stdout.write(JSON.stringify(added.file.meta));
+`
+	cmd := exec.Command("node", "--input-type=module", "-e", script, htmlPath)
+	cmd.Dir = filepath.Join(filepath.Dir(file), "..", "..", "renderer")
+	out, err := cmd.Output()
+	if err != nil {
+		stderr := ""
+		if exit, ok := err.(*exec.ExitError); ok {
+			stderr = string(exit.Stderr)
+		}
+		t.Fatalf("pagefind: %v\n%s%s", err, stderr, out)
+	}
+	var meta map[string]string
+	if err := json.Unmarshal(out, &meta); err != nil {
+		t.Fatalf("pagefind meta: %v\n%s", err, out)
+	}
+	return meta["published"]
 }
 
 func packageManagerPresent(manager string) bool {

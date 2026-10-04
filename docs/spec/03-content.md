@@ -106,7 +106,10 @@ extension. Keep that extension enabled. Place the definitions at the end of the
 article body, numbered by first reference. Each reference links to its
 definition, and each definition links back to every reference that uses it. The
 same id keeps one number. Render inline Markdown inside a definition. Show the
-list without JavaScript. A reference with no definition is `E_LINK_BROKEN`.
+list without JavaScript. Aside is rendered on its own and then placed beside the
+page. Prefix that fragment's generated ids, fragment links, footnote
+backreferences, and accessibility references with `aside-` so they do not collide
+with the page. Article heading anchors stay unchanged. A reference with no definition is `E_LINK_BROKEN`.
 Omit a definition that nothing references. Leave footnote syntax inside code
 fences unchanged. Process Markdown via AST, including reference
 links and raw HTML attributes. Parse those attributes with an HTML syntax tree,
@@ -127,14 +130,14 @@ javascript URLs. No MDX/code execution. Imported inline event handlers, iframes
 and scripts are surfaced as review blockers before publication. Any approved
 embed must be consistent with the final CSP/privacy policy.
 
-Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images
-and supplies dimensions/responsive delivery. External images remain external
-without build-time downloads and appear in migration/privacy reports. An article
-Markdown image, raw HTML image, or link to `./assets/...` is rewritten to the
-published `/media/<year>/<article>/` path. Home, about, and aside links
-and raw HTML images use `/media/home/`, `/media/about/`, and `/media/aside/`.
-Markdown images in those prose files stay on Astro's image pipeline, which
-records the image imports and emits the processed file. Existing percent-escapes
+Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images,
+including reference-style images, in articles and in home, about, and aside.
+It supplies dimensions and emits the processed file. A definition used by a
+Markdown image stays on that pipeline. External images remain external
+without build-time downloads and appear in migration/privacy reports. Raw HTML
+images and links to `./assets/...` are published under `/media/<year>/<article>/`.
+Home, about, and aside links and raw HTML images use `/media/home/`,
+`/media/about/`, and `/media/aside/`. Existing percent-escapes
 are not encoded again, and any query or fragment stays on a rewritten URL. Local SVG
 is used as an image, not blindly injected as trusted inline markup. The example
 includes SVG as a precise diagram and PNG as an original lossless raster fixture.
@@ -175,6 +178,8 @@ Run Pagefind Extended on built output. Each page has correct `<html lang>`;
 load search only at `/<locale>/search/`, and reinitialize when locale changes.
 Use `data-pagefind-body` only on article content, with metadata for title, summary,
 publication date and topics; filters use stable topic IDs and site-local year.
+The publication timestamp is the `datetime` attribute of its `time` element,
+recorded as `published[datetime]`, not as a bracketed literal value.
 Pages that are not articles, including generated 404 pages, carry
 `data-pagefind-ignore="all"`. The search UI selects the document language as the
 `locale` filter. Navigation, the right-hand column, TOC, footer, and copy labels are excluded. Search title must remain searchable

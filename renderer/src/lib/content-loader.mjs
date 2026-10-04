@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { namespaceFragment } from "./fragment-ids.mjs";
 
 const renderers = new WeakMap();
 
@@ -23,7 +24,7 @@ export function cfgbLoader(name, entries) {
           fileURL,
         });
         const rendered = {
-          html: result.code,
+          html: String(entry.id).startsWith("aside/") ? namespaceFragment(result.code, "aside-") : result.code,
           metadata: {
             ...result.metadata,
             imagePaths: [

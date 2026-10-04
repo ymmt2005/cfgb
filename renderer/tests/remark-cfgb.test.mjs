@@ -123,6 +123,8 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
           value: "graph TD\nA-->B\n",
         },
         { type: "link", url: "./assets/diagram.png#detail", children: [{ type: "text", value: "diagram" }] },
+        { type: "imageReference", identifier: "picture", alt: "Reference" },
+        { type: "definition", identifier: "picture", url: "./assets/picture.svg" },
         { type: "definition", identifier: "fig", url: "./assets/figures/one.png?x=1" },
         { type: "html", value: '<a href="./assets/a b.png?download=1#y">asset</a>' },
         { type: "link", url: "./assets/a%20b.png?download=1#detail", children: [{ type: "text", value: "download" }] },
@@ -152,15 +154,17 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
     assert.match(tree.children[4].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
     assert.equal(tree.children[5].value, '<div class="diagram-block"><pre class="mermaid">graph TD\nA--&gt;B</pre></div>');
     assert.equal(tree.children[6].url, "/media/2026/2026-09-20-markdown-showcase/diagram.png#detail");
-    assert.equal(tree.children[7].url, "/media/2026/2026-09-20-markdown-showcase/figures/one.png?x=1");
+    assert.equal(tree.children[7].identifier, "picture");
+    assert.equal(tree.children[8].url, "./assets/picture.svg");
+    assert.equal(tree.children[9].url, "/media/2026/2026-09-20-markdown-showcase/figures/one.png?x=1");
     assert.equal(
-      tree.children[8].value,
+      tree.children[10].value,
       '<a href="/media/2026/2026-09-20-markdown-showcase/a%20b.png?download=1#y">asset</a>',
     );
-    assert.equal(tree.children[9].url, "/media/2026/2026-09-20-markdown-showcase/a%20b.png?download=1#detail");
-    assert.equal(tree.children[10].url, "/media/2026/2026-09-20-markdown-showcase/diagram.svg?v=1#view");
+    assert.equal(tree.children[11].url, "/media/2026/2026-09-20-markdown-showcase/a%20b.png?download=1#detail");
+    assert.equal(tree.children[12].url, "./assets/diagram.svg?v=1#view");
     assert.equal(
-      tree.children[11].value,
+      tree.children[13].value,
       '<img src="/media/2026/2026-09-20-markdown-showcase/a%20b.png?x=1#y" alt="encoded">',
     );
   } finally {
@@ -247,7 +251,8 @@ test("markdown parsing keeps rewritten anchor labels inside the anchor", async (
     assert.equal(html.includes(`${media}/a%2520b.png`), false);
     assert.equal(html.includes("diagram.svg%23view"), false);
     assert.equal(html.includes(`${media}/a%20b.png?download=1#detail`), true);
-    assert.equal(html.includes(`${media}/diagram.svg?v=1#view`), true);
+    assert.equal(html.includes("./assets/diagram.svg?v=1#view"), true);
+    assert.equal(html.includes(`${media}/diagram.svg`), false);
     assert.equal(html.includes(`${media}/a%20b.png?x=1#y`), true);
     assert.equal(html.includes(`${media}/a%20b.png">file</a>`), true);
   } finally {
@@ -309,14 +314,14 @@ test("asset paths rewrite when the source path uses Windows separators", () => {
     const tree = {
       type: "root",
       children: [
-        { type: "image", url: "./assets/diagram.png", alt: "Diagram" },
+        { type: "link", url: "./assets/diagram.png", children: [{ type: "text", value: "diagram" }] },
         { type: "image", url: "./assets/figures/one.png", alt: "One" },
       ],
     };
     const windowsPath = ["C:", "content", "posts", "2026", "article-key", "en.md"].join("\\");
     remarkCfgb()(tree, { path: windowsPath });
     assert.equal(tree.children[0].url, "/media/2026/article-key/diagram.png");
-    assert.equal(tree.children[1].url, "/media/2026/article-key/figures/one.png");
+    assert.equal(tree.children[1].url, "./assets/figures/one.png");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -356,6 +361,8 @@ test("prose links and raw HTML publish assets while Markdown images stay local",
     resetSiteCache();
     const children = [
       { type: "image", url: "./assets/portrait.svg", alt: "Markdown portrait" },
+      { type: "imageReference", identifier: "picture", alt: "Reference portrait" },
+      { type: "definition", identifier: "picture", url: "./assets/portrait.svg" },
       { type: "html", value: '<img src="./assets/portrait.svg?v=1#view" alt="Raw HTML portrait">' },
       { type: "link", url: "./assets/portrait.svg", children: [{ type: "text", value: "Markdown asset link" }] },
       { type: "html", value: '<a href="./assets/portrait.svg">Raw HTML asset link</a>' },
@@ -363,13 +370,15 @@ test("prose links and raw HTML publish assets while Markdown images stay local",
     const homeTree = { type: "root", children: structuredClone(children) };
     remarkCfgb()(homeTree, { path: homeFile });
     assert.equal(homeTree.children[0].url, "./assets/portrait.svg");
-    assert.equal(homeTree.children[1].value, '<img src="/media/home/portrait.svg?v=1#view" alt="Raw HTML portrait">');
-    assert.equal(homeTree.children[2].url, "/media/home/portrait.svg");
-    assert.equal(homeTree.children[3].value, '<a href="/media/home/portrait.svg">Raw HTML asset link</a>');
+    assert.equal(homeTree.children[2].url, "./assets/portrait.svg");
+    assert.equal(homeTree.children[3].value, '<img src="/media/home/portrait.svg?v=1#view" alt="Raw HTML portrait">');
+    assert.equal(homeTree.children[4].url, "/media/home/portrait.svg");
+    assert.equal(homeTree.children[5].value, '<a href="/media/home/portrait.svg">Raw HTML asset link</a>');
     const aboutTree = { type: "root", children: structuredClone(children) };
     remarkCfgb()(aboutTree, { path: aboutFile });
     assert.equal(aboutTree.children[0].url, "./assets/portrait.svg");
-    assert.equal(aboutTree.children[2].url, "/media/about/portrait.svg");
+    assert.equal(aboutTree.children[2].url, "./assets/portrait.svg");
+    assert.equal(aboutTree.children[4].url, "/media/about/portrait.svg");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

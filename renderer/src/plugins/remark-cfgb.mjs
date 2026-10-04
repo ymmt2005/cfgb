@@ -15,6 +15,12 @@ export function remarkCfgb() {
   const byFile = new Map(corpus.posts.map((post) => [path.resolve(post.file), post]));
   return (tree, file) => {
     const source = file.path ? path.resolve(file.path) : "";
+    const imageDefinitions = new Set();
+    walk(tree, (node) => {
+      if (node.type === "imageReference" && node.identifier) {
+        imageDefinitions.add(String(node.identifier).toLowerCase());
+      }
+    });
     walk(tree, (node, parent, index) => {
       if (node.type === "code" && node.lang === "mermaid" && parent) {
         parent.children[index] = html(mermaidBlock(node.value || ""));
@@ -32,11 +38,14 @@ export function remarkCfgb() {
         if (card) parent.children[index] = html(card);
         return;
       }
-      if ((node.type === "link" || node.type === "definition") && node.url) {
+      if (node.type === "link" && node.url) {
         node.url = rewriteLink(node.url, source, byFile);
       }
-      if (node.type === "image" && node.url) {
-        node.url = rewriteImage(node.url, source, { markdownImage: true });
+      // A definition used by an image stays local so Astro can import it.
+      // Link-only definitions are published with the other asset links.
+      if (node.type === "definition" && node.url) {
+        const identifier = String(node.identifier || "").toLowerCase();
+        if (!imageDefinitions.has(identifier)) node.url = rewriteLink(node.url, source, byFile);
       }
     });
   };
@@ -210,14 +219,11 @@ function assetScope(source) {
   return "";
 }
 
-function rewriteImage(url, source, options = {}) {
+function rewriteImage(url, source) {
   if (!url.startsWith("./assets/") || !source) return url;
   const { path, suffix } = splitUrl(url);
   const scope = assetScope(source);
   if (!scope || !path.startsWith("./assets/")) return url;
-  // Home, about, and aside Markdown images stay on Astro's image pipeline.
-  // Links and raw HTML use the published prose asset instead.
-  if (options.markdownImage && !scope.includes("/")) return url;
   const name = path.slice("./assets/".length);
   const encoded = name.split("/").map(encodeAssetSegment).join("/");
   return `/media/${scope}/${encoded}${suffix}`;
