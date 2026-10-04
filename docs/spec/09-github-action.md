@@ -142,7 +142,9 @@ cached bytes/evidence are reverified. Test platform selection across supported
 runner targets without caller digests. For matching release/target, assert the
 Workers Builds configured digest matches the Action's attested executable bytes.
 
-CLI tests run the shared example corpus directly. Once implemented, a smoke
-workflow can install CFGB using this Action and invoke the CLI in a later `run`
-step; domain and delivery conformance remain CLI tests. No live Action acceptance
-is claimed at this design stage.
+CLI tests run the shared example corpus directly. The Action CI installs the
+exact immutable release on native supported runners and invokes the CLI in a
+later `run` step. The example's Links and Pages workflows use the separately
+commit-pinned Action with CFGB v0.1.0. Domain and delivery conformance remain CLI
+tests; these setup/build checks do not imply that later authoring, migration or
+Cloudflare upload commands are implemented.
