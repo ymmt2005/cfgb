@@ -1,6 +1,6 @@
 ---
 import { alternateMembers, languageDestination } from "../lib/locale-link.mjs";
-import { absolute, copyFor, loadSite, openGraphLocale } from "../lib/load-site.mjs";
+import { absolute, basePath, sitePath, copyFor, loadSite, openGraphLocale } from "../lib/load-site.mjs";
 
 interface Props {
   locale: string;
@@ -46,7 +46,8 @@ const nav = [
   [copy.about, `/${locale}/about/`],
 ];
 function localeChoice(lang: string, destination: string) {
-  return `/__locale?lang=${encodeURIComponent(lang)}&next=${encodeURIComponent(destination)}`;
+  if (site.static) return sitePath(site, destination);
+  return `${sitePath(site, "/__locale")}?lang=${encodeURIComponent(lang)}&next=${encodeURIComponent(destination)}`;
 }
 function currentNav(href: string) {
   if (href === `/${locale}/`) return path === href;
@@ -56,14 +57,14 @@ function currentNav(href: string) {
 const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 ---
 <!DOCTYPE html>
-<html lang={locale}>
+<html lang={locale} data-cfgb-base-path={basePath(site)}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{pageTitle}</title>
 {description && <meta name="description" content={description} />}
 <link rel="canonical" href={canonical}>
-<link rel="alternate" type="application/rss+xml" title={copy.feed} href={`/${locale}/feed.xml`}>
+<link rel="alternate" type="application/rss+xml" title={copy.feed} href={sitePath(site, `/${locale}/feed.xml`)}>
 <meta property="og:title" content={title}>
 {description && <meta property="og:description" content={description} />}
 <meta property="og:url" content={canonical}>
@@ -74,8 +75,8 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
   <link rel="alternate" hreflang={item.locale} href={absolute(site, item.href)} />
 ))}
 {members.some((item) => item.locale === locale) && <link rel="alternate" hreflang={locale} href={canonical} />}
-<link rel="stylesheet" href="/assets/site.css">
-<script is:inline src="/assets/theme-boot.js"></script>
+<link rel="stylesheet" href={sitePath(site, "/assets/site.css")}>
+<script is:inline src={sitePath(site, "/assets/theme-boot.js")}></script>
 {json && <script type="application/ld+json" is:inline set:html={json} />}
 </head>
 <body data-pagefind-ignore={pagefind ? undefined : "all"}>
@@ -83,7 +84,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 <header class="mast">
   <div class="wrap">
     <div class="mast-row">
-      <a class="brand" href={`/${locale}/`}>{site.title.split(" ")[0]} <span>{site.title.split(" ").slice(1).join(" ")}</span></a>
+      <a class="brand" href={sitePath(site, `/${locale}/`)}>{site.title.split(" ")[0]} <span>{site.title.split(" ").slice(1).join(" ")}</span></a>
       <div class="tools">
         <nav class="locales" aria-label={copy.language}>
           <a href={localeChoice(locale, path)} aria-current="true" hreflang={locale}>{site.locales[locale].label}</a>
@@ -101,7 +102,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     </div>
     <nav class="sections" aria-label={copy.sections}>
       {nav.map(([label, href]) => (
-        <a href={href} aria-current={currentNav(href) ? "page" : undefined}>{label}</a>
+        <a href={sitePath(site, href)} aria-current={currentNav(href) ? "page" : undefined}>{label}</a>
       ))}
     </nav>
   </div>
@@ -120,7 +121,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     )}
     <div class="frame-main">
       <slot name="before" />
-      {otherMember && <p class="translation">{copy.hasTranslation} <a href={otherMember.href}>{copy.openTranslation}</a></p>}
+      {otherMember && <p class="translation">{copy.hasTranslation} <a href={sitePath(site, otherMember.href)}>{copy.openTranslation}</a></p>}
       {untranslated && <p class="translation">{copy.noTranslation}</p>}
       {hasToc && (
         <details class="toc-mobile" open>
@@ -137,8 +138,8 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     {showAside && <aside class="rail"><slot name="aside" /></aside>}
   </div>
 </main>
-<footer class="site"><div class="wrap"><span>{site.title} · {new URL(site.baseUrl).host}</span><span><a href={`/${locale}/feed.xml`}>{copy.feed}</a></span></div></footer>
-<script is:inline src="/assets/site.js"></script>
+<footer class="site"><div class="wrap"><span>{site.title} · {new URL(site.baseUrl).host}</span><span><a href={sitePath(site, `/${locale}/feed.xml`)}>{copy.feed}</a></span></div></footer>
+<script is:inline src={sitePath(site, "/assets/site.js")}></script>
 <script>
   import { localizeDates } from "../lib/dates.mjs";
   localizeDates(document);

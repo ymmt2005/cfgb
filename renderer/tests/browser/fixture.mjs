@@ -19,8 +19,8 @@ const rendererRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const code = 'const greeting = "こんにちは";\nconsole.log(greeting);';
 export const diagram = "flowchart TD\nBrowser --> Search";
 
-export async function startSite() {
-  const work = buildSite();
+export async function startSite({ basePath = "", static: staticSite = false } = {}) {
+  const work = buildSite(basePath, staticSite);
   let browser, server;
   try {
     const dist = path.join(work, "renderer", "dist");
@@ -46,9 +46,9 @@ export async function startSite() {
         const pathname = decodeURIComponent(
           new URL(request.url, "http://localhost").pathname,
         );
-        const relative = pathname.endsWith("/")
-          ? `${pathname}index.html`
-          : pathname;
+        if (!pathname.startsWith(`${basePath}/`)) throw new Error("outside hosting prefix");
+        const route = pathname.slice(basePath.length);
+        const relative = route.endsWith("/") ? `${route}index.html` : route;
         const file = path.resolve(dist, `.${relative}`);
         if (!file.startsWith(`${dist}${path.sep}`))
           throw new Error("outside fixture");
@@ -128,7 +128,7 @@ export async function withPage(site, options, run) {
   }
 }
 
-function buildSite() {
+function buildSite(basePath, staticSite) {
   const work = mkdtempSync(path.join(tmpdir(), "cfgb-browser-test-"));
   try {
     const renderer = path.join(work, "renderer");
@@ -180,6 +180,7 @@ function buildSite() {
         publishedAt: "2026-09-30T16:30:00Z",
         topics: ["notes"],
         summary: "Interaction test article.",
+        aliases: [`/${locale}/posts/old-browser/`],
       },
     }));
     posts.push({
@@ -246,7 +247,8 @@ function buildSite() {
       site,
       JSON.stringify({
         title: "CFGB Example",
-        baseUrl: "https://example.invalid",
+        baseUrl: `https://example.invalid${basePath}`,
+        static: staticSite,
         defaultLocale: "ja",
 
         locales: { ja: { label: "日本語" }, en: { label: "English" } },

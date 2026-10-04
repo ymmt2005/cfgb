@@ -3,7 +3,7 @@ import { render } from "astro:content";
 import Base from "../../../layouts/Base.astro";
 import { groupCounterparts } from "../../../lib/locale-link.mjs";
 import { posts, renderedProse } from "../../../lib/content";
-import { formatDate, loadSite } from "../../../lib/load-site.mjs";
+import { absolute, sitePath, formatDate, loadSite } from "../../../lib/load-site.mjs";
 
 export async function getStaticPaths() {
   return (await posts()).map((post) => ({
@@ -30,7 +30,7 @@ const jsonLd = {
   dateModified: post.data.updatedAt || post.data.publishedAt,
   description: post.data.summary || "",
   inLanguage: locale,
-  mainEntityOfPage: site.baseUrl.replace(/\/$/, "") + post.url,
+  mainEntityOfPage: absolute(site, post.url),
 };
 ---
 <Base
@@ -47,12 +47,12 @@ const jsonLd = {
 >
   {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
   <article data-pagefind-filter={`locale:${locale}`}>
-    <p class="kicker"><a href={`/${locale}/archive/${month.year}/${month.month}/`} data-pagefind-filter={`year:${month.year}`}><time datetime={post.data.publishedAt} data-pagefind-meta="published[datetime]" data-cfgb-date={locale}>{formatDate(post.data.publishedAt, locale, "UTC")}</time></a></p>
+    <p class="kicker"><a href={sitePath(site, `/${locale}/archive/${month.year}/${month.month}/`)} data-pagefind-filter={`year:${month.year}`}><time datetime={post.data.publishedAt} data-pagefind-meta="published[datetime]" data-cfgb-date={locale}>{formatDate(post.data.publishedAt, locale, "UTC")}</time></a></p>
     <h1 class="article-title" data-pagefind-body data-pagefind-meta="title">{post.data.title}</h1>
     <div class="meta-row">
       <p class="topics">
         {post.data.topics.map((topic) => (
-          <a href={`/${locale}/topics/${topic}/`} data-pagefind-filter={`topic:${topic}`}>{topics[topic]?.[locale] || topic}</a>
+          <a href={sitePath(site, `/${locale}/topics/${topic}/`)} data-pagefind-filter={`topic:${topic}`}>{topics[topic]?.[locale] || topic}</a>
         ))}
       </p>
     </div>

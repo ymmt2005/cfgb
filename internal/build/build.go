@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,11 +55,13 @@ func (e *ExitError) Unwrap() error { return e.Err }
 // artifact path. A relative Config is relative to Dir; content and Out paths
 // are relative to the selected configuration's directory.
 type Options struct {
-	Dir    string
-	Config string
-	Out    string
-	Stdout io.Writer
-	Stderr io.Writer
+	Dir     string
+	Config  string
+	Out     string
+	BaseURL string
+	Static  bool
+	Stdout  io.Writer
+	Stderr  io.Writer
 }
 
 // releasePins are read from the embedded renderer package.
@@ -78,6 +81,7 @@ type toolchainCheck struct {
 
 type siteJSON struct {
 	Title         string `json:"title"`
+	Static        bool   `json:"static"`
 	BaseURL       string `json:"baseUrl"`
 	DefaultLocale string `json:"defaultLocale"`
 	Locales       map[string]struct {
@@ -115,6 +119,13 @@ func Run(opts Options) (err error) {
 			code = 3
 		}
 		return &ExitError{Code: code, Err: err}
+	}
+	if opts.BaseURL != "" {
+		cfg.Site.BaseURL = opts.BaseURL
+	}
+	basePath, err := siteBasePath(cfg.Site.BaseURL)
+	if err != nil {
+		return &ExitError{Code: 2, Err: fmt.Errorf("site.baseUrl: %w", err)}
 	}
 	if err := cfg.ValidateSite(); err != nil {
 		return &ExitError{Code: 2, Err: err}
@@ -179,7 +190,7 @@ func Run(opts Options) (err error) {
 		return &ExitError{Code: 3, Err: err}
 	}
 	sitePath := filepath.Join(workspace, "site.json")
-	if err := writeSiteJSON(sitePath, cfg, contentRoot, topicsFile, linkcardsDir, metadataPath); err != nil {
+	if err := writeSiteJSON(sitePath, cfg, contentRoot, topicsFile, linkcardsDir, metadataPath, opts.Static); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
 	routesPath := filepath.Join(workspace, "routes.json")
@@ -204,6 +215,7 @@ func Run(opts Options) (err error) {
 		DefaultLocale: cfg.Site.DefaultLocale,
 		Locales:       locales,
 		Routes:        routes,
+		BasePath:      basePath,
 	})
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
@@ -800,7 +812,7 @@ func readRootDir(root *os.Root, name string) (entries []fs.DirEntry, err error) 
 	return file.ReadDir(-1)
 }
 
-func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkcardsDir, metadataFile string) error {
+func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkcardsDir, metadataFile string, static bool) error {
 	locales := map[string]struct {
 		Label string `json:"label"`
 	}{}
@@ -811,6 +823,7 @@ func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkc
 	}
 	raw, err := json.Marshal(siteJSON{
 		Title:         cfg.Site.Title,
+		Static:        static,
 		BaseURL:       cfg.Site.BaseURL,
 		DefaultLocale: cfg.Site.DefaultLocale,
 		Locales:       locales,
@@ -1227,4 +1240,13 @@ func contentError(err error) *ExitError {
 		code = 1
 	}
 	return &ExitError{Code: code, Err: err}
+}
+
+// siteBasePath is the deployment prefix represented by the configured site URL.
+func siteBasePath(raw string) (string, error) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(parsed.EscapedPath(), "/"), nil
 }

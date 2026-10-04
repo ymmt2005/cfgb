@@ -1,7 +1,7 @@
 ---
 import Base from "../../../layouts/Base.astro";
 import { posts, renderedProse } from "../../../lib/content";
-import { copyFor, loadSite } from "../../../lib/load-site.mjs";
+import { sitePath, copyFor, loadSite } from "../../../lib/load-site.mjs";
 
 export function getStaticPaths() {
   const { site } = loadSite();
@@ -9,6 +9,7 @@ export function getStaticPaths() {
 }
 const { locale } = Astro.params;
 const copy = copyFor(locale);
+const { site } = loadSite();
 const months = new Map<string, { year: string; month: string; count: number }>();
 for (const post of (await posts()).filter((item) => item.locale === locale)) {
   const month = post.archive;
@@ -25,7 +26,7 @@ const aside = await renderedProse("aside", locale);
   <h1 class="home-title">{copy.archiveTitle}</h1>
   <ul>
     {list.map((month) => (
-      <li><a href={`/${locale}/archive/${month.year}/${month.month}/`}>{month.year}-{month.month}</a> ({month.count})</li>
+      <li><a href={sitePath(site, `/${locale}/archive/${month.year}/${month.month}/`)}>{month.year}-{month.month}</a> ({month.count})</li>
     ))}
   </ul>
 </Base>

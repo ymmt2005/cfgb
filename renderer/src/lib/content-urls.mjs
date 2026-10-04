@@ -1,4 +1,5 @@
 import path from "node:path";
+import { sitePath } from "./site-path.mjs";
 
 export function splitUrl(url) {
   const index = url.search(/[?#]/);
@@ -51,10 +52,11 @@ export function contentUrls(corpus) {
 
   const media = (url, source) => {
     const asset = localAsset(url, source);
-    if (!asset) return url;
+    if (!asset) return corpus.site ? sitePath(corpus.site, url) : url;
     const entry = sources.get(source);
     if (!entry) throw new Error(`Missing source metadata for ${source}`);
-    return entry.media + asset.encodedPath;
+    const route = entry.media + asset.encodedPath;
+    return corpus.site ? sitePath(corpus.site, route) : route;
   };
   return {
     media,
@@ -62,7 +64,7 @@ export function contentUrls(corpus) {
       if (url.startsWith("./assets/")) return media(url, source);
       const { pathname, suffix } = splitUrl(url);
       if (!source || !pathname || /^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(pathname))
-        return url;
+        return corpus.site ? sitePath(corpus.site, url) : url;
       let decoded;
       try {
         decoded = decodeURIComponent(pathname);
@@ -71,7 +73,9 @@ export function contentUrls(corpus) {
       }
       if (!decoded.endsWith(".md")) return url;
       const target = sources.get(path.resolve(path.dirname(source), decoded));
-      return target?.url ? target.url + suffix : url;
+      return target?.url
+        ? (corpus.site ? sitePath(corpus.site, target.url) : target.url) + suffix
+        : url;
     },
   };
 }

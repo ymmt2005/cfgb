@@ -1,3 +1,4 @@
+import { sitePath } from "./site-path.mjs";
 import { copyFor, rootNotFoundTitle } from "./load-site.mjs";
 
 export function fallbackHtml(corpus, locale) {
@@ -9,7 +10,7 @@ export function fallbackHtml(corpus, locale) {
     .map((item) => {
       const label = escapeHtml(corpus.site.locales[item].label);
       const search = escapeHtml(copyFor(item).search);
-      return `<p><a href="/${item}/">${label}</a> · <a href="/${item}/search/">${search}</a></p>`;
+      return `<p><a href="${escapeHtml(sitePath(corpus.site, `/${item}/`))}">${label}</a> · <a href="${escapeHtml(sitePath(corpus.site, `/${item}/search/`))}">${search}</a></p>`;
     })
     .join("");
   const title = bilingual ? rootNotFoundTitle() : copyFor(locale).notFound;
@@ -19,7 +20,7 @@ export function fallbackHtml(corpus, locale) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} · ${escapeHtml(corpus.site.title)}</title>
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="${escapeHtml(sitePath(corpus.site, "/assets/site.css"))}">
 </head>
 <body data-pagefind-ignore="all">
 <main id="content" class="wrap page-narrow">

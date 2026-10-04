@@ -1,5 +1,5 @@
 ---
-import { formatDate, loadSite } from "../lib/load-site.mjs";
+import { absolute, sitePath, formatDate, loadSite } from "../lib/load-site.mjs";
 import type { PostEntry } from "../lib/content";
 
 interface Props {
@@ -7,19 +7,19 @@ interface Props {
   posts: PostEntry[];
 }
 const { locale, posts } = Astro.props;
-const { topics } = loadSite();
+const { topics, site } = loadSite();
 ---
 <ol class="post-list">
   {posts.map((post) => {
     const month = post.archive;
     return (
       <li>
-        <p class="post-meta"><a href={`/${locale}/archive/${month.year}/${month.month}/`}><time datetime={post.data.publishedAt} data-cfgb-date={locale}>{formatDate(post.data.publishedAt, locale, "UTC")}</time></a></p>
-        <h2><a href={post.url}>{post.data.title}</a></h2>
+        <p class="post-meta"><a href={sitePath(site, `/${locale}/archive/${month.year}/${month.month}/`)}><time datetime={post.data.publishedAt} data-cfgb-date={locale}>{formatDate(post.data.publishedAt, locale, "UTC")}</time></a></p>
+        <h2><a href={sitePath(site, post.url)}>{post.data.title}</a></h2>
         {post.data.summary && <p class="summary">{post.data.summary}</p>}
         <p class="topics">
           {post.data.topics.map((topic: string) => (
-            <a href={`/${locale}/topics/${topic}/`}>{topics[topic]?.[locale] || topic}</a>
+            <a href={sitePath(site, `/${locale}/topics/${topic}/`)}>{topics[topic]?.[locale] || topic}</a>
           ))}
         </p>
       </li>

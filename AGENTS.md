@@ -259,7 +259,7 @@ go build ./...
 go vet ./...
 go tool staticcheck ./...
 go tool errcheck -blank -ignore 'fmt:a^' ./...
-go test ./... -skip '^TestExampleCorpus$'
+go test ./... -skip '^TestExample(Corpus|StaticHost)$'
 ```
 
 `errcheck` is pinned as a Go tool. `-blank` checks explicit error discards;
@@ -282,7 +282,7 @@ silently skip in CI:
 node --test renderer/tests/*.test.mjs
 node --test renderer/tests/browser/*.test.mjs
 CFGB_EXAMPLE=/path/to/pinned/cfgb-example CFGB_REQUIRE_EXAMPLE=1 \
-  CFGB_PACKAGE_MANAGER=npm go test ./internal/build -run '^TestExampleCorpus$' -count=1
+  CFGB_PACKAGE_MANAGER=npm go test ./internal/build -run '^TestExample(Corpus|StaticHost)$' -count=1
 ```
 
 Run browser tests when browser behavior or their shared fixture changes. Verify

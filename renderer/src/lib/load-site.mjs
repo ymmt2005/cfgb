@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import catalog from "./locales.json" with { type: "json" };
 import { localeEntry } from "./dates.mjs";
+export { absolute, basePath, sitePath } from "./site-path.mjs";
 export { formatDate } from "./dates.mjs";
 
 let cached;
@@ -147,8 +148,4 @@ function assertConfiguredLocales(site) {
       `defaultLocale ${site.defaultLocale} is not one of the configured locales`,
     );
   }
-}
-
-export function absolute(site, route) {
-  return site.baseUrl.replace(/\/$/, "") + route;
 }

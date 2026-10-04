@@ -96,6 +96,19 @@ are specified in the [Action contract](09-github-action.md).
 
 ## Build and delivery
 
+`build --base-url https://example.com/blog/` overrides `site.baseUrl` for this
+invocation, including the hosting prefix, without editing the content settings.
+Routes remain relative to the blog root; emitted navigation, media, metadata and
+search URLs include the prefix. Output files stay directly under `site/`, ready
+for the host to mount at that prefix.
+
+`build --static` supports hosts without a Worker, including GitHub Pages. It emits
+an entry page redirecting to the default language, HTML redirects for aliases,
+and direct language links that also work without JavaScript. This mode has no
+cookie/Accept-Language negotiation and uses the host's static 404 behavior.
+The default build retains Worker locale negotiation and `_redirects` handling.
+
+
 CFGB owns the embedded renderer, Worker, lockfile and artifact integration checks.
 Content repositories require no package.json, Astro files, Wrangler files or
 custom executable build scripts. `build` creates a fresh workspace with

@@ -125,7 +125,7 @@ func TestReleasePins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pins.WranglerVersion != "4.147.0" || pins.RendererVersion != "0.0.0" {
+	if pins.WranglerVersion != "4.147.0" || pins.RendererVersion != "0.1.0" {
 		t.Fatalf("pins = %+v", pins)
 	}
 	if worker.CompatibilityDate != "2026-09-22" {
