@@ -246,6 +246,15 @@ func buildExtendedExample(t *testing.T, source string) {
 			t.Fatal(err)
 		}
 	}
+	configPath := filepath.Join(repo, "cfgb.yaml")
+	configRaw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configRaw = bytes.ReplaceAll(configRaw, []byte("timezone: Asia/Tokyo"), []byte("timezone: ''"))
+	if err := os.WriteFile(configPath, configRaw, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	// Prose uses the same native text path as article bodies: the loader adds
 	// no encoding ban. JSON serialization supplies its own replacement behavior.
 	for _, name := range []string{"home/ja.md", "pages/about/ja.md", "aside/ja.md"} {

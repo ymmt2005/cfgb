@@ -170,10 +170,14 @@ func TestRunSelectedConfigurationDoesNotFallBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", t.TempDir())
-	for _, name := range []string{"settings/blog.yaml", "settings/missing.yaml"} {
+	for _, tc := range []struct {
+		name string
+		code int
+	}{{"settings/blog.yaml", 2}, {"settings/missing.yaml", 3}} {
+		name := tc.name
 		err := Run(Options{Dir: repo, Config: name, Out: out})
 		var exit *ExitError
-		if !errors.As(err, &exit) || exit.Code != 2 || strings.Contains(err.Error(), "E_TOOLCHAIN") {
+		if !errors.As(err, &exit) || exit.Code != tc.code || strings.Contains(err.Error(), "E_TOOLCHAIN") {
 			t.Fatalf("selected config %s: %v", name, err)
 		}
 		if got, err := os.ReadFile(marker); err != nil || string(got) != "existing output" {
@@ -237,10 +241,55 @@ func TestRunWorkspaceCreationFailureCleansOutput(t *testing.T) {
 	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
 	err := Run(Options{Dir: repo, Out: out})
 	var exit *ExitError
-	if !errors.As(err, &exit) || exit.Code != 2 || !errors.Is(err, os.ErrNotExist) {
+	if !errors.As(err, &exit) || exit.Code != 3 || !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Run lost workspace error: %v", err)
 	}
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatalf("workspace failure retained incomplete output: %v", err)
+	}
+}
+
+func TestRunConfigurationReadFailurePreservesOutput(t *testing.T) {
+	for _, kind := range []string{"dangling symlink", "symlink loop", "permission"} {
+		t.Run(kind, func(t *testing.T) {
+			_, repo := testRepo(t)
+			t.Setenv("PATH", t.TempDir())
+			file := filepath.Join(repo, "cfgb.yaml")
+			if kind == "permission" {
+				if os.Geteuid() == 0 {
+					t.Skip("root bypasses permissions; CI exercises this as a normal user")
+				}
+				if err := os.Chmod(file, 0); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if err := os.Remove(file); err != nil {
+					t.Fatal(err)
+				}
+				target := "missing.yaml"
+				if kind == "symlink loop" {
+					target = "cfgb.yaml"
+				}
+				if err := os.Symlink(target, file); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			}
+			out := filepath.Join(repo, "dist")
+			if err := os.Mkdir(out, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(out, "keep.txt")
+			if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			err := Run(Options{Dir: repo, Out: out})
+			var exit *ExitError
+			if !errors.As(err, &exit) || exit.Code != 3 || strings.Contains(err.Error(), "E_TOOLCHAIN") {
+				t.Fatalf("read failure: %v", err)
+			}
+			if raw, err := os.ReadFile(marker); err != nil || string(raw) != "keep" {
+				t.Fatalf("output changed: %q, %v", raw, err)
+			}
+		})
 	}
 }

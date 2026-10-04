@@ -25,19 +25,33 @@ export async function posts(): Promise<PostEntry[]> {
     })
     .sort((a, b) =>
       comparePosts(
-        { publishedAt: a.data.publishedAt, articleKey: a.articleKey },
-        { publishedAt: b.data.publishedAt, articleKey: b.articleKey },
+        {
+          publishedAt: a.data.publishedAt,
+          articleKey: a.articleKey,
+          group: a.group,
+        },
+        {
+          publishedAt: b.data.publishedAt,
+          articleKey: b.articleKey,
+          group: b.group,
+        },
       ),
     );
 }
 
-export async function proseEntry(kind: "home" | "about" | "aside", locale: string) {
+export async function proseEntry(
+  kind: "home" | "about" | "aside",
+  locale: string,
+) {
   const id = kind === "about" ? `pages/about/${locale}` : `${kind}/${locale}`;
   const entries = await getCollection("prose");
   return entries.find((entry) => entry.id === id) ?? null;
 }
 
-export async function renderedProse(kind: "home" | "about" | "aside", locale: string) {
+export async function renderedProse(
+  kind: "home" | "about" | "aside",
+  locale: string,
+) {
   const entry = await proseEntry(kind, locale);
   if (!entry) return null;
   return render(entry);

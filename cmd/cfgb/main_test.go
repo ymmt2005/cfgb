@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -173,5 +174,20 @@ func TestEmbeddedAssets(t *testing.T) {
 		if _, err := cfgb.FS.ReadFile(name); err != nil {
 			t.Errorf("missing embedded %s: %v", name, err)
 		}
+	}
+}
+
+func TestBuildDeletedWorkingDirectoryIsIOFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not permit removing the working directory")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.Remove(dir); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"build"}, &stdout, &stderr); code != 3 || stdout.Len() != 0 || stderr.Len() == 0 {
+		t.Fatalf("deleted cwd: exit=%d stdout=%q stderr=%q", code, &stdout, &stderr)
 	}
 }

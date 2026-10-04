@@ -83,6 +83,11 @@ Worker identity and policy; hostname-specific coverage is an advanced option.
 stays inside the repository is followed. A symlink that leaves the repository is
 rejected. Relative paths must stay inside the repository after symlink resolution.
 
+Build uses Go's native timezone interpretation after decoding. An omitted/empty
+`site.timezone` resolves to UTC; the renderer adapter writes `UTC` to site JSON
+because `Intl.DateTimeFormat` does not accept an empty timezone string. This does
+not add a new required-value rule or mutate the decoded configuration.
+
 Supported content languages are exact, case-sensitive keys in
 `renderer/src/lib/locales.json`, shared by the CLI and renderer. This release's
 catalog contains `ja` and `en`. There is no separate runtime language-tag syntax

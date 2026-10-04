@@ -85,6 +85,24 @@ JavaScript names, all three prose kinds, BOMs, invalid bytes and line endings.
 The extended real example build verifies those prose files render through the
 native JSON/Markdown path. No other unverified restriction is changed here.
 
+## Additional Copilot review checked against the current implementation
+
+Six comments on the preceding head identified implementation defects:
+working-directory and configuration I/O failures used exit 2; public media reopened the
+live repository after staging; an empty timezone reached Intl unchanged; equal
+article keys in different years had no final ordering tie-break; and aside
+namespacing omitted three standard HTML ID-reference attributes.
+
+These fixes implement existing behavior without new input bans. I/O failures use
+exit 3 while decoder/discovery errors remain exit 2 (temporary workspace creation
+is covered by the same distinction). Media reads the captured snapshot. Empty
+timezone follows Go's UTC interpretation at the renderer adapter, rather than
+Copilot's suggested rejection. Publication order uses the full group as a final
+tie-break. `itemref`, `popovertarget` and `commandfor` follow namespaced aside IDs.
+Coverage includes real deleted-cwd/config-read failures, output preservation,
+media delivery after live-source removal, empty-timezone CLI rendering, actual
+home/feed ordering and native popover/dialog interaction without JavaScript.
+
 ## Remaining restrictions with no verified explicit human instruction
 
 These are remaining existing behavior, **not new rules proposed or approved by

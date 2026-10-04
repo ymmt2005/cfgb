@@ -92,17 +92,17 @@ test("prose pages publish local images and untranslated articles stay in their g
       mkdirSync(assets, { recursive: true });
       writeFileSync(path.join(assets, "portrait.svg"), portrait);
     }
-    const article = (locale, key, title, body) => ({
-      id: `posts/2026/${key}/${locale}`,
-      file: path.join(content, "posts", "2026", key, `${locale}.md`),
+    const article = (locale, key, title, body, year = "2026", slug = "shared") => ({
+      id: `posts/${year}/${key}/${locale}`,
+      file: path.join(content, "posts", year, key, `${locale}.md`),
       body,
-      group: `2026/${key}`,
-      year: "2026",
+      group: `${year}/${key}`,
+      year,
       articleKey: key,
       locale,
       data: {
         title,
-        slug: "shared",
+        slug,
         publishedAt: "2026-09-20T00:00:00Z",
         topics: ["notes"],
         summary: title,
@@ -111,6 +111,8 @@ test("prose pages publish local images and untranslated articles stay in their g
     const posts = [
       article("ja", "ja-only", "日本語だけ", articleBody),
       article("en", "en-only", "English only", "Body\n"),
+      article("ja", "guide", "Later group", "Body\n", "2026", "later-group"),
+      article("ja", "guide", "Earlier group", "Body\n", "2025", "earlier-group"),
     ];
     for (const post of posts) {
       mkdirSync(path.dirname(post.file), { recursive: true });
@@ -189,6 +191,12 @@ test("prose pages publish local images and untranslated articles stay in their g
       assert.equal(markdownLink, `/media/${scope}/portrait.svg`);
       assert.equal(rawLink, `/media/${scope}/portrait.svg`);
       for (const url of [markdown, raw, markdownLink, rawLink]) assertPublished(dist, url);
+    }
+    const home = readFileSync(path.join(dist, "ja/index.html"), "utf8");
+    const feed = readFileSync(path.join(dist, "ja/feed.xml"), "utf8");
+    for (const html of [home, feed]) {
+      assert.ok(html.indexOf("Earlier group") >= 0);
+      assert.ok(html.indexOf("Later group") > html.indexOf("Earlier group"), "year/group tie-break");
     }
     const jaArticle = readFileSync(path.join(dist, "ja/posts/shared/index.html"), "utf8");
     const enArticle = readFileSync(path.join(dist, "en/posts/shared/index.html"), "utf8");

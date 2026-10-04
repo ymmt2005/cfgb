@@ -110,7 +110,12 @@ func Run(opts Options) (err error) {
 		cfg, err = config.Load(opts.Dir)
 	}
 	if err != nil {
-		return &ExitError{Code: 2, Err: err}
+		code := 2
+		var ioErr *config.IOError
+		if errors.As(err, &ioErr) {
+			code = 3
+		}
+		return &ExitError{Code: code, Err: err}
 	}
 	if err := cfg.ValidateSite(); err != nil {
 		return &ExitError{Code: 2, Err: err}
@@ -132,7 +137,7 @@ func Run(opts Options) (err error) {
 	}
 	workspace, err := newWorkspace()
 	if err != nil {
-		return errors.Join(&ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}, discardFailedBuild(out, "", nil))
+		return errors.Join(&ExitError{Code: 3, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}, discardFailedBuild(out, "", nil))
 	}
 	built := false
 	defer func() {
@@ -149,7 +154,7 @@ func Run(opts Options) (err error) {
 	if err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
-	if err := stageMedia(cfg, filepath.Join(rendererDir, "public", "media")); err != nil {
+	if err := stageMedia(contentRoot, filepath.Join(rendererDir, "public", "media")); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
 	locales := make([]string, 0, len(cfg.Locales))
@@ -693,25 +698,20 @@ func repoRelative(repo, base, value string) (string, error) {
 	return filepath.ToSlash(rel), nil
 }
 
-func stageMedia(cfg *config.File, dest string) (err error) {
-	root, err := os.OpenRoot(cfg.Root())
+// stageMedia publishes the same snapshot used by Markdown and metadata.
+func stageMedia(contentRoot, dest string) (err error) {
+	root, err := os.OpenRoot(contentRoot)
 	if err != nil {
 		return err
 	}
 	defer func() { err = errors.Join(err, root.Close()) }()
-	content, err := repoRelative(cfg.Root(), filepath.Dir(cfg.Path()), cfg.Content.Root)
-	if err != nil {
-		return err
-	}
-	if err := stageArticleMedia(root, content, dest); err != nil {
+	if err := stageArticleMedia(root, ".", dest); err != nil {
 		return err
 	}
 	for _, item := range []struct{ dir, name string }{
-		{"home/assets", "home"},
-		{"pages/about/assets", "about"},
-		{"aside/assets", "aside"},
+		{"home/assets", "home"}, {"pages/about/assets", "about"}, {"aside/assets", "aside"},
 	} {
-		if err := copyOptionalAssets(root, joinRoot(content, item.dir), filepath.Join(dest, item.name)); err != nil {
+		if err := copyOptionalAssets(root, item.dir, filepath.Join(dest, item.name)); err != nil {
 			return err
 		}
 	}
@@ -805,11 +805,17 @@ func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkc
 			Label string `json:"label"`
 		}{Label: item.Label}
 	}
+	timezone := cfg.Site.Timezone
+	// Go treats the empty location name as UTC; supply the equivalent name
+	// to Intl.DateTimeFormat instead of inventing an omitted-timezone ban.
+	if timezone == "" {
+		timezone = "UTC"
+	}
 	raw, err := json.Marshal(siteJSON{
 		Title:         cfg.Site.Title,
 		BaseURL:       cfg.Site.BaseURL,
 		DefaultLocale: cfg.Site.DefaultLocale,
-		Timezone:      cfg.Site.Timezone,
+		Timezone:      timezone,
 		Locales:       locales,
 		ContentRoot:   contentRoot,
 		TopicsFile:    topicsFile,

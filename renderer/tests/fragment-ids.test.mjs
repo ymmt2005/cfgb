@@ -31,6 +31,8 @@ test("HTML and ARIA ID references follow authored aside IDs", () => {
     '<label for="choice">Choice</label><input id="choice" list="choices" form="signup">',
     '<datalist id="choices"></datalist><form id="signup"></form>',
     '<span id="details">Details</span><span id="extra">Extra</span>',
+    '<div itemscope itemref="details extra outside"></div>',
+    '<button popovertarget="details" commandfor="extra">Open</button>',
     '<button aria-details="details" aria-errormessage="extra" aria-activedescendant="choice"',
     ' aria-owns="details extra" aria-flowto="details outside" aria-controls="choice outside"',
     ' aria-labelledby="details extra" aria-describedby="extra">More</button>',
@@ -50,6 +52,9 @@ test("HTML and ARIA ID references follow authored aside IDs", () => {
     ["aria-labelledby", "aside-details aside-extra"],
     ["aria-describedby", "aside-extra"],
     ["headers", "aside-column"],
+    ["itemref", "aside-details aside-extra outside"],
+    ["popovertarget", "aside-details"],
+    ["commandfor", "aside-extra"],
   ])
     assert.ok(result.includes(`${name}="${value}"`), result);
 });

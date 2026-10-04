@@ -83,7 +83,8 @@ excluded from canonical lists/search/feeds/sitemap. Root can be an x-default
 alternate but is not an indexable generated page. Empty locale archives/home lists remain
 valid. Monthly/topic pages exist only where that locale has matching articles.
 Default lists are unpaginated in v1. Latest = descending publication instant,
-then ascending article key as a deterministic tie break. `updatedAt` never
+then ascending article key and full year/group identity as deterministic tie
+breaks. `updatedAt` never
 reorders publication feeds. Archive year/month and visible dates use site timezone.
 
 An article's URL never depends on directory year, title, or date. Build a single

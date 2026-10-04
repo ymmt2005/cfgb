@@ -109,7 +109,7 @@ remain. Both copy paths detect actual ancestor directory cycles with
 aliases. The image adapter delegates format support to Astro without a separate
 extension allowlist. The example integration includes a copied corpus with an
 arbitrary article key, external output and 80-level media, alongside cycle and
-failure-cleanup tests. The renderer unit/integration suite contains 32 tests.
+failure-cleanup tests. The renderer unit/integration suite contains 33 tests.
 
 Decoder/content errors retain typed diagnostic codes and exit 1 from `build`;
 reader/filesystem failures remain exit 3. Tests cover direct decoding, body and
@@ -120,7 +120,7 @@ Browser interaction tests build real pages and run Chromium with the generated
 CSP in the Node 24/npm CI job; their separate test dependencies are not part of
 the embedded renderer toolchain.
 
-The browser suites now run 15 tests, including real Pagefind WASM searches with
+The browser suites now run 16 tests, including real Pagefind WASM searches with
 a locale differing from the browser language, article/heading navigation and
 empty-result recovery; real Mermaid redraws on native color-scheme changes and
 rapid theme selections; malformed-diagram source/error preservation; actual
@@ -158,3 +158,13 @@ online pass, reported by cfgb-example's scheduled/manual workflow.
 ## Not done
 
 Validation, deploy/preview upload, and every later milestone. Live Cloudflare, model, and release gates remain open.
+
+Configuration discovery/read failures are distinguished from decoder/usage
+errors: real I/O (including a deleted working directory and temporary workspace
+creation) exits 3, while invalid configuration exits 2. Public article and prose
+media are copied from the staged content snapshot, rather than rereading the live
+repository. An empty timezone uses Go's native UTC interpretation and is sent to
+Intl as `UTC`. Equal publication times sort by article key, then the complete
+year/group identity; generated homes and feeds exercise that ordering. Aside ID
+references include microdata and native popover/dialog targets, with a browser
+regression test that runs without JavaScript.

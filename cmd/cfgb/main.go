@@ -107,7 +107,7 @@ func newRootCommand(buildRun func(build.Options) error) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, err := os.Getwd()
 			if err != nil {
-				return &build.ExitError{Code: 2, Err: err}
+				return &build.ExitError{Code: 3, Err: err}
 			}
 			return buildRun(build.Options{
 				Dir: dir, Config: configPath, Out: out,

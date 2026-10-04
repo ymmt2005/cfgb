@@ -146,6 +146,8 @@ For changes crossing repositories, keep ownership explicit:
   retain successful ones for subsequent upload, and record only their basename
   as `toolchainSessionId`. Treat Cloudflare build identifiers as opaque metadata,
   never as raw filesystem path components.
+- After staging, use the captured content tree for public media as well as
+  Markdown and metadata. Do not reopen the live repository for renderer inputs.
 - Build artifacts are editable static-site output. Manifest/source metadata
   supports diagnostics and normal consistency checks; it is not a security
   boundary or a cryptographic provenance/sealing contract. Do not reintroduce

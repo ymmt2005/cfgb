@@ -553,7 +553,7 @@ func TestRootedInputsRejectEscapes(t *testing.T) {
 	if err := os.Symlink(assetRel, filepath.Join(group, "pic.png")); err != nil {
 		t.Fatal(err)
 	}
-	if err := stageMedia(cfg, t.TempDir()); err == nil {
+	if err := stageRepositoryMedia(t, cfg, t.TempDir()); err == nil {
 		t.Fatal("article asset symlink escaped the group")
 	}
 
@@ -567,7 +567,7 @@ func TestRootedInputsRejectEscapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	media := t.TempDir()
-	if err := stageMedia(cfg, media); err != nil {
+	if err := stageRepositoryMedia(t, cfg, media); err != nil {
 		t.Fatal(err)
 	}
 	raw, err = os.ReadFile(filepath.Join(media, "2026", "article", "b.png"))
@@ -670,7 +670,7 @@ func TestDirectorySymlinksKeepMedia(t *testing.T) {
 		t.Fatal(err)
 	}
 	media := t.TempDir()
-	if err := stageMedia(cfg, media); err != nil {
+	if err := stageRepositoryMedia(t, cfg, media); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(filepath.Join(media, "2026", "guide", "hero.svg"))
@@ -691,7 +691,7 @@ func TestDirectorySymlinksKeepMedia(t *testing.T) {
 		t.Fatal(err)
 	}
 	media = t.TempDir()
-	if err := stageMedia(cfg, media); err != nil {
+	if err := stageRepositoryMedia(t, cfg, media); err != nil {
 		t.Fatal(err)
 	}
 	raw, err = os.ReadFile(filepath.Join(media, "2026", "guide", "hero.svg"))
@@ -717,7 +717,7 @@ func TestProseAssetsArePublished(t *testing.T) {
 		}
 	}
 	media := t.TempDir()
-	if err := stageMedia(cfg, media); err != nil {
+	if err := stageRepositoryMedia(t, cfg, media); err != nil {
 		t.Fatal(err)
 	}
 	for _, item := range []struct{ path, body string }{
@@ -796,3 +796,68 @@ locales:
   ja:
     label: 日本語
 `
+
+// Follow the production snapshot boundary in repository/media tests.
+func stageRepositoryMedia(t *testing.T, cfg *config.File, dest string) error {
+	t.Helper()
+	content, _, _, err := stageContent(cfg, t.TempDir())
+	if err != nil {
+		return err
+	}
+	return stageMedia(content, dest)
+}
+
+func TestMediaComesFromCapturedContent(t *testing.T) {
+	cfg, repo := testRepo(t)
+	for name, body := range map[string]string{
+		"posts/2026/guide/assets/image.svg": "article",
+		"home/assets/image.svg":             "home", "pages/about/assets/image.svg": "about", "aside/assets/image.svg": "aside",
+	} {
+		file := filepath.Join(repo, "src", "content", filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	content, _, _, err := stageContent(cfg, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(repo, "src", "content")); err != nil {
+		t.Fatal(err)
+	}
+	dest := t.TempDir()
+	if err := stageMedia(content, dest); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"2026/guide/image.svg": "article", "home/image.svg": "home", "about/image.svg": "about", "aside/image.svg": "aside"} {
+		if raw, err := os.ReadFile(filepath.Join(dest, filepath.FromSlash(name))); err != nil || string(raw) != body {
+			t.Errorf("%s: %q, %v", name, raw, err)
+		}
+	}
+}
+
+func TestRendererTimezoneUsesNativeUTCForEmptyName(t *testing.T) {
+	cfg, _ := testRepo(t)
+	cfg.Site.Timezone = ""
+	if err := cfg.ValidateSite(); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "site.json")
+	if err := writeSiteJSON(file, cfg, "content", "topics", "cards", "metadata"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var site siteJSON
+	if err := json.Unmarshal(raw, &site); err != nil {
+		t.Fatal(err)
+	}
+	if site.Timezone != "UTC" || cfg.Site.Timezone != "" {
+		t.Fatalf("renderer timezone=%q, original=%q", site.Timezone, cfg.Site.Timezone)
+	}
+}

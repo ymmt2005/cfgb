@@ -10,6 +10,13 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// IOError marks a filesystem failure while locating or reading configuration.
+// Decoding and missing-discovery errors remain ordinary configuration errors.
+type IOError struct{ Err error }
+
+func (e *IOError) Error() string { return e.Err.Error() }
+func (e *IOError) Unwrap() error { return e.Err }
+
 // File is the typed site configuration decoded from cfgb.yaml.
 type File struct {
 	SchemaVersion int `yaml:"schemaVersion"`
@@ -73,11 +80,11 @@ func (f *File) Root() string { return f.root }
 func Load(start string) (*File, error) {
 	start, err := filepath.Abs(start)
 	if err != nil {
-		return nil, err
+		return nil, &IOError{Err: err}
 	}
 	repo, err := repositoryRoot(start)
 	if err != nil {
-		return nil, err
+		return nil, &IOError{Err: err}
 	}
 	dir := start
 	var file string
@@ -94,7 +101,7 @@ func Load(start string) (*File, error) {
 			break
 		}
 		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("find configuration: %w", err)
+			return nil, &IOError{Err: fmt.Errorf("find configuration: %w", err)}
 		}
 		if dir == repo {
 			break
@@ -120,11 +127,11 @@ func LoadFile(file string) (*File, error) {
 	}
 	file, err := filepath.Abs(file)
 	if err != nil {
-		return nil, err
+		return nil, &IOError{Err: err}
 	}
 	repo, err := repositoryRoot(filepath.Dir(file))
 	if err != nil {
-		return nil, err
+		return nil, &IOError{Err: err}
 	}
 	return load(repo, file)
 }
@@ -155,6 +162,11 @@ func load(repo, file string) (*File, error) {
 // readConfig reads cfgb.yaml through a root at the repository. Symlinks that
 // stay inside that root are followed. A symlink that leaves the repository fails.
 func readConfig(repo, file string) (raw []byte, err error) {
+	defer func() {
+		if err != nil {
+			err = &IOError{Err: err}
+		}
+	}()
 	root, err := os.OpenRoot(repo)
 	if err != nil {
 		return nil, err

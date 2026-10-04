@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -429,5 +430,37 @@ func TestTimezoneChecksAreSeparateFromDecoding(t *testing.T) {
 		if err := cfg.ValidateSite(); err == nil || !strings.Contains(err.Error(), "timezone") {
 			t.Fatalf("invalid render timezone accepted: %v", err)
 		}
+	}
+}
+
+func TestLoadingDistinguishesIOFromConfigurationErrors(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	for _, tc := range []struct {
+		name, body string
+		read       bool
+	}{
+		{"missing.yaml", "", true},
+		{"invalid.yaml", "site: [invalid]\n", false},
+	} {
+		file := filepath.Join(dir, tc.name)
+		if tc.body != "" {
+			if err := os.WriteFile(file, []byte(tc.body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, err := LoadFile(file)
+		var ioErr *IOError
+		if err == nil || errors.As(err, &ioErr) != tc.read {
+			t.Fatalf("%s: %v, want IO=%v", tc.name, err, tc.read)
+		}
+		if tc.read && !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("lost I/O cause: %v", err)
+		}
+	}
+	_, err := Load(dir)
+	var ioErr *IOError
+	if err == nil || errors.As(err, &ioErr) {
+		t.Fatalf("missing discovery should remain config error: %v", err)
 	}
 }

@@ -1,7 +1,9 @@
 # Renderer design and review boundaries
 
 CFGB embeds the renderer and supplies it with a staged content snapshot and a
-normalized metadata index. Content repositories contain Markdown and assets.
+normalized metadata index. Public media is copied from that same staged content
+root, so later edits/deletions in the live repository cannot change one renderer
+input independently. Content repositories contain Markdown and assets.
 The renderer does not parse front matter again or infer article identity from a
 collection ID or an absolute filesystem path.
 
@@ -129,14 +131,16 @@ Go CLI, embedded extraction, dependency installation, Astro, and Pagefind.
 
 `renderer/tests/browser/` builds a small actual site and serves its generated
 HTML and scripts with the generated security headers, then builds the real
-Pagefind index. Playwright runs 15 tests: the existing theme,
+Pagefind index. Playwright runs 16 tests: the existing theme,
 storage and scroll-observer cases plus pre-interaction theme paint, real Mermaid
 SVG rendering and native system-theme changes, invalid-diagram recovery, native
 Unicode clipboard copy, Japanese/English WASM search and result/fragment
 navigation, empty-result recovery, skip-link keyboard navigation, native TOC
 collapse/reflow, footnote round trips and menu focus departure. Desktop and
 mobile viewports, reduced motion and JavaScript-disabled article navigation are
-covered. Tests await observable state rather than fixed sleeps, and new cases
+covered. Native popover and dialog command targets in authored aside HTML are
+also exercised with JavaScript disabled; `itemref`, `popovertarget` and
+`commandfor` follow namespaced IDs. Tests await observable state rather than fixed sleeps, and new cases
 fail on runtime/resource errors or CSP violations. Browser APIs and libraries
 are not replaced with test doubles. CI runs this Chromium suite on the Node
 24/npm job; a mobile viewport is not a Safari/WebKit compatibility claim. The

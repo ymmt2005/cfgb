@@ -54,7 +54,9 @@ export function comparePosts(a, b) {
   const left = Date.parse(a.publishedAt);
   const right = Date.parse(b.publishedAt);
   if (left !== right) return right - left;
-  return a.articleKey < b.articleKey ? -1 : a.articleKey > b.articleKey ? 1 : 0;
+  if (a.articleKey !== b.articleKey)
+    return a.articleKey < b.articleKey ? -1 : 1;
+  return a.group < b.group ? -1 : a.group > b.group ? 1 : 0;
 }
 
 function loadLinkcards(dir) {

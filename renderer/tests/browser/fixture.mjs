@@ -212,12 +212,29 @@ function buildSite() {
         writeFileSync(path.join(dir, filename), svg);
       }
     }
+    const asideBody = [
+      '<button popovertarget="browser-popover">Open aside popover</button>',
+      '<div id="browser-popover" popover>Aside popover <button popovertarget="browser-popover" popovertargetaction="hide">Close aside popover</button></div>',
+      '<button commandfor="browser-dialog" command="show-modal">Open aside dialog</button>',
+      '<dialog id="browser-dialog">Aside dialog <button commandfor="browser-dialog" command="close">Close aside dialog</button></dialog>',
+    ].join("\n");
+    const asideFile = path.join(content, "aside", "en.md");
+    mkdirSync(path.dirname(asideFile), { recursive: true });
+    writeFileSync(asideFile, asideBody);
     const metadata = path.join(work, "metadata.json");
     writeFileSync(
       metadata,
       JSON.stringify({
         posts,
-        prose: [],
+        prose: [
+          {
+            id: "aside/en",
+            kind: "aside",
+            locale: "en",
+            file: asideFile,
+            body: asideBody,
+          },
+        ],
         topics: { notes: { ja: "メモ", en: "Notes" } },
       }),
     );

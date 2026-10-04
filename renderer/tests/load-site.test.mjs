@@ -3,7 +3,12 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { copyFor, loadSite, resetSiteCache } from "../src/lib/load-site.mjs";
+import {
+  comparePosts,
+  copyFor,
+  loadSite,
+  resetSiteCache,
+} from "../src/lib/load-site.mjs";
 
 test("routes and aliases come from the Go metadata index", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "cfgb-index-"));
@@ -113,4 +118,24 @@ test("language support is exact catalog membership", () => {
     rmSync(dir, { recursive: true, force: true });
     resetSiteCache();
   }
+});
+
+test("publication ordering includes the full article group identity", () => {
+  const entry = (group, publishedAt = "2026-01-01T00:00:00Z") => ({
+    group,
+    articleKey: group.split("/").at(-1),
+    publishedAt,
+  });
+  const old = entry("2025/guide");
+  const next = entry("2026/guide", "2026-01-01T09:00:00+09:00");
+  assert.ok(comparePosts(old, next) < 0);
+  assert.ok(comparePosts(next, old) > 0);
+  assert.equal(comparePosts(old, { ...old }), 0);
+  assert.deepEqual(
+    [next, entry("2024/zebra"), old, entry("2026/alpha")]
+      .sort(comparePosts)
+      .map((p) => p.group),
+    ["2026/alpha", "2025/guide", "2026/guide", "2024/zebra"],
+  );
+  assert.ok(comparePosts(entry("2026/zebra", "2026-01-02T00:00:00Z"), old) < 0);
 });

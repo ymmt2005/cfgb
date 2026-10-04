@@ -201,7 +201,10 @@ violations use exit 1. Do not promote/upload a failed artifact.
 
 Exit codes: `0` success (including warnings), `1` validation failure, `2` invalid
 usage/configuration, `3` IO/network/provider failure, `4` conflict/precondition
-failure. JSON diagnostics use one object with `schemaVersion: 1`, `errors`,
+failure. Actual configuration filesystem errors (including a selected missing
+file, permission failure or failed close), working-directory failures and temporary
+workspace creation failures use exit 3. A missing configuration discovered by
+ancestor search or a YAML decoding/usage error remains exit 2. JSON diagnostics use one object with `schemaVersion: 1`, `errors`,
 `warnings` arrays and stable diagnostic objects `{code,path,line,message}`;
 `line` may be null. Human messages may evolve; codes are the test contract.
 

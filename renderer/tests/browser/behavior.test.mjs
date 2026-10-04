@@ -15,6 +15,41 @@ describe(
       await site?.close();
     });
 
+    test("aside ID namespaces preserve native popover and dialog targets without JavaScript", async () => {
+      await withPage(site, { javaScriptEnabled: false }, async (page) => {
+        await page.goto(`${site.origin}/en/`);
+        await page
+          .getByRole("button", { name: "Open aside popover", exact: true })
+          .click();
+        await page.waitForFunction(() =>
+          document
+            .querySelector("#aside-browser-popover")
+            .matches(":popover-open"),
+        );
+        await page
+          .getByRole("button", { name: "Close aside popover", exact: true })
+          .click();
+        await page.waitForFunction(
+          () =>
+            !document
+              .querySelector("#aside-browser-popover")
+              .matches(":popover-open"),
+        );
+        await page
+          .getByRole("button", { name: "Open aside dialog", exact: true })
+          .click();
+        await page.waitForFunction(() =>
+          document.querySelector("#aside-browser-dialog").matches(":modal"),
+        );
+        await page
+          .getByRole("button", { name: "Close aside dialog", exact: true })
+          .click();
+        await page.waitForFunction(
+          () => !document.querySelector("#aside-browser-dialog").open,
+        );
+      });
+    });
+
     for (const deviceScaleFactor of [1, 2]) {
       test(`responsive images load native candidates at DPR ${deviceScaleFactor}`, async () => {
         await withPage(
