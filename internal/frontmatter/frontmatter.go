@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -31,8 +30,6 @@ func (e *ValidationError) Unwrap() error { return e.Err }
 func invalid(format string, args ...any) error {
 	return &ValidationError{Code: "E_SCHEMA", Err: fmt.Errorf(format, args...)}
 }
-
-var articleKeyPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // Metadata is the article data decoded directly from its YAML front matter.
 type Metadata struct {
@@ -210,9 +207,6 @@ func collectPosts(contentRoot string, root *os.Root, locales []string) (result [
 		for _, key := range keys {
 			if !key.IsDir() {
 				continue
-			}
-			if !articleKeyPattern.MatchString(key.Name()) {
-				return nil, &ValidationError{Code: "E_TRANSLATION_GROUP", Err: fmt.Errorf("posts/%s/%s: invalid article key; expected [a-z0-9]+(-[a-z0-9]+)*", year.Name(), key.Name())}
 			}
 			group, err := postsRoot.OpenRoot(year.Name() + "/" + key.Name())
 			if err != nil {

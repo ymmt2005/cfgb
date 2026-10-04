@@ -115,7 +115,8 @@ instead. That choice is an environment variable, not a field in
 the content repository. Its installed Wrangler survives for the same
 build's upload command, outside the content repository and deployable artifact.
 
-`--out` is a path inside the repository. The check is lexical: refuse a
+`--out` may be inside or outside the repository; relative paths resolve from the
+selected configuration directory. The overlap check is lexical: refuse a
 location that contains, or sits inside, source content, `cfgb.yaml`, topic and
 link-card inputs, or `.git`. That includes an output directory that is an
 ancestor of one of those inputs. Do not accept or reject the path by resolving
@@ -131,7 +132,9 @@ is left alone. A missing link-card directory is an empty cache. Repository-relat
 repository, including `cfgb.yaml`. Article assets are read through a child root of that article's
 `assets` directory. Symlinks and `..` that stay inside the applicable root are
 followed. Escapes fail at the rooted open, which keeps the build inside its
-inputs. Default build validation allows future
+inputs. Copying has no fixed directory-depth limit. Detect a directory cycle by
+comparing its filesystem identity with the current ancestor chain; a directory
+reached independently through another branch may be copied again. Default build validation allows future
 publication dates for previews but requires existing valid summaries.
 
 Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and

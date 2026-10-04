@@ -3,18 +3,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { localAsset } from "./content-urls.mjs";
 
-const imageExtensions = new Set([
-  ".jpeg",
-  ".jpg",
-  ".png",
-  ".apng",
-  ".tiff",
-  ".webp",
-  ".gif",
-  ".svg",
-  ".avif",
-]);
-
 // Vite import specifiers cannot represent every valid source filename.
 // Stage a safe, content-addressed import in the toolchain workspace. Originals
 // and public-media URLs stay unchanged.
@@ -25,8 +13,6 @@ export function imageWorkspace(rendererRoot) {
     if (!asset) return null;
     const original = asset.filename;
     const extension = path.extname(original).toLowerCase();
-    if (!imageExtensions.has(extension))
-      throw new Error(`Unsupported local image format: ${url}`);
     const bytes = readFileSync(original);
     const digest = createHash("sha256").update(bytes).digest("hex");
     const staged = path.join(staging, `${digest}${extension}`);

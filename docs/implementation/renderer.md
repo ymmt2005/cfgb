@@ -31,6 +31,10 @@ The normalized index owns group identity, locale, source filename, and article
 route. `content.ts` joins collection entries to that index. `content-urls.mjs`
 uses the same index for source-to-route and source-to-media mappings. Home,
 about, and aside have explicit media scopes.
+Article keys are literal filesystem directory names, not public slugs. Media
+URLs and Astro's stored importer paths encode each component so spaces, Unicode,
+`#` and `%` retain their filename meaning. The source index and logical IDs keep
+the original names.
 
 ## Markdown transformations
 
@@ -68,6 +72,9 @@ asset filenames cannot be used directly as Vite import specifiers. Copy image
 bytes to safe names under the build-owned workspace. Astro then supplies
 processed URLs and dimensions. These temporary imports are outside the content
 repository and outside the deployable artifact. No final HTML rewrite is needed.
+This adapter does not maintain an image-extension allowlist. Format support and
+format errors belong to the installed Astro image pipeline; removing the CFGB
+list does not promise additional formats beyond that pipeline.
 
 ## HTML and page assembly
 

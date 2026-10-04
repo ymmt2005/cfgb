@@ -44,7 +44,7 @@ export function contentUrls(corpus) {
   for (const post of corpus.posts)
     sources.set(path.resolve(post.file), {
       url: post.url,
-      media: `/media/${post.group}/`,
+      media: `/media/${post.group.split("/").map(encodeURIComponent).join("/")}/`,
     });
   for (const entry of corpus.prose)
     sources.set(path.resolve(entry.file), { media: `/media/${entry.kind}/` });

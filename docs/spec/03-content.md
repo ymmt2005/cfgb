@@ -3,13 +3,16 @@
 ## Identity and frontmatter
 
 Discover only `content.root/posts/<YYYY>/<article-key>/<locale>.md`.
-The pair `<YYYY>/<article-key>` is the logical article identity. Article keys
-match `[a-z0-9]+(-[a-z0-9]+)*`; the initial `YYYY-MM-DD-` prefix is a creation
+The pair `<YYYY>/<article-key>` is the logical article identity. An article key
+is the literal directory name, without an additional character pattern. It is
+independent of the public slug; spaces, Unicode and punctuation are preserved.
+Encode each literal group component when constructing public media URLs.
+The initial `YYYY-MM-DD-` prefix is a creation
 convention, not a source of publication dates. Do not rename published groups.
 The filename supplies locale. An article group has each enabled locale that was
 authored, and shared `assets/`; `.cfgb.json` is optional. A stray `fr.md`, nested variant,
-or duplicate locale is an error. Invalid article keys and directories inside a
-group other than `assets/` fail with `E_TRANSLATION_GROUP`, exit 1. Subdirectories
+or duplicate locale is an error. Directories inside a group other than `assets/`
+fail with `E_TRANSLATION_GROUP`, exit 1. Subdirectories
 inside `assets/` remain shared assets, not article variants. Discovery excludes
 `tests`, docs and examples.
 

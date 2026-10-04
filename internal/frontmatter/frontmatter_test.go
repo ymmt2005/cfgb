@@ -287,12 +287,6 @@ func TestCollectRejectsUnconfiguredVariants(t *testing.T) {
 func TestCollectRejectsInvalidGroupLayout(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ name, key, nested string }{
-		{"space", "Bad Key", ""},
-		{"uppercase", "Example", ""},
-		{"percent encoded", "%2e%2e", ""},
-		{"dot", "example.key", ""},
-		{"underscore", "example_key", ""},
-		{"double hyphen", "example--key", ""},
 		{"nested variant", "example", "nested"},
 		{"nested locale", "example", "ja"},
 	} {
@@ -314,6 +308,35 @@ func TestCollectRejectsInvalidGroupLayout(t *testing.T) {
 			var validation *ValidationError
 			if !errors.As(err, &validation) || validation.Code != "E_TRANSLATION_GROUP" || !strings.Contains(err.Error(), "posts/2026/"+tc.key) {
 				t.Fatalf("invalid layout accepted or misclassified: %v", err)
+			}
+		})
+	}
+}
+
+func TestCollectKeepsFilesystemArticleKeys(t *testing.T) {
+	t.Parallel()
+	for _, key := range []string{"Bad Key", "Example", "%2e%2e", "example.key", "example_key", "example--key", "図.#%"} {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			group := filepath.Join(dir, "posts", "2026", key)
+			if err := os.MkdirAll(group, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(group, "ja.md"), []byte("---\n"+required+"---\nBody\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			topics := filepath.Join(dir, "topics.yaml")
+			if err := os.WriteFile(topics, []byte("{}\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			index, err := Collect(dir, topics, []string{"ja"})
+			if err != nil || len(index.Posts) != 1 {
+				t.Fatalf("collect %q: %+v, %v", key, index.Posts, err)
+			}
+			post := index.Posts[0]
+			if post.ArticleKey != key || post.Group != "2026/"+key || post.ID != "posts/2026/"+key+"/ja" {
+				t.Fatalf("article identity changed: %+v", post)
 			}
 		})
 	}

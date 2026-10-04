@@ -61,6 +61,27 @@ test("source metadata owns media scopes and article routes", () => {
     assert.equal(urls.link(url, source), url);
 });
 
+test("article group names are encoded as literal media path components", () => {
+  const group = "2026/Protocol Buffers_図.#%";
+  const source = path.resolve("input", group, "en.md");
+  const urls = contentUrls({
+    posts: [{ file: source, group, url: "/en/posts/protocol-buffers/" }],
+    prose: [],
+  });
+  const url = urls.media("./assets/picture.svg", source);
+  assert.equal(
+    url,
+    "/media/2026/Protocol%20Buffers_%E5%9B%B3.%23%25/picture.svg",
+  );
+  const parsed = new URL(url, "https://example.invalid");
+  assert.equal(parsed.search, "");
+  assert.equal(parsed.hash, "");
+  assert.equal(
+    decodeURIComponent(parsed.pathname),
+    "/media/" + group + "/picture.svg",
+  );
+});
+
 test("local assets reject request suffixes and escaping paths consistently", () => {
   const urls = contentUrls(corpus);
   for (const url of [
@@ -108,6 +129,28 @@ test("image imports use safe workspace names without modifying originals", () =>
       /query or fragment/,
     );
     assert.throws(() => prepare("./assets/missing.svg", source), /ENOENT/);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("workspace adaptation leaves format support to Astro", () => {
+  const work = mkdtempSync(path.join(tmpdir(), "cfgb-image-format-"));
+  try {
+    const source = path.join(work, "input/en.md");
+    const assets = path.join(work, "input/assets");
+    mkdirSync(assets, { recursive: true });
+    const bytes = Buffer.from("format handling belongs to the image service");
+    writeFileSync(path.join(assets, "picture.unlisted"), bytes);
+    const adapted = imageWorkspace(path.join(work, "renderer"))(
+      "./assets/picture.unlisted",
+      source,
+    );
+    assert.match(adapted.url, /\.astro\/cfgb-images\/[a-f0-9]{64}\.unlisted$/);
+    assert.deepEqual(
+      readFileSync(path.resolve(path.dirname(source), adapted.url)),
+      bytes,
+    );
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

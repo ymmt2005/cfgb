@@ -6,7 +6,7 @@ Inc.
 
 **Status: design, visual mockup, and a `cfgb build` that renders a content repository with the embedded Astro renderer. Deploy and preview upload are not implemented.**
 
-The [visual mockup](design/mockup/README.md) is a browsable HTML prototype of the example blog. It is the appearance to review before the Astro renderer is built. Search results there are labeled mock data.
+The [visual mockup](design/mockup/README.md) is a browsable HTML prototype of the example blog and a visual reference for the implemented renderer. Search results there are labeled mock data.
 
 The Go tool will manage Markdown, validation, migration, optional authoring-time
 AI, and build/delivery. CFGB owns the renderer and Worker implementation and embeds

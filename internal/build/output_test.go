@@ -47,6 +47,43 @@ func TestOutputDirRejectsInputs(t *testing.T) {
 	}
 }
 
+func TestOutputDirAllowsOutsideRepository(t *testing.T) {
+	cfg, repo := testRepo(t)
+	out := filepath.Join(t.TempDir(), "artifact")
+	relative, err := filepath.Rel(filepath.Dir(cfg.Path()), out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, selected := range []string{out, relative} {
+		got, err := outputDir(cfg, selected)
+		if err != nil || got != out {
+			t.Fatalf("output %q = %q, %v", selected, got, err)
+		}
+	}
+	content := filepath.Join(repo, "src", "content")
+	marker := filepath.Join(content, "keep.txt")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(content, out); err != nil {
+		t.Fatal(err)
+	}
+	selected, err := outputDir(cfg, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resetOutput(selected); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(out)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("output entry was not replaced: %v, %v", info, err)
+	}
+	if raw, err := os.ReadFile(marker); err != nil || string(raw) != "keep" {
+		t.Fatalf("output symlink target changed: %q, %v", raw, err)
+	}
+}
+
 func TestDeliverPromotesCompleteArtifact(t *testing.T) {
 	parent := t.TempDir()
 	out := filepath.Join(parent, "dist")

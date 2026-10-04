@@ -92,10 +92,21 @@ Topics decode into their typed map. The article schema is optional standalone/
 editor guidance; loaders do not apply it or add YAML AST/document/tag policies.
 Markdown article body bytes and line endings are preserved. The Astro collection
 shape provides types without extra nonempty/minimum-length constraints.
-Discovery still checks article keys, disabled variants and group directories;
+Discovery still uses four-digit years and checks disabled variants and group directories;
 other unverified input policies are inventoried in the
 [PR #3 policy audit](../reviews/pr-3-policy-audit.md). Their presence in an
 AI-written specification/test is not evidence of human approval.
+
+Article keys now use literal filesystem names without an ASCII pattern. Media
+URLs and Astro's stored importer paths encode the original components, including
+spaces, Unicode, hash signs and percent signs. `--out` may be outside the
+repository while existing input-overlap checks and exact symlink-entry removal
+remain. Both copy paths detect actual ancestor directory cycles with
+`os.SameFile` rather than a depth limit, allowing deep finite trees and independent
+aliases. The image adapter delegates format support to Astro without a separate
+extension allowlist. The example integration includes a copied corpus with an
+arbitrary article key, external output and 80-level media, alongside cycle and
+failure-cleanup tests. The renderer unit/integration suite contains 32 tests.
 
 Decoder/content errors retain typed diagnostic codes and exit 1 from `build`;
 reader/filesystem failures remain exit 3. Tests cover direct decoding, body and

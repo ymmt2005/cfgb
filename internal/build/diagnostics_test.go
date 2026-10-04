@@ -58,7 +58,6 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 		{"unknown field", "posts/2026/example/ja.md", strings.Replace(article, "---\nBody", "summray: unknown\n---\nBody", 1), "E_SCHEMA", 1},
 		{"invalid prose", "home/ja.md", "Body\xff\n", "E_SCHEMA", 1},
 		{"disabled locale", "posts/2026/example/en.md", article, "E_TRANSLATION_GROUP", 1},
-		{"invalid article key", "posts/2026/Bad Key/ja.md", article, "E_TRANSLATION_GROUP", 1},
 		{"nested variant", "posts/2026/example/nested/ja.md", article, "E_TRANSLATION_GROUP", 1},
 		{"invalid topics", "", "protobuf: invalid\n", "E_SCHEMA", 1},
 	} {
@@ -96,6 +95,29 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 			t.Fatalf("Run I/O = %v", err)
 		}
 	})
+}
+
+func TestRunDirectoryCycleRemovesIncompleteBuild(t *testing.T) {
+	stubBuildProbes(t)
+	_, repo := testRepo(t)
+	if err := os.Symlink(".", filepath.Join(repo, "src", "content", "loop")); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(t.TempDir(), "artifact")
+	workspaces := t.TempDir()
+	t.Setenv("TMPDIR", workspaces)
+	err := Run(Options{Dir: repo, Out: out})
+	var exit *ExitError
+	if !errors.As(err, &exit) || exit.Code != 3 || !strings.Contains(err.Error(), "directory cycle:") {
+		t.Fatalf("Run cycle = %v", err)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("failed cycle left output: %v", err)
+	}
+	entries, err := os.ReadDir(workspaces)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("failed cycle left workspace: %v, %v", entries, err)
+	}
 }
 
 func TestRunInvalidConfigurationPreservesOutput(t *testing.T) {

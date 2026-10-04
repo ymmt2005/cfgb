@@ -24,7 +24,9 @@ export function cfgbLoader(name, entries) {
           fileURL,
         });
         const rendered = {
-          html: String(entry.id).startsWith("aside/") ? namespaceFragment(result.code, "aside-") : result.code,
+          html: String(entry.id).startsWith("aside/")
+            ? namespaceFragment(result.code, "aside-")
+            : result.code,
           metadata: {
             ...result.metadata,
             imagePaths: [
@@ -37,7 +39,13 @@ export function cfgbLoader(name, entries) {
           id: entry.id,
           data,
           body: entry.body,
-          filePath: path.relative(fileURLToPath(context.config.root), entry.file),
+          // Astro resolves its stored importer path as a URL. Encode literal
+          // filename punctuation without changing the source identity.
+          filePath: path
+            .relative(fileURLToPath(context.config.root), entry.file)
+            .split(path.sep)
+            .map(encodeURIComponent)
+            .join("/"),
           digest: context.generateDigest(entry.body ?? ""),
           rendered,
           assetImports: rendered.metadata.imagePaths,

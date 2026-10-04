@@ -844,9 +844,6 @@ func outputDir(cfg *config.File, out string) (string, error) {
 	}
 	out = filepath.Clean(out)
 	repo := filepath.Clean(cfg.Root())
-	if !insideRepo(repo, out) {
-		return "", fmt.Errorf("--out must be a directory inside the repository")
-	}
 	base := filepath.Dir(cfg.Path())
 	protected := []struct {
 		path string
@@ -881,14 +878,6 @@ func resolveAbs(base, value string) string {
 		return filepath.Clean(value)
 	}
 	return filepath.Clean(filepath.Join(base, value))
-}
-
-func insideRepo(repo, path string) bool {
-	rel, err := filepath.Rel(repo, filepath.Clean(path))
-	if err != nil {
-		return false
-	}
-	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func overlaps(out, target string, targetIsDir bool) bool {
@@ -1122,13 +1111,10 @@ func output(name string, args ...string) (string, error) {
 }
 
 func copyFromRoot(root *os.Root, name, dest string) error {
-	return copyRootPath(root, name, dest, 0)
+	return copyRootPath(root, name, dest, nil)
 }
 
-func copyRootPath(root *os.Root, name, dest string, depth int) (err error) {
-	if depth > 64 {
-		return fmt.Errorf("directory is too deep or cyclic: %s", name)
-	}
+func copyRootPath(root *os.Root, name, dest string, ancestors []fs.FileInfo) (err error) {
 	file, err := root.Open(name)
 	if err != nil {
 		return err
@@ -1148,6 +1134,10 @@ func copyRootPath(root *os.Root, name, dest string, depth int) (err error) {
 		}
 		return copyAndClose(out, file)
 	}
+	ancestors, err = directoryAncestors(name, info, ancestors)
+	if err != nil {
+		return errors.Join(err, file.Close())
+	}
 	entries, err := file.ReadDir(-1)
 	err = errors.Join(err, file.Close())
 	if err != nil {
@@ -1158,7 +1148,7 @@ func copyRootPath(root *os.Root, name, dest string, depth int) (err error) {
 	}
 	for _, entry := range entries {
 		child := joinRoot(name, entry.Name())
-		if err := copyRootPath(root, child, filepath.Join(dest, entry.Name()), depth+1); err != nil {
+		if err := copyRootPath(root, child, filepath.Join(dest, entry.Name()), ancestors); err != nil {
 			return err
 		}
 	}
@@ -1166,13 +1156,10 @@ func copyRootPath(root *os.Root, name, dest string, depth int) (err error) {
 }
 
 func copyRootToRoot(src *os.Root, name string, dest *os.Root, to string) error {
-	return copyRootToRootDepth(src, name, dest, to, 0)
+	return copyRootToRootPath(src, name, dest, to, nil)
 }
 
-func copyRootToRootDepth(src *os.Root, name string, dest *os.Root, to string, depth int) (err error) {
-	if depth > 64 {
-		return fmt.Errorf("directory is too deep or cyclic: %s", name)
-	}
+func copyRootToRootPath(src *os.Root, name string, dest *os.Root, to string, ancestors []fs.FileInfo) (err error) {
 	file, err := src.Open(name)
 	if err != nil {
 		return err
@@ -1189,6 +1176,10 @@ func copyRootToRootDepth(src *os.Root, name string, dest *os.Root, to string, de
 		}
 		return dest.WriteFile(to, data, 0o644)
 	}
+	ancestors, err = directoryAncestors(name, info, ancestors)
+	if err != nil {
+		return errors.Join(err, file.Close())
+	}
 	entries, err := file.ReadDir(-1)
 	err = errors.Join(err, file.Close())
 	if err != nil {
@@ -1198,11 +1189,22 @@ func copyRootToRootDepth(src *os.Root, name string, dest *os.Root, to string, de
 		return err
 	}
 	for _, entry := range entries {
-		if err := copyRootToRootDepth(src, joinRoot(name, entry.Name()), dest, joinRoot(to, entry.Name()), depth+1); err != nil {
+		if err := copyRootToRootPath(src, joinRoot(name, entry.Name()), dest, joinRoot(to, entry.Name()), ancestors); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// Only a directory already on this traversal's ancestor chain is a cycle.
+// Other branches may legitimately reach the same directory through symlinks.
+func directoryAncestors(name string, info fs.FileInfo, ancestors []fs.FileInfo) ([]fs.FileInfo, error) {
+	for _, ancestor := range ancestors {
+		if os.SameFile(info, ancestor) {
+			return nil, fmt.Errorf("directory cycle: %s", name)
+		}
+	}
+	return append(ancestors, info), nil
 }
 
 func joinRoot(parent, name string) string {
