@@ -4,7 +4,7 @@ A Git-native publishing system for multilingual technical blogs on Cloudflare.
 CFGB is an independent open-source project and is not affiliated with Cloudflare,
 Inc.
 
-**Status: design, visual mockup, and a `cfgb build` that renders a content repository with the embedded Astro renderer. Deploy and preview upload are not implemented.**
+**Status: `cfgb build` renders content repositories with the embedded renderer and Pagefind search. Cloudflare deploy and preview upload are not implemented.**
 
 The [visual mockup](design/mockup/README.md) is a browsable HTML prototype of the example blog and a visual reference for the implemented renderer. Search results there are labeled mock data.
 
@@ -21,7 +21,24 @@ The [cfgb-action repository](https://github.com/ymmt2005/cfgb-action) owns the
 setup Action: install a verified CFGB release and register it on PATH. Workflows
 run CLI commands directly after setup. Action and CLI versions are independently
 pinned. The Action selects the runner asset and verifies the immutable release
-and GitHub release attestation. It is also at the documentation-only stage.
+and GitHub release attestation. Its setup implementation is maintained separately.
+
+## Build a site
+
+Download the binary for your OS/architecture from [CFGB releases](https://github.com/ymmt2005/cfgb/releases).
+Release assets are raw executables; Windows assets end in `.exe`. Verify the
+immutable release and asset with `gh release verify` / `gh release verify-asset`.
+Building also requires Node.js and npm or pnpm compatible with the release's
+`toolchain-requirements.json`.
+
+```sh
+cfgb build --out dist
+# A static host mounted below a repository path:
+cfgb build --out dist --base-url https://example.github.io/blog/ --static
+```
+
+Publish `dist/site/` with the static host. GitHub Actions can install the CLI
+through [cfgb-action](https://github.com/ymmt2005/cfgb-action) before running build.
 
 ## Implementation specifications
 

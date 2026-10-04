@@ -4,7 +4,8 @@
   const search = new window.PagefindUI({
     element: "#search",
     showSubResults: true,
-    bundlePath: "/pagefind/",
+    bundlePath: `${document.documentElement.dataset?.cfgbBasePath || ""}/pagefind/`,
+    baseUrl: `${document.documentElement.dataset?.cfgbBasePath || ""}/`,
   });
   if (lang) search.triggerFilters({ locale: [lang] });
 })();

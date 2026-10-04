@@ -51,9 +51,10 @@ export function remarkCfgb(options = {}) {
     walk(tree, (node) => {
       if (node.type === "image" && node.url) {
         // Enforce the same file-reference contract even without image staging.
-        urls.media(node.url, source);
+        const publicUrl = urls.media(node.url, source);
         const prepared = options.prepareImage?.(node.url, source);
         if (prepared) node.url = prepared.url;
+        else if (!node.url.startsWith("./assets/")) node.url = publicUrl;
       } else if (node.type === "link" && node.url) {
         node.url = urls.link(node.url, source);
       } else if (node.type === "html" && typeof node.value === "string") {

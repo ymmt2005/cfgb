@@ -14,6 +14,17 @@ through symlinks, but they must not write a shared `node_modules/.vite` cache.
 Actual renderer builds verify workspace-local Vite cache creation while running
 in parallel.
 
+## Hosting paths and static delivery
+
+The path in `site.baseUrl` is the hosting prefix; `--base-url` can override it for
+a build. Domain routes stay independent of the prefix. Shared URL helpers apply
+it to emitted links/media and strip it when matching sitemap routes. Astro uses
+the same base for processed images and bundled scripts; Pagefind receives it for
+its bundle and result URLs. `--static` emits entry/alias redirect documents and
+uses direct language links. The default mode still uses the locale Worker.
+Browser tests serve only the prefixed mount, so accidental origin-root requests
+fail. They exercise navigation, images, search, scripts and no-JavaScript redirects.
+
 ## Input boundary
 
 Go isolates the front-matter block with a line reader and unmarshals it directly

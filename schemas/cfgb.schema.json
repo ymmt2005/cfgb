@@ -18,7 +18,7 @@
         "baseUrl": {
           "type": "string",
           "format": "uri",
-          "pattern": "^https://[^/?#@]+$"
+          "pattern": "^https://[^/?#@]+(?:/[^?#]*)?$"
         },
         "defaultLocale": {
           "$ref": "locale-id.schema.json"

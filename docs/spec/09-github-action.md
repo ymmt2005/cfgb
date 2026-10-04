@@ -1,9 +1,11 @@
 # GitHub Action setup contract
 
-Status: design only. No Action implementation, published tag or active workflow
-is provided yet. The public Action will be `ymmt2005/cfgb-action`, with one root
-`action.yml`. Its v1 responsibility is to install a verified CFGB release and
-register its executable on PATH for subsequent workflow steps.
+The public setup Action is `ymmt2005/cfgb-action`, with one root `action.yml`.
+It installs an exact immutable CFGB release and registers the executable on PATH.
+The current implementation supports the raw executable release format on Linux,
+macOS and Windows, for amd64 and arm64. It installs a fresh verified binary per
+invocation; it does not currently cache installations. Its pinned GitHub CLI
+verifier and archive digests belong to the Action, not caller configuration.
 
 ## Ownership and scope
 
@@ -30,6 +32,7 @@ reusable workflow is a separate job-level mechanism and is not required for v1.
 | Input | Requirement |
 | --- | --- |
 | `cfgb-version` | Required exact released CFGB version from an immutable release; no implicit latest, branch or range |
+| `github-token` | Optional read-only token, defaulting to the job GitHub token; used only for public release verification |
 
 | Output | Meaning |
 | --- | --- |
@@ -97,8 +100,7 @@ Builds retains its independently configured `CFGB_SHA256` for the fixed
 Linux/amd64 asset. For the same target, this digest must match that asset in the
 verified release attestation, yielding identical verified executable bytes.
 Other runner targets use their own assets from the same immutable release;
-cross-platform release equivalence does not imply byte identity. No versions
-are published by this documentation.
+cross-platform release equivalence does not imply byte identity. Consult the CLI release list for published versions.
 
 ## Failure behavior and trust boundary
 

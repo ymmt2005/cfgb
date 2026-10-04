@@ -15,6 +15,7 @@ const CompatibilityDate = "2026-09-22"
 
 // Options are baked into the generated Worker.
 type Options struct {
+	BasePath      string
 	DefaultLocale string
 	Locales       []string
 	Routes        []string
@@ -49,7 +50,8 @@ func Source(opts Options) ([]byte, error) {
 }
 
 const runtime = `
-const routes = new Set(site.Routes);
+const prefix = site.BasePath || "";
+const routes = new Set(site.Routes.map(route => prefix + route));
 
 // Static Assets applies _headers only to its own responses. All responses
 // created here use the same release policy, preserving endpoint headers.
@@ -95,7 +97,7 @@ function negotiatedLocale(header) {
 }
 
 function safeNext(raw, locale) {
-  const home = "/" + locale + "/";
+  const home = prefix + "/" + locale + "/";
   if (raw == null || raw === "") return home;
   if (raw.includes("\\") || /[\u0000-\u001f\u007f]/.test(raw)) return home;
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("://")) return home;
@@ -121,7 +123,7 @@ function localeResponse(request) {
   const headers = new Headers({
     location: next,
     "cache-control": "no-store",
-    "set-cookie": "cfgb_locale=" + lang + "; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000",
+    "set-cookie": "cfgb_locale=" + lang + "; Secure; HttpOnly; SameSite=Lax; Path=" + (prefix || "/") + "; Max-Age=31536000",
   });
   return response(null, { status: 303, headers });
 }
@@ -133,7 +135,7 @@ function rootResponse(request) {
   const cookie = localeFromCookie(request.headers.get("cookie"));
   const locale = site.Locales.includes(cookie) ? cookie : negotiatedLocale(request.headers.get("accept-language"));
   const headers = new Headers({
-    location: "/" + locale + "/",
+    location: prefix + "/" + locale + "/",
     "cache-control": "private, no-store",
     vary: "Cookie, Accept-Language",
   });
@@ -143,9 +145,15 @@ function rootResponse(request) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === "/") return rootResponse(request);
-    if (url.pathname === "/__locale") return localeResponse(request);
-    if (env && env.ASSETS && env.ASSETS.fetch) return env.ASSETS.fetch(request);
+    if (url.pathname === prefix + "/") return rootResponse(request);
+    if (url.pathname === prefix + "/__locale") return localeResponse(request);
+    if (env && env.ASSETS && env.ASSETS.fetch) {
+      if (prefix && url.pathname.startsWith(prefix + "/")) {
+        url.pathname = url.pathname.slice(prefix.length);
+        return env.ASSETS.fetch(new Request(url, request));
+      }
+      return env.ASSETS.fetch(request);
+    }
     return response("not found\n", { status: 404 });
   },
 };

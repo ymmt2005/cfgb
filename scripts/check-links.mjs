@@ -1,7 +1,7 @@
 // Adapt CFGB's static/Worker routes to lychee. Link extraction and validation
 // belong to lychee; this script only supplies the generated routing rules.
 import { spawnSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -19,18 +19,19 @@ try {
   const base = new URL(origin);
   if (
     !["http:", "https:"].includes(base.protocol) ||
-    base.pathname !== "/" ||
     base.search ||
     base.hash ||
     base.username ||
     base.password
   ) {
     throw new Error(
-      "ORIGIN must be an HTTP(S) origin without a path, query, or credentials",
+      "SITE_URL must be an HTTP(S) site URL without a query or credentials",
     );
   }
   const localRoot = pathToFileURL(root).href;
-  const local = (route) => new URL(`.${route}`, `${localRoot}/`).href;
+  const prefix = base.pathname.replace(/\/$/, "");
+  const rawLocal = (route) => new URL(`.${route}`, `${localRoot}/`).href;
+  const local = (route) => rawLocal(prefix && route.startsWith(`${prefix}/`) ? route.slice(prefix.length) : route);
   const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const args = ["--no-progress", "--root-dir", root];
   let online = false;
@@ -57,7 +58,7 @@ try {
       throw new Error(`Unsupported generated redirect: ${line}`);
     }
     const [source, target] = fields;
-    for (const url of [local(source), new URL(source, base).href]) {
+    for (const url of [...new Set([rawLocal(source), local(source), new URL(source, base).href])]) {
       // Local file URLs may lose a trailing directory slash during lychee's
       // normalization. HTTP alias URLs retain the exact generated spelling.
       const pattern =
@@ -67,11 +68,15 @@ try {
       args.push("--remap", `^${pattern}([?#]|$) ${local(target)}$1`);
     }
   }
-  args.push("--remap", `^${escape(base.origin)}([/?#]|$) ${localRoot}$1`);
+  if (prefix) args.push("--remap", `^${escape(rawLocal(prefix))}([/?#]|$) ${localRoot}$1`);
+  args.push("--remap", `^${escape(base.origin + prefix)}([/?#]|$) ${localRoot}$1`);
   // These routes are served by the Worker, not emitted as static HTML. All
   // other root-relative and same-origin URLs still require real output files.
-  args.push("--exclude", `^${escape(localRoot)}/?([?#].*)?$`);
-  args.push("--exclude", `^${escape(local("/__locale"))}([?#].*)?$`);
+  if (!existsSync(path.join(root, "index.html"))) {
+    args.push("--exclude", `^${escape(localRoot)}/?([?#].*)?$`);
+    args.push("--exclude", `^${escape(local("/__locale"))}([?#].*)?$`);
+    if (prefix) args.push("--exclude", `^${escape(rawLocal(prefix + "/__locale"))}([?#].*)?$`);
+  }
   args.push(
     online ? "--cache" : "--offline",
     "--format",

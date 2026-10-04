@@ -15,6 +15,8 @@ import {
 } from "./src/lib/sitemap.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
 import { imageWorkspace } from "./src/lib/image-paths.mjs";
+import { basePath, routePath, sitePath } from "./src/lib/site-path.mjs";
+import { staticPages } from "./src/lib/static-pages.mjs";
 import securityHeaders from "./src/lib/security-headers.json" with { type: "json" };
 
 const corpus = loadSite();
@@ -22,7 +24,8 @@ const { site, posts, routes } = corpus;
 const manifest = sitemapManifest(corpus);
 
 export default defineConfig({
-  site: site.baseUrl,
+  site: new URL(site.baseUrl).origin,
+  base: basePath(site) || "/",
   // Keep content and image caches in this workspace when tests share dependencies.
   cacheDir: "./.astro/cache",
   trailingSlash: "always",
@@ -38,13 +41,13 @@ export default defineConfig({
       filenameBase: "sitemap",
       entryLimit: 45000,
       filter(page) {
-        const pathname = new URL(page).pathname;
+        const pathname = routePath(site, new URL(page).pathname);
         if (!canonicalSitemapPath(pathname)) return false;
         const directory = pathname.endsWith("/") ? pathname : `${pathname}/`;
         return routes.has(pathname) || routes.has(directory);
       },
       serialize(item) {
-        const route = new URL(item.url).pathname;
+        const route = routePath(site, new URL(item.url).pathname);
         const meta = manifest.get(route);
         if (meta?.lastmod) item.lastmod = meta.lastmod;
         else delete item.lastmod;
@@ -132,8 +135,9 @@ function fallbackPages(corpus) {
         writeFileSync(path.join(root, "_headers"), headers());
         writeFileSync(
           path.join(root, "_redirects"),
-          redirectFile(corpus.posts),
+          redirectFile(corpus.posts, site),
         );
+        if (site.static) staticPages(root, corpus);
         writeFileSync(
           path.join(root, "404.html"),
           fallbackHtml(corpus, "both"),
@@ -151,10 +155,10 @@ function fallbackPages(corpus) {
   };
 }
 
-function redirectFile(posts) {
+function redirectFile(posts, site) {
   const lines = [];
   for (const post of posts) {
-    for (const alias of post.aliases) lines.push(`${alias} ${post.url} 301`);
+    for (const alias of post.aliases) lines.push(`${sitePath(site, alias)} ${sitePath(site, post.url)} 301`);
   }
   return lines.join("\n") + (lines.length ? "\n" : "");
 }

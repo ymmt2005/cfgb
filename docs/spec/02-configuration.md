@@ -17,7 +17,7 @@ constraint. Keep those domain checks in their relevant commands.
 | --- | --- |
 | `schemaVersion` | Required, integer 1 |
 | `site.title` | Required nonempty text |
-| `site.baseUrl` | Required HTTPS origin, no path/query/fragment/trailing slash/userinfo |
+| `site.baseUrl` | Public site URL; may include a hosting path such as `/cfgb-example/`. A trailing slash is optional. No query/fragment/userinfo |
 | `site.defaultLocale` | Required key in `locales` |
 | `site.timezone` | IANA timezone used only for monthly archive classification |
 | `locales` | Nonempty map of supported content/UI language identifiers. This release supports exact, case-sensitive `ja` and `en`, each with a nonempty `label` |

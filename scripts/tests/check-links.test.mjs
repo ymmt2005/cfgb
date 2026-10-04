@@ -72,3 +72,23 @@ test("lychee validates static files, fragments, canonical URLs, and redirect tar
     rmSync(site, { recursive: true, force: true });
   }
 });
+
+
+test("lychee resolves a static site's hosting prefix and still rejects broken targets", () => {
+  const site = mkdtempSync(path.join(tmpdir(), "cfgb-links-prefix-"));
+  try {
+    mkdirSync(path.join(site, "en"));
+    writeFileSync(path.join(site, "_redirects"), "/blog/old/ /blog/en/ 301\n");
+    writeFileSync(path.join(site, "en", "index.html"), '<h1 id="heading">Title</h1>');
+    const check = (body) => {
+      writeFileSync(path.join(site, "index.html"), body);
+      return spawnSync(process.execPath, [script, site, "https://example.invalid/blog/", "--config", config], { encoding: "utf8" });
+    };
+    const valid = check('<a href="/blog/en/#heading">Link</a><a href="https://example.invalid/blog/en/#heading">Canonical</a><a href="/blog/old/#heading">Alias</a>');
+    assert.equal(valid.status, 0, valid.stdout + valid.stderr);
+    for (const href of ["/blog/missing/", "/blog/en/#missing", "/blog/__locale?lang=en"]) {
+      const result = check(`<a href="${href}">Broken</a>`);
+      assert.notEqual(result.status, 0, result.stdout + result.stderr);
+    }
+  } finally { rmSync(site, { recursive: true, force: true }); }
+});
