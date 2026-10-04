@@ -90,7 +90,20 @@ function negotiatedLocale(header) {
   ranked.sort((a, b) => b.quality - a.quality || a.index - b.index);
   for (const item of ranked) {
     for (const locale of site.Locales) {
-      if (item.tag === locale || item.tag.startsWith(locale + "-")) return locale;
+      const normalized = locale.toLowerCase();
+      if (item.tag === normalized || item.tag.startsWith(normalized + "-")) return locale;
+    }
+    // Match language/script when a browser sends a regional language tag,
+    // e.g. zh-CN or zh-SG for the configured Simplified Chinese language.
+    // Explicit Traditional Chinese must not select zh-Hans.
+    try {
+      const requested = new Intl.Locale(item.tag).maximize();
+      for (const locale of site.Locales) {
+        const candidate = new Intl.Locale(locale).maximize();
+        if (requested.language === candidate.language && requested.script === candidate.script) return locale;
+      }
+    } catch (error) {
+      // Malformed HTTP language ranges do not prevent trying the next range.
     }
   }
   return site.DefaultLocale;

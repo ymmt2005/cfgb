@@ -40,6 +40,14 @@ cfgb build --out dist --base-url https://example.github.io/blog/ --static
 Publish `dist/site/` with the static host. GitHub Actions can install the CLI
 through [cfgb-action](https://github.com/ymmt2005/cfgb-action) before running build.
 
+The source supports Japanese (`ja`), English (`en`), Simplified Chinese
+(`zh-Hans`) and Korean (`ko`). Enable languages and set their display labels in
+`cfgb.yaml`; keep translated article variants in the same folder. The language
+switcher uses a label for a single language, a toggle for a language pair and a
+dropdown for larger language lists. It preserves article translations when
+available. Chinese and Korean support requires a release containing these changes;
+it is not present in v0.1.0.
+
 ## Implementation specifications
 
 | Document | Scope |

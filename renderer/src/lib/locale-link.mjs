@@ -1,5 +1,4 @@
-// Translation helpers take collections. The shipped header still shows one
-// other language; a selector for more languages is separate work.
+// Translation helpers resolve every configured language independently.
 
 // groupCounterparts maps each locale in an article group to its own URL.
 // Another group that uses the same slug is not a member.

@@ -13,12 +13,14 @@ func TestLocaleWorker(t *testing.T) {
 	}
 	source, err := Source(Options{
 		DefaultLocale: "ja",
-		Locales:       []string{"en", "ja"},
+		Locales:       []string{"en", "ja", "zh-Hans", "ko"},
 		Routes: []string{
 			"/ja/",
 			"/en/",
 			"/en/about/",
 			"/ja/about/",
+			"/zh-Hans/",
+			"/ko/",
 		},
 	})
 	if err != nil {
@@ -46,6 +48,15 @@ const assetResponse = new Response("asset", { status: 200, headers: { "cache-con
 const env = { ASSETS: { async fetch() { return assetResponse; } } };
 const cases = [
   ["root-default", "/", {}, 302, "/ja/"],
+  ["root-simplified", "/", {"accept-language":"zh-Hans"}, 302, "/zh-Hans/"],
+  ["root-simplified-case", "/", {"accept-language":"ZH-hANS-cn"}, 302, "/zh-Hans/"],
+  ["root-china", "/", {"accept-language":"zh-CN"}, 302, "/zh-Hans/"],
+  ["root-singapore", "/", {"accept-language":"zh-SG"}, 302, "/zh-Hans/"],
+  ["root-traditional", "/", {"accept-language":"zh-TW, ko-KR;q=0.8"}, 302, "/ko/"],
+  ["root-hant", "/", {"accept-language":"zh-Hant, en;q=0.8"}, 302, "/en/"],
+  ["root-korean", "/", {"accept-language":"ko-KR"}, 302, "/ko/"],
+  ["root-chinese-cookie", "/", {"cookie":"cfgb_locale=zh-Hans","accept-language":"ko"}, 302, "/zh-Hans/"],
+  ["locale-chinese", "/__locale?lang=zh-Hans", {}, 303, "/zh-Hans/"],
   ["root-cookie", "/", {"cookie":"cfgb_locale=en","accept-language":"ja"}, 302, "/en/"],
   ["root-quality", "/", {"accept-language":"ja;q=0.2, en-US;q=0.9"}, 302, "/en/"],
   ["root-zero", "/", {"accept-language":"en;q=0, ja;q=0.5"}, 302, "/ja/"],
