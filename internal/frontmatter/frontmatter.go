@@ -122,6 +122,13 @@ func ArticleData(doc any) (map[string]any, error) {
 	if !ok || mapping == nil {
 		return nil, fmt.Errorf("front matter must be a mapping")
 	}
+	for key := range mapping {
+		switch key {
+		case "title", "slug", "publishedAt", "topics", "updatedAt", "summary", "ogImage", "aliases":
+		default:
+			return nil, fmt.Errorf("unknown article field %q", key)
+		}
+	}
 	data := map[string]any{}
 	for _, key := range []string{"title", "slug", "publishedAt"} {
 		text, err := requiredString(mapping, key)
@@ -319,7 +326,7 @@ func readGroup(group *os.Root, contentRoot, year, articleKey string, locales map
 		}
 		locale := strings.TrimSuffix(name, ".md")
 		if !locales[locale] {
-			continue
+			return fmt.Errorf("posts/%s/%s/%s: locale %q is not enabled", year, articleKey, name, locale)
 		}
 		file, err := group.Open(name)
 		if err != nil {

@@ -48,6 +48,39 @@ func TestLoadRejectsUnknownField(t *testing.T) {
 	}
 }
 
+func TestLoadSummaryEntries(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		summary string
+		wantErr bool
+	}{
+		{"valid", "  summary:\n    ja:\n      provider: example\n      model: summary-v1\n", false},
+		{"offline-empty", "  summary: {}\n", false},
+		{"misspelled-provider", "  summary:\n    ja:\n      provder: example\n      model: summary-v1\n", true},
+		{"extra-field", "  summary:\n    ja:\n      provider: example\n      model: summary-v1\n      temperature: 0\n", true},
+		{"scalar-entry", "  summary:\n    ja: example\n", true},
+		{"list-entry", "  summary:\n    ja: [example]\n", true},
+		{"null-entry", "  summary:\n    ja: null\n", true},
+		{"missing-model", "  summary:\n    ja:\n      provider: example\n", true},
+		{"empty-provider", "  summary:\n    ja:\n      provider: ''\n      model: summary-v1\n", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			writeConfig(t, dir, minimalConfig+"\nai:\n  enabled: false\n"+tc.summary)
+			cfg, err := Load(dir)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Load error = %v, want error %v", err, tc.wantErr)
+			}
+			if tc.name == "valid" && (cfg.AI.Summary["ja"].Provider != "example" || cfg.AI.Summary["ja"].Model != "summary-v1") {
+				t.Fatalf("summary = %#v", cfg.AI.Summary)
+			}
+		})
+	}
+}
+
 func TestLoadFollowsInRootConfigSymlink(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

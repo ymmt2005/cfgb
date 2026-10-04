@@ -10,6 +10,7 @@ import { absolute, loadSite } from "./src/lib/load-site.mjs";
 import { alternateMembers, groupCounterparts } from "./src/lib/locale-link.mjs";
 import { canonicalSitemapPath, localePageAlternates, pagePath } from "./src/lib/sitemap.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
+import { finishImageUrls, imageWorkspace } from "./src/lib/image-paths.mjs";
 
 const corpus = loadSite();
 const { site, posts, routes } = corpus;
@@ -60,7 +61,7 @@ export default defineConfig({
   markdown: {
     processor: unified({
       gfm: true,
-      remarkPlugins: [remarkCfgb],
+      remarkPlugins: [[remarkCfgb, { prepareImage: imageWorkspace(fileURLToPath(new URL(".", import.meta.url))) }]],
     }),
   },
   vite: {
@@ -108,6 +109,7 @@ function fallbackPages(corpus) {
     hooks: {
       "astro:build:done": ({ dir }) => {
         const root = fileURLToPath(dir);
+        finishImageUrls(root);
         if (process.env.CFGB_ROUTES_OUT) {
           writeFileSync(process.env.CFGB_ROUTES_OUT, JSON.stringify([...corpus.routes].sort(), null, 2));
         }
@@ -146,4 +148,3 @@ function headers() {
   Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'
 `;
 }
-

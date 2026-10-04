@@ -36,9 +36,9 @@ type File struct {
 		Provider string `yaml:"provider"`
 	} `yaml:"search"`
 	AI struct {
-		Enabled bool           `yaml:"enabled"`
-		Gateway string         `yaml:"gateway"`
-		Summary map[string]any `yaml:"summary"`
+		Enabled bool                     `yaml:"enabled"`
+		Gateway string                   `yaml:"gateway"`
+		Summary map[string]SummaryConfig `yaml:"summary"`
 	} `yaml:"ai"`
 	Deploy struct {
 		ProductionBranch string `yaml:"productionBranch"`
@@ -49,6 +49,12 @@ type File struct {
 	Hatena ast.Node `yaml:"hatena"`
 	path   string
 	root   string
+}
+
+// SummaryConfig is the structural contract for one locale's summary model.
+type SummaryConfig struct {
+	Provider string `yaml:"provider"`
+	Model    string `yaml:"model"`
 }
 
 // Path is the cfgb.yaml file.
@@ -98,6 +104,11 @@ func Load(start string) (*File, error) {
 	}
 	if cfg.SchemaVersion != 1 {
 		return nil, fmt.Errorf("cfgb.yaml schemaVersion must be 1")
+	}
+	for locale, summary := range cfg.AI.Summary {
+		if summary.Provider == "" || summary.Model == "" {
+			return nil, fmt.Errorf("cfgb.yaml ai.summary.%s requires provider and model", locale)
+		}
 	}
 	if cfg.Site.Title == "" || cfg.Site.BaseURL == "" || cfg.Site.DefaultLocale == "" || cfg.Site.Timezone == "" {
 		return nil, fmt.Errorf("cfgb.yaml site title, baseUrl, defaultLocale and timezone are required")

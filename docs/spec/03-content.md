@@ -109,7 +109,10 @@ same id keeps one number. Render inline Markdown inside a definition. Show the
 list without JavaScript. Aside is rendered on its own and then placed beside the
 page. Prefix that fragment's generated ids, fragment links, footnote
 backreferences, and accessibility references with `aside-` so they do not collide
-with the page. Article heading anchors stay unchanged. A reference with no definition is `E_LINK_BROKEN`.
+with the page. Renamed authored ids also require their HTML `for`, `list`, `form`,
+and `headers` references and ARIA id references to be updated. Rewrite only
+targets inside the fragment; references outside it and links to other pages stay
+unchanged. Article heading anchors stay unchanged. A reference with no definition is `E_LINK_BROKEN`.
 Omit a definition that nothing references. Leave footnote syntax inside code
 fences unchanged. Process Markdown via AST, including reference
 links and raw HTML attributes. Parse those attributes with an HTML syntax tree,
@@ -133,7 +136,14 @@ embed must be consistent with the final CSP/privacy policy.
 Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images,
 including reference-style images, in articles and in home, about, and aside.
 It supplies dimensions and emits the processed file. A definition used by a
-Markdown image stays on that pipeline. External images remain external
+Markdown image stays on that pipeline, even when a link uses the same definition.
+Resolve image and link consumers separately, preserving the definition's title
+and CommonMark identifier matching and first-definition precedence. Split URL
+query/fragment suffixes before filesystem lookup; decode path components once.
+Local Markdown image suffixes stay on the processed URL. Encoded filename
+characters such as `%26`, `%23`, and `%3F` denote filename characters, not URL
+delimiters. Relative Markdown article links use the same decoding rule before
+route lookup. External images remain external
 without build-time downloads and appear in migration/privacy reports. Raw HTML
 images and links to `./assets/...` are published under `/media/<year>/<article>/`.
 Home, about, and aside links and raw HTML images use `/media/home/`,

@@ -1,6 +1,20 @@
 import { parseFragment } from "parse5";
 
-const referenceAttributes = new Set(["href", "aria-describedby", "aria-labelledby", "aria-controls", "headers"]);
+const referenceAttributes = new Set([
+  "href",
+  "for",
+  "list",
+  "form",
+  "headers",
+  "aria-activedescendant",
+  "aria-controls",
+  "aria-describedby",
+  "aria-details",
+  "aria-errormessage",
+  "aria-flowto",
+  "aria-labelledby",
+  "aria-owns",
+]);
 
 // namespaceFragment prefixes ids in one rendered fragment and the references
 // that point at those ids. Other links are left unchanged. The original tags
@@ -21,17 +35,25 @@ export function namespaceFragment(html, prefix) {
     for (const attr of node.attrs || []) {
       const name = attr.name.toLowerCase();
       if (name !== "id" && !referenceAttributes.has(name)) continue;
-      const next = name === "id" ? prefixId(attr.value, ids, prefix) : prefixReferences(name, attr.value, ids, prefix);
+      const next =
+        name === "id"
+          ? prefixId(attr.value, ids, prefix)
+          : prefixReferences(name, attr.value, ids, prefix);
       if (next === attr.value) continue;
       const range = attributeValueRange(html, locations[name]);
       if (!range) continue;
-      edits.push({ start: range.start, end: range.end, value: encodeAttributeValue(next, range.quote) });
+      edits.push({
+        start: range.start,
+        end: range.end,
+        value: encodeAttributeValue(next, range.quote),
+      });
     }
   });
   if (edits.length === 0) return html;
   edits.sort((left, right) => right.start - left.start);
   let out = html;
-  for (const edit of edits) out = out.slice(0, edit.start) + edit.value + out.slice(edit.end);
+  for (const edit of edits)
+    out = out.slice(0, edit.start) + edit.value + out.slice(edit.end);
   return out;
 }
 
@@ -62,7 +84,9 @@ function prefixFragment(value, ids, prefix) {
 }
 
 function attribute(node, name) {
-  return node.attrs?.find((attr) => attr.name.toLowerCase() === name)?.value ?? "";
+  return (
+    node.attrs?.find((attr) => attr.name.toLowerCase() === name)?.value ?? ""
+  );
 }
 
 function attributeValueRange(source, loc) {
@@ -77,18 +101,25 @@ function attributeValueRange(source, loc) {
   if (quote === '"' || quote === "'") {
     const end = raw.lastIndexOf(quote);
     if (end <= i) return null;
-    return { start: loc.startOffset + i + 1, end: loc.startOffset + end, quote };
+    return {
+      start: loc.startOffset + i + 1,
+      end: loc.startOffset + end,
+      quote,
+    };
   }
   return { start: loc.startOffset + i, end: loc.endOffset, quote: "" };
 }
 
 function encodeAttributeValue(value, quote) {
   if (quote !== '"' && quote !== "'") {
-    if (value !== "" && !/[\s"'=<>`]/.test(value)) return value.replaceAll("&", "&amp;");
+    if (value !== "" && !/[\s"'=<>`]/.test(value))
+      return value.replaceAll("&", "&amp;");
     quote = '"';
     return `"${value.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"`;
   }
-  return value.replaceAll("&", "&amp;").replaceAll(quote, quote === '"' ? "&quot;" : "&apos;");
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll(quote, quote === '"' ? "&quot;" : "&apos;");
 }
 
 function walkElements(node, visit) {

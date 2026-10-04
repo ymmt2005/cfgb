@@ -230,6 +230,73 @@ func TestCollectAgreesOnMetadata(t *testing.T) {
 const identity = "title: T\nslug: t\npublishedAt: '2026-01-02T03:04:05Z'\n"
 const required = identity + "topics: [protobuf]\n"
 
+func TestArticleRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
+	for _, key := range []string{"summray", "extra", "draft"} {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := ReadArticle(strings.NewReader("---\n" + required + key + ": value\n---\nBody\n"))
+			if err == nil || !strings.Contains(err.Error(), "unknown article field") || !strings.Contains(err.Error(), key) {
+				t.Fatalf("unknown field %s: %v", key, err)
+			}
+		})
+	}
+	data, body, err := ReadArticle(strings.NewReader("---\n" + required +
+		"updatedAt: '2026-01-03T03:04:05Z'\nsummary: Summary\nogImage: ./assets/picture.png\naliases: [/ja/posts/old/]\n---\nBody\n---\n"))
+	if err != nil || len(data) != 8 || string(body) != "Body\n---\n" {
+		t.Fatalf("supported fields/body = %#v, %q, %v", data, body, err)
+	}
+}
+
+func TestCollectRejectsUnconfiguredVariants(t *testing.T) {
+	t.Parallel()
+	for _, locale := range []string{"fr", "en"} {
+		t.Run(locale, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			group := filepath.Join(dir, "posts", "2026", "example")
+			if err := os.MkdirAll(group, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			for _, variant := range []string{"ja", locale} {
+				if err := os.WriteFile(filepath.Join(group, variant+".md"), []byte("---\n"+required+"---\nBody\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			topics := filepath.Join(dir, "topics.yaml")
+			if err := os.WriteFile(topics, []byte("protobuf:\n  ja: Protocol Buffers\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Collect(dir, topics, []string{"ja"})
+			if err == nil || !strings.Contains(err.Error(), "posts/2026/example/"+locale+".md") || !strings.Contains(err.Error(), "not enabled") {
+				t.Fatalf("unconfigured variant = %v", err)
+			}
+		})
+	}
+}
+
+func TestCollectKeepsSharedAssetsAndExcludesNonPosts(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	for _, name := range []string{"posts/2026/example/ja.md", "posts/2026/example/assets/fr.md", "tests/fr.md", "docs/fr.md", "examples/fr.md"} {
+		filename := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filename, []byte("---\n"+required+"---\nBody\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	topics := filepath.Join(dir, "topics.yaml")
+	if err := os.WriteFile(topics, []byte("protobuf:\n  ja: Protocol Buffers\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	index, err := Collect(dir, topics, []string{"ja"})
+	if err != nil || len(index.Posts) != 1 {
+		t.Fatalf("posts = %#v, error = %v", index.Posts, err)
+	}
+}
+
 func article(t *testing.T, fields string) (map[string]any, []byte) {
 	t.Helper()
 	raw := "---\n"

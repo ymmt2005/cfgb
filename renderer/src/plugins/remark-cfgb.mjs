@@ -10,18 +10,55 @@ const alerts = {
   CAUTION: "caution",
 };
 
-export function remarkCfgb() {
+export function remarkCfgb(options = {}) {
   const corpus = loadSite();
-  const byFile = new Map(corpus.posts.map((post) => [path.resolve(post.file), post]));
+  const byFile = new Map(
+    corpus.posts.map((post) => [path.resolve(post.file), post]),
+  );
   return (tree, file) => {
     const source = file.path ? path.resolve(file.path) : "";
-    const imageDefinitions = new Set();
+    const definitions = new Map();
     walk(tree, (node) => {
-      if (node.type === "imageReference" && node.identifier) {
-        imageDefinitions.add(String(node.identifier).toLowerCase());
+      if (node.type === "definition" && node.identifier) {
+        const identifier = referenceIdentifier(node.identifier);
+        if (!definitions.has(identifier))
+          definitions.set(identifier, { url: node.url, title: node.title });
       }
     });
     walk(tree, (node, parent, index) => {
+      if (
+        (node.type === "imageReference" || node.type === "linkReference") &&
+        parent
+      ) {
+        const definition = definitions.get(
+          referenceIdentifier(node.identifier),
+        );
+        if (definition) {
+          const image = node.type === "imageReference";
+          node = parent.children[index] = {
+            type: image ? "image" : "link",
+            url: definition.url,
+            title: definition.title,
+            ...(image ? { alt: node.alt } : { children: node.children }),
+            ...(node.data ? { data: node.data } : {}),
+          };
+        }
+      }
+      if (node.type === "image" && node.url && options.prepareImage) {
+        const prepared = options.prepareImage(node.url, source);
+        if (prepared) {
+          node.url = prepared.url;
+          if (prepared.suffix) {
+            node.data = {
+              ...node.data,
+              hProperties: {
+                ...node.data?.hProperties,
+                "data-cfgb-image-suffix": prepared.suffix,
+              },
+            };
+          }
+        }
+      }
       if (node.type === "code" && node.lang === "mermaid" && parent) {
         parent.children[index] = html(mermaidBlock(node.value || ""));
         return;
@@ -41,20 +78,28 @@ export function remarkCfgb() {
       if (node.type === "link" && node.url) {
         node.url = rewriteLink(node.url, source, byFile);
       }
-      // A definition used by an image stays local so Astro can import it.
-      // Link-only definitions are published with the other asset links.
+      // References now have their own URLs. Definitions no longer couple
+      // image imports to the public-media URL used by link consumers.
       if (node.type === "definition" && node.url) {
-        const identifier = String(node.identifier || "").toLowerCase();
-        if (!imageDefinitions.has(identifier)) node.url = rewriteLink(node.url, source, byFile);
+        node.url = rewriteLink(node.url, source, byFile);
       }
     });
   };
 }
 
+function referenceIdentifier(value) {
+  return String(value || "")
+    .replace(/[\t\n\r ]+/g, " ")
+    .trim()
+    .toLowerCase()
+    .toUpperCase();
+}
+
 function walk(node, visit, parent = null, index = 0) {
   visit(node, parent, index);
   if (!node.children) return;
-  for (let i = 0; i < node.children.length; i++) walk(node.children[i], visit, node, i);
+  for (let i = 0; i < node.children.length; i++)
+    walk(node.children[i], visit, node, i);
 }
 
 function html(value) {
@@ -79,7 +124,9 @@ function markAlert(node) {
   if (!first || first.type !== "paragraph" || !first.children?.length) return;
   const lead = first.children[0];
   if (lead.type !== "text") return;
-  const match = lead.value.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\n?/);
+  const match = lead.value.match(
+    /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\n?/,
+  );
   if (!match) return;
   lead.value = lead.value.slice(match[0].length);
   if (!lead.value) first.children.shift();
@@ -107,17 +154,25 @@ function rewriteHtml(value, source, byFile) {
     for (const attr of node.attrs || []) {
       const name = attr.name.toLowerCase();
       if (name !== "href" && name !== "src") continue;
-      const next = name === "src" ? rewriteImage(attr.value, source) : rewriteLink(attr.value, source, byFile);
+      const next =
+        name === "src"
+          ? rewriteImage(attr.value, source)
+          : rewriteLink(attr.value, source, byFile);
       if (next === attr.value) continue;
       const range = attributeValueRange(value, locations[name]);
       if (!range) continue;
-      edits.push({ start: range.start, end: range.end, value: encodeAttributeValue(next, range.quote) });
+      edits.push({
+        start: range.start,
+        end: range.end,
+        value: encodeAttributeValue(next, range.quote),
+      });
     }
   });
   if (edits.length === 0) return value;
   edits.sort((a, b) => b.start - a.start);
   let out = value;
-  for (const edit of edits) out = out.slice(0, edit.start) + edit.value + out.slice(edit.end);
+  for (const edit of edits)
+    out = out.slice(0, edit.start) + edit.value + out.slice(edit.end);
   return out;
 }
 
@@ -135,18 +190,25 @@ function attributeValueRange(source, loc) {
   if (quote === '"' || quote === "'") {
     const end = raw.lastIndexOf(quote);
     if (end <= i) return null;
-    return { start: loc.startOffset + i + 1, end: loc.startOffset + end, quote };
+    return {
+      start: loc.startOffset + i + 1,
+      end: loc.startOffset + end,
+      quote,
+    };
   }
   return { start: loc.startOffset + i, end: loc.endOffset, quote: "" };
 }
 
 function encodeAttributeValue(value, quote) {
   if (quote !== '"' && quote !== "'") {
-    if (value !== "" && !/[\s"'=<>`]/.test(value)) return value.replaceAll("&", "&amp;");
+    if (value !== "" && !/[\s"'=<>`]/.test(value))
+      return value.replaceAll("&", "&amp;");
     quote = '"';
     return `"${value.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"`;
   }
-  const escaped = value.replaceAll("&", "&amp;").replaceAll(quote, quote === '"' ? "&quot;" : "&apos;");
+  const escaped = value
+    .replaceAll("&", "&amp;")
+    .replaceAll(quote, quote === '"' ? "&quot;" : "&apos;");
   return escaped;
 }
 
@@ -156,13 +218,16 @@ function walkElements(node, visit) {
 }
 
 function textOf(node) {
-  if (node.type === "text" || node.type === "inlineCode") return node.value || "";
+  if (node.type === "text" || node.type === "inlineCode")
+    return node.value || "";
   if (!node.children) return "";
   return node.children.map(textOf).join("");
 }
 
 function cardBlock(node, cards) {
-  const meaningful = (node.children || []).filter((child) => !(child.type === "text" && !child.value.trim()));
+  const meaningful = (node.children || []).filter(
+    (child) => !(child.type === "text" && !child.value.trim()),
+  );
   if (meaningful.length !== 1 || meaningful[0].type !== "link") return "";
   const link = meaningful[0];
   const label = textOf(link).trim();
@@ -193,9 +258,14 @@ function rewriteLink(url, source, byFile) {
   const media = rewriteImage(url, source);
   if (media !== url) return media;
   const { path: pathPart, suffix } = splitUrl(url);
-  if (!pathPart.endsWith(".md")) return url;
   if (!source) return url;
-  const resolved = path.resolve(path.dirname(source), pathPart);
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(pathPart)) return url;
+  const decodedPath = pathPart
+    .split("/")
+    .map((segment) => decodeURIComponent(segment))
+    .join("/");
+  if (!decodedPath.endsWith(".md")) return url;
+  const resolved = path.resolve(path.dirname(source), decodedPath);
   const target = byFile.get(resolved);
   if (!target) return url;
   return `${target.url}${suffix}`;

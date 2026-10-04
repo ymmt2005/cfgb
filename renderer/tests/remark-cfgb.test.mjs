@@ -154,8 +154,9 @@ test("alerts keep markdown children and raw HTML links use the route", () => {
     assert.match(tree.children[4].value, /2026-09-19-protobuf-guide\/en\.md#field-numbers/);
     assert.equal(tree.children[5].value, '<div class="diagram-block"><pre class="mermaid">graph TD\nA--&gt;B</pre></div>');
     assert.equal(tree.children[6].url, "/media/2026/2026-09-20-markdown-showcase/diagram.png#detail");
-    assert.equal(tree.children[7].identifier, "picture");
-    assert.equal(tree.children[8].url, "./assets/picture.svg");
+    assert.equal(tree.children[7].type, "image");
+    assert.equal(tree.children[7].url, "./assets/picture.svg");
+    assert.equal(tree.children[8].url, "/media/2026/2026-09-20-markdown-showcase/picture.svg");
     assert.equal(tree.children[9].url, "/media/2026/2026-09-20-markdown-showcase/figures/one.png?x=1");
     assert.equal(
       tree.children[10].value,
@@ -370,14 +371,17 @@ test("prose links and raw HTML publish assets while Markdown images stay local",
     const homeTree = { type: "root", children: structuredClone(children) };
     remarkCfgb()(homeTree, { path: homeFile });
     assert.equal(homeTree.children[0].url, "./assets/portrait.svg");
-    assert.equal(homeTree.children[2].url, "./assets/portrait.svg");
+    assert.equal(homeTree.children[1].type, "image");
+    assert.equal(homeTree.children[1].url, "./assets/portrait.svg");
+    assert.equal(homeTree.children[2].url, "/media/home/portrait.svg");
     assert.equal(homeTree.children[3].value, '<img src="/media/home/portrait.svg?v=1#view" alt="Raw HTML portrait">');
     assert.equal(homeTree.children[4].url, "/media/home/portrait.svg");
     assert.equal(homeTree.children[5].value, '<a href="/media/home/portrait.svg">Raw HTML asset link</a>');
     const aboutTree = { type: "root", children: structuredClone(children) };
     remarkCfgb()(aboutTree, { path: aboutFile });
     assert.equal(aboutTree.children[0].url, "./assets/portrait.svg");
-    assert.equal(aboutTree.children[2].url, "./assets/portrait.svg");
+    assert.equal(aboutTree.children[1].url, "./assets/portrait.svg");
+    assert.equal(aboutTree.children[2].url, "/media/about/portrait.svg");
     assert.equal(aboutTree.children[4].url, "/media/about/portrait.svg");
   } finally {
     rmSync(dir, { recursive: true, force: true });
