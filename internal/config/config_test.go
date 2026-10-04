@@ -9,6 +9,67 @@ import (
 	"github.com/goccy/go-yaml/ast"
 )
 
+func TestLoadSelectedFile(t *testing.T) {
+	t.Parallel()
+	repo := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeConfig(t, repo, strings.Replace(minimalConfig, "CFGB Example", "Default", 1))
+	dir := filepath.Join(repo, "settings")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "blog.yaml")
+	if err := os.WriteFile(file, []byte(strings.Replace(minimalConfig, "CFGB Example", "Selected", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Site.Title != "Selected" || cfg.Path() != file || cfg.Root() != repo {
+		t.Fatalf("selected config = %#v", cfg)
+	}
+	for _, invalid := range []string{"", filepath.Join(dir, "missing.yaml"), dir} {
+		if _, err := LoadFile(invalid); err == nil {
+			t.Fatalf("selected %q silently fell back to ancestor configuration", invalid)
+		}
+	}
+}
+
+func TestSelectedFileSymlinkBoundary(t *testing.T) {
+	t.Parallel()
+	repo := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	inside := filepath.Join(repo, "inside.yaml")
+	if err := os.WriteFile(inside, []byte(minimalConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(repo, "selected.yaml")
+	if err := os.Symlink("inside.yaml", link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if cfg, err := LoadFile(link); err != nil || cfg.Path() != link {
+		t.Fatalf("in-repository symlink = %v, %v", cfg, err)
+	}
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "outside.yaml")
+	if err := os.WriteFile(outside, []byte(minimalConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadFile(link); err == nil {
+		t.Fatal("selected configuration symlink escaped its repository")
+	}
+}
+
 func TestLoad(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

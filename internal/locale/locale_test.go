@@ -54,6 +54,15 @@ func TestValidateConfiguredLocales(t *testing.T) {
 	}
 }
 
+func TestLanguageCatalogRequiresExactSupportedIdentifier(t *testing.T) {
+	t.Parallel()
+	for _, language := range []string{"EN", "JA", "en-US", "ja-JP", "pt-BR", "fr"} {
+		if err := Validate(map[string]Entry{language: {Label: "Label"}}, language); err == nil {
+			t.Fatalf("unsupported identifier %q was accepted as a catalog language", language)
+		}
+	}
+}
+
 func TestLocalePatternMatchesSchema(t *testing.T) {
 	t.Parallel()
 	cat, err := releaseCatalog()

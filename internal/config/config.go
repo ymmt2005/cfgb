@@ -95,6 +95,24 @@ func Load(start string) (*File, error) {
 	if file == "" {
 		return nil, fmt.Errorf("cfgb.yaml not found")
 	}
+	return load(repo, file)
+}
+
+// LoadFile loads exactly the selected configuration file, without ancestor
+// discovery. Relative paths in it resolve from its directory. The repository
+// containing that file remains the rooted input boundary.
+func LoadFile(file string) (*File, error) {
+	if file == "" {
+		return nil, fmt.Errorf("configuration path must not be empty")
+	}
+	file, err := filepath.Abs(file)
+	if err != nil {
+		return nil, err
+	}
+	return load(repositoryRoot(filepath.Dir(file)), file)
+}
+
+func load(repo, file string) (*File, error) {
 	raw, err := readConfig(repo, file)
 	if err != nil {
 		return nil, err

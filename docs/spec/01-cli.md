@@ -2,8 +2,14 @@
 
 The executable is `cfgb`. Global flags: `--config PATH` (default: nearest ancestor
 `cfgb.yaml`, stopping at repository root), `--format text|json`, `--no-color`,
-`--version`. Paths are relative to the configuration directory, never the current
-working directory. Reject unknown keys, duplicate YAML keys, custom YAML tags,
+`--version`. `--config` accepts an exact file path and may appear before or after
+the command. Resolve the `--config` selector itself from the invocation's working
+directory when relative; a missing/invalid selected file is an error, not a
+fallback to ancestor discovery. All content and output paths are relative to the
+selected configuration directory, never the current working directory. Keep the
+repository containing that configuration as the rooted input boundary, including
+when the selected configuration is an in-repository symlink. Reject unknown keys,
+duplicate YAML keys, custom YAML tags,
 out-of-root paths and symlink escapes. YAML is parsed as YAML 1.2 with timestamp
 values preserved as strings. Accept UTF-8 without BOM. Hash normalization follows
 the domain contract: [AI summary input](05-ai.md#input-and-output-hashes) normalizes

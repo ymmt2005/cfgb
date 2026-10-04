@@ -12,7 +12,7 @@ open topic/locale maps. Require format assertion for `date-time` and `uri`.
 | `site.baseUrl` | Required HTTPS origin, no path/query/fragment/trailing slash/userinfo |
 | `site.defaultLocale` | Required key in `locales` |
 | `site.timezone` | Required IANA timezone; archives/dates use it |
-| `locales` | Nonempty map of path-safe language tags. This release supports `ja` and `en`, each with a nonempty `label` |
+| `locales` | Nonempty map of supported content/UI language identifiers. This release supports exact, case-sensitive `ja` and `en`, each with a nonempty `label` |
 | `content.root` | Default `src/content` |
 | `content.topics` | Default `src/data/topics.yaml` |
 | `content.linkcards` | Default `src/data/linkcards` |
@@ -24,6 +24,14 @@ open topic/locale maps. Require format assertion for `date-time` and `uri`.
 | `ai.summary` | Map from enabled locales to `{provider,model}`; required when AI enabled |
 | `security.previewAccess` | Only allowed value true; omission means true; preview release gate, not policy provisioning |
 | `hatena.blogs` | Optional array `{url,locale}`; `locale` is a locale identifier; normalized unique origins |
+
+The `locales` keys select translated content and UI from the release catalog,
+not arbitrary operating-system locales. Identifier syntax alone does not imply
+support: `EN`, `en-US`, `ja-JP`, `pt-BR`, and `fr` are not supported selections in
+this release. Match catalog and configured identifiers case-sensitively, without
+normalizing or aliasing them. Extending the catalog requires translated UI and
+review of its presentation; a new language is not accepted merely because its
+identifier can be parsed.
 
 AI disabled with `summary: {}` is a usable offline configuration. Do not insert
 `TBD` as if it were a real provider/model. Missing model configuration is an

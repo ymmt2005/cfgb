@@ -49,9 +49,12 @@ func (e *ExitError) Error() string { return e.Err.Error() }
 
 func (e *ExitError) Unwrap() error { return e.Err }
 
-// Options selects the content directory and artifact path.
+// Options selects the discovery directory, optional configuration file and
+// artifact path. A relative Config is relative to Dir; content and Out paths
+// are relative to the selected configuration's directory.
 type Options struct {
 	Dir    string
+	Config string
 	Out    string
 	Stdout io.Writer
 	Stderr io.Writer
@@ -95,7 +98,17 @@ func Run(opts Options) error {
 	if opts.Stderr == nil {
 		opts.Stderr = io.Discard
 	}
-	cfg, err := config.Load(opts.Dir)
+	var cfg *config.File
+	var err error
+	if opts.Config != "" {
+		file := opts.Config
+		if !filepath.IsAbs(file) {
+			file = filepath.Join(opts.Dir, file)
+		}
+		cfg, err = config.LoadFile(file)
+	} else {
+		cfg, err = config.Load(opts.Dir)
+	}
 	if err != nil {
 		return &ExitError{Code: 2, Err: err}
 	}

@@ -684,6 +684,32 @@ func testRepo(t *testing.T) (*config.File, string) {
 	return cfg, repo
 }
 
+func TestSelectedConfigurationOutputBase(t *testing.T) {
+	_, repo := testRepo(t)
+	dir := filepath.Join(repo, "settings")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "blog.yaml")
+	if err := os.WriteFile(file, []byte(testConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.LoadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"", "custom-output"} {
+		got, err := outputDir(cfg, name)
+		if name == "" {
+			name = "dist"
+		}
+		want := filepath.Join(dir, name)
+		if err != nil || got != want {
+			t.Fatalf("output = %q, %v, want %q", got, err, want)
+		}
+	}
+}
+
 const testConfig = `
 schemaVersion: 1
 site:

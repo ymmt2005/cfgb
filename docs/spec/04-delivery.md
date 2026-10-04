@@ -205,7 +205,10 @@ if a miss reaches Worker code it delegates to `ASSETS.fetch(request)`.
   redirect to `/<locale>/`: valid locale cookie first, then supported
   `Accept-Language` ranges by descending quality (exclude `q=0`; the parameter
   name is case-insensitive, so `Q=0` is the same exclusion), then configured
-  default locale. Preserve deterministic tie handling. Emit `Cache-Control:
+  default locale. Browser ranges such as `en-US` may negotiate the configured
+  content language `en`; this does not add `en-US` to the supported catalog.
+  Explicit language selections and cookie values require an exact, case-sensitive
+  configured identifier. Preserve deterministic tie handling. Emit `Cache-Control:
   private, no-store` and `Vary: Cookie, Accept-Language` so negotiation is not
   shared-cached. No cookie is set merely by negotiation. Locale URLs are never
   redirected according to browser preference.

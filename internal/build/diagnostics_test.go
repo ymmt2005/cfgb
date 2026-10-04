@@ -123,3 +123,33 @@ func TestRunInvalidConfigurationPreservesOutput(t *testing.T) {
 		}
 	}
 }
+
+func TestRunSelectedConfigurationDoesNotFallBack(t *testing.T) {
+	_, repo := testRepo(t)
+	selected := filepath.Join(repo, "settings", "blog.yaml")
+	if err := os.MkdirAll(filepath.Dir(selected), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(selected, []byte("schemaVersion: wrong\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(repo, "dist")
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(out, "keep.txt")
+	if err := os.WriteFile(marker, []byte("existing output"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+	for _, name := range []string{"settings/blog.yaml", "settings/missing.yaml"} {
+		err := Run(Options{Dir: repo, Config: name, Out: out})
+		var exit *ExitError
+		if !errors.As(err, &exit) || exit.Code != 2 || strings.Contains(err.Error(), "E_TOOLCHAIN") {
+			t.Fatalf("selected config %s: %v", name, err)
+		}
+		if got, err := os.ReadFile(marker); err != nil || string(got) != "existing output" {
+			t.Fatalf("invalid selected config removed output: %q, %v", got, err)
+		}
+	}
+}
