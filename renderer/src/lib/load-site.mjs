@@ -98,7 +98,7 @@ function buildRoutes(site, posts, topics) {
     }
     for (const month of months) routes.add(`/${locale}/archive/${month}/`);
     for (const topic of usedTopics) {
-      if (topics[topic]) routes.add(`/${locale}/topics/${topic}/`);
+      if (Object.hasOwn(topics, topic)) routes.add(`/${locale}/topics/${topic}/`);
     }
   }
   routes.add("/robots.txt");

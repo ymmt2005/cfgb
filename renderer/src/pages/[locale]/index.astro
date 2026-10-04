@@ -13,7 +13,7 @@ const { locale } = Astro.params;
 const { site } = loadSite();
 const copy = copyFor(locale);
 const all = await posts();
-const latest = all.filter((post) => post.locale === locale).slice(0, site.latestPosts || 5);
+const latest = all.filter((post) => post.locale === locale).slice(0, site.latestPosts);
 const home = await renderedProse("home", locale);
 const aside = await renderedProse("aside", locale);
 const counterparts = pageCounterparts(Object.keys(site.locales), (item) => `/${item}/`);

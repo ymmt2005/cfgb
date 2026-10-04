@@ -23,7 +23,7 @@ run the standalone scenarios as negative CLI acceptance.
 | Topic IDs and labels | `src/data/topics.yaml`; schema-valid missing/empty locale labels fail semantic `E_TOPIC` | CLI + renderer |
 | Static, runtime, fallback routes and aliases | `static-routes.json`, `worker-routes.json`, `fallbacks.json`, aliases | CFGB renderer + Worker + Static Assets |
 | Local links and fragment resolution | Cross-article/HTML/reference links | Shared renderer manifest + CLI |
-| 20–30 search cases | `tests/search/queries.yaml` (24 queries) | Actual Pagefind browser search |
+| Search query behavior | `tests/search/queries.yaml` | Actual Pagefind browser search |
 | Locale isolation and filters | Each query has locale; topic/year cases | Pagefind |
 | SEO, RSS, OG and sitemap | Locale pairs + explicit/fallback OG; sitemap index, numbered files and canonical sets in `sitemap.json` | Renderer integration tests |
 | AI lifecycle and human edit preservation | `tests/ai/lifecycle.json` | CLI with fake provider |
@@ -43,7 +43,7 @@ run the standalone scenarios as negative CLI acceptance.
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
 | Configured production branch | Default `main`, custom `master`, wrong-branch deploy/preview rejection; the current invocation's branch | CLI + Cloudflare Builds |
-| Configured-blog import and syntax inventory | Synthetic Atom exports (two blogs in this corpus) | Importer |
+| Configured-blog import and syntax inventory | Synthetic Atom exports from configured blogs | Importer |
 | Deterministic migration pairing without AI | Candidate repeatability, absent AI credentials, zero model calls and explicit decisions | Importer |
 | Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, `workers_dev: false`, `preview_urls: true`, `previews: {}` and top-level assets | CFGB release + upload adapter |
 | Complete map before link rewriting | Migration expected map and forward link | Importer |
@@ -78,7 +78,7 @@ isolation are separate security concerns.
 4. Search: serve the actual built output, open `/<locale>/search/`, run each query
    through Pagefind and materialize result data. Assert expected canonical URLs
    appear within topK, unexpected locale URLs do not appear, and filters work.
-   Token presence in source is not a search test. Add 20–30 real-article Japanese
+   Token presence in source is not a search test. Add real-article Japanese
    queries after Hatena import; do not replace them with synthetic easy matches.
 5. Delivery/import: execute integration tests in disposable branches/environments
    with controlled HTTP/fake-provider responses. Never use actual old-site writes

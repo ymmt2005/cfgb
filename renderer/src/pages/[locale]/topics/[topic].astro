@@ -10,7 +10,7 @@ export async function getStaticPaths() {
   const paths = [];
   for (const post of await posts()) {
     for (const topic of post.data.topics) {
-      if (!topics[topic]) continue;
+      if (!Object.hasOwn(topics, topic)) continue;
       const id = `${post.locale}/${topic}`;
       if (seen.has(id)) continue;
       seen.add(id);

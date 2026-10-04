@@ -82,6 +82,56 @@ test("routes and aliases come from the Go metadata index", () => {
   }
 });
 
+test("topic routes require catalog ownership, including prototype-named topics", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "cfgb-topics-"));
+  const previous = process.env.CFGB_SITE_JSON;
+  try {
+    const metadataPath = path.join(dir, "metadata.json");
+    const sitePath = path.join(dir, "site.json");
+    const names = ["constructor", "toString", "hasOwnProperty", "__proto__"];
+    writeFileSync(
+      sitePath,
+      JSON.stringify({
+        defaultLocale: "en",
+        locales: { en: { label: "English" } },
+        metadataFile: metadataPath,
+      }),
+    );
+    process.env.CFGB_SITE_JSON = sitePath;
+    for (const registered of [false, true]) {
+      writeFileSync(
+        metadataPath,
+        JSON.stringify({
+          topics: registered
+            ? Object.fromEntries(names.map((name) => [name, { en: name }]))
+            : {},
+          posts: [
+            {
+              locale: "en",
+              archive: { year: "2026", month: "09" },
+              data: {
+                slug: "example",
+                publishedAt: "2026-09-20T00:00:00Z",
+                topics: names,
+              },
+            },
+          ],
+        }),
+      );
+      resetSiteCache();
+      const { routes } = loadSite();
+      for (const name of names) {
+        assert.equal(routes.has(`/en/topics/${name}/`), registered, name);
+      }
+    }
+  } finally {
+    if (previous === undefined) delete process.env.CFGB_SITE_JSON;
+    else process.env.CFGB_SITE_JSON = previous;
+    resetSiteCache();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("language support is exact catalog membership", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "cfgb-locale-"));
   try {

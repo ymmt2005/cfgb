@@ -146,9 +146,9 @@ Go CLI, embedded extraction, dependency installation, Astro, and Pagefind.
 
 `renderer/tests/browser/` builds a small actual site and serves its generated
 HTML and scripts with the generated security headers, then builds the real
-Pagefind index. Playwright runs 16 tests: the existing theme,
-storage and scroll-observer cases plus pre-interaction theme paint, real Mermaid
-SVG rendering and native system-theme changes, invalid-diagram recovery, native
+Pagefind index. Playwright covers theme, storage and scroll-observer behavior,
+pre-interaction theme paint, real Mermaid SVG rendering and native system-theme
+changes, invalid-diagram recovery, native
 Unicode clipboard copy, Japanese/English WASM search and result/fragment
 navigation, empty-result recovery, skip-link keyboard navigation, native TOC
 collapse/reflow, footnote round trips and menu focus departure. Desktop and

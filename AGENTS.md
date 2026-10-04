@@ -26,6 +26,14 @@ specification, schema, fixture and review suggestion when they conflict.
   rather than treating its presence in code/docs/tests as approval. Do not expand
   that restriction or invent a replacement while fixing it.
 
+## Documentation maintenance
+
+Do not record fixed counts of files, tests, fixtures or search queries in
+maintained documentation or PR descriptions. Describe behavior, coverage and
+verification commands instead; obtain current counts from the source or test
+results only when needed. Avoid inventories that duplicate information already
+available from code and Git history.
+
 ## Project map and sibling repositories
 
 CFGB is a multi-repository project. This checkout is the implementation and

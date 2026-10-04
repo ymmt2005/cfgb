@@ -77,7 +77,7 @@ broadly and removed prose encoding checks. The user subsequently requested BOM
 and invalid UTF-8 checks explicitly. The current shared text-input boundary rejects
 malformed UTF-8 before decoding/JSON serialization and strips a file-start UTF-8
 BOM. Interior U+FEFF characters and original line endings remain. This applies to
-configuration, topics, article front matter/body and all three prose kinds.
+configuration, topics, article front matter/body and home, about and aside prose.
 
 Tests cover supported-language membership, source encoding diagnostics, BOM
 normalization, interior characters and line endings. Actual site generation checks
@@ -85,11 +85,11 @@ BOM-prefixed prose. No YAML AST/tag/document policy is added.
 
 ## Additional Copilot review checked against the current implementation
 
-Six comments on the preceding head identified implementation defects:
+Comments on the preceding head identified implementation defects:
 working-directory and configuration I/O failures used exit 2; public media reopened the
 live repository after staging; an empty timezone reached Intl unchanged; equal
 article keys in different years had no final ordering tie-break; and aside
-namespacing omitted three standard HTML ID-reference attributes.
+namespacing omitted standard HTML ID-reference attributes.
 
 These fixes implement existing behavior without new input bans. I/O failures use
 exit 3 while decoder/discovery errors remain exit 2 (temporary workspace creation
@@ -178,12 +178,12 @@ This encoding requirement was explicitly requested by the user after the initial
 simplification. It prevents Go's JSON replacement behavior from silently changing
 source text, without reinstating YAML AST or document policies.
 
-The sibling example fixtures are now separated accordingly. The nine null,
+The sibling example fixtures are now separated accordingly. The null,
 numeric and boolean summary cases check the decoded Go string: null follows
 the empty-summary mode rule, while numeric/boolean scalars do not produce a
-raw-type error. A loader regression test verifies all three conversions.
-Five optional standalone Schema cases live in a separate file, including the
-former invalid-slug/external-alias cases and the three raw summary types.
+raw-type error. A loader regression test verifies these conversions.
+Optional standalone Schema cases live in a separate file, including the
+former invalid-slug/external-alias cases and raw summary types.
 These cases do not authorize CLI rejection. `validate` is not implemented in
 this PR, so its future semantic fixture outcomes are not claimed as executed
 command acceptance.
