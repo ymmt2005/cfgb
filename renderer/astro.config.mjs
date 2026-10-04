@@ -8,24 +8,22 @@ import { fileURLToPath } from "node:url";
 import { fallbackHtml } from "./src/lib/fallback-html.mjs";
 import { absolute, loadSite } from "./src/lib/load-site.mjs";
 import { alternateMembers, groupCounterparts } from "./src/lib/locale-link.mjs";
-import { canonicalSitemapPath, localePageAlternates, pagePath } from "./src/lib/sitemap.mjs";
+import {
+  canonicalSitemapPath,
+  localePageAlternates,
+  pagePath,
+} from "./src/lib/sitemap.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
-import { finishImageUrls, imageWorkspace } from "./src/lib/image-paths.mjs";
+import { imageWorkspace } from "./src/lib/image-paths.mjs";
 
 const corpus = loadSite();
 const { site, posts, routes } = corpus;
 const manifest = sitemapManifest(corpus);
 
-const redirects = {};
-for (const post of posts) {
-  for (const alias of post.aliases) redirects[alias] = post.url;
-}
-
 export default defineConfig({
   site: site.baseUrl,
   trailingSlash: "always",
   output: "static",
-  redirects,
   integrations: [
     expressiveCode({
       themes: ["github-light", "github-dark"],
@@ -61,7 +59,16 @@ export default defineConfig({
   markdown: {
     processor: unified({
       gfm: true,
-      remarkPlugins: [[remarkCfgb, { prepareImage: imageWorkspace(fileURLToPath(new URL(".", import.meta.url))) }]],
+      remarkPlugins: [
+        [
+          remarkCfgb,
+          {
+            prepareImage: imageWorkspace(
+              fileURLToPath(new URL(".", import.meta.url)),
+            ),
+          },
+        ],
+      ],
     }),
   },
   vite: {
@@ -97,7 +104,8 @@ function sitemapManifest({ site, posts }) {
   if (locales.length > 1) {
     const pages = localePageAlternates(locales);
     for (const kind of ["home", "about"]) {
-      for (const locale of locales) map.set(pagePath(kind, locale), { alternates: pages[kind] });
+      for (const locale of locales)
+        map.set(pagePath(kind, locale), { alternates: pages[kind] });
     }
   }
   return map;
@@ -109,17 +117,28 @@ function fallbackPages(corpus) {
     hooks: {
       "astro:build:done": ({ dir }) => {
         const root = fileURLToPath(dir);
-        finishImageUrls(root);
         if (process.env.CFGB_ROUTES_OUT) {
-          writeFileSync(process.env.CFGB_ROUTES_OUT, JSON.stringify([...corpus.routes].sort(), null, 2));
+          writeFileSync(
+            process.env.CFGB_ROUTES_OUT,
+            JSON.stringify([...corpus.routes].sort(), null, 2),
+          );
         }
         writeFileSync(path.join(root, "_headers"), headers());
-        writeFileSync(path.join(root, "_redirects"), redirectFile(corpus.posts));
-        writeFileSync(path.join(root, "404.html"), fallbackHtml(corpus, "both"));
+        writeFileSync(
+          path.join(root, "_redirects"),
+          redirectFile(corpus.posts),
+        );
+        writeFileSync(
+          path.join(root, "404.html"),
+          fallbackHtml(corpus, "both"),
+        );
         for (const locale of Object.keys(corpus.site.locales)) {
           const localeDir = path.join(root, locale);
           mkdirSync(localeDir, { recursive: true });
-          writeFileSync(path.join(localeDir, "404.html"), fallbackHtml(corpus, locale));
+          writeFileSync(
+            path.join(localeDir, "404.html"),
+            fallbackHtml(corpus, locale),
+          );
         }
       },
     },

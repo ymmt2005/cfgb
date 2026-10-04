@@ -1,37 +1,114 @@
 import assert from "node:assert/strict";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
-import { parse } from "parse5";
-import { restoreImageSuffixes } from "../src/lib/image-paths.mjs";
+import { imageWorkspace } from "../src/lib/image-paths.mjs";
+import { contentUrls, localAsset } from "../src/lib/content-urls.mjs";
 
-test("processed src and srcset retain suffixes without leaking temporary attributes", () => {
-  const source =
-    '<!doctype html><img alt="Diagram" src="/_astro/diagram.svg" srcset="/_astro/small.svg 1x, /_astro/large.svg 2x" data-cfgb-image-suffix="?v=a,b&amp;ref=1#detail">';
-  const result = restoreImageSuffixes(source);
-  const nodes = [];
-  function walk(node) {
-    if (node.tagName) nodes.push(node);
-    for (const child of node.childNodes || []) walk(child);
-  }
-  walk(parse(result));
-  const image = nodes.find((node) => node.tagName === "img");
-  const attribute = (name) =>
-    image.attrs.find((item) => item.name === name)?.value;
-  assert.equal(attribute("src"), "/_astro/diagram.svg?v=a,b&ref=1#detail");
+const corpus = {
+  posts: [
+    {
+      file: path.resolve("input/source/en.md"),
+      group: "2026/source",
+      url: "/en/posts/source/",
+    },
+    {
+      file: path.resolve("input/target/en.md"),
+      group: "2026/target",
+      url: "/en/posts/different-slug/",
+    },
+  ],
+  prose: [{ file: path.resolve("input/intro/en.md"), kind: "home" }],
+};
+const source = corpus.posts[0].file;
+
+test("source metadata owns media scopes and article routes", () => {
+  const urls = contentUrls(corpus);
   assert.equal(
-    attribute("srcset"),
-    "/_astro/small.svg?v=a%2Cb&ref=1#detail 1x, /_astro/large.svg?v=a%2Cb&ref=1#detail 2x",
+    urls.media("./assets/a%20b.svg", source),
+    "/media/2026/source/a%20b.svg",
   );
-  assert.equal(attribute("alt"), "Diagram");
-  assert.equal(attribute("data-cfgb-image-suffix"), undefined);
-  assert.equal(restoreImageSuffixes(result), result);
+  assert.equal(
+    urls.media("./assets/a%2526b.svg", source),
+    "/media/2026/source/a%2526b.svg",
+  );
+  assert.equal(
+    urls.media("./assets/nested/../picture.svg", source),
+    "/media/2026/source/picture.svg",
+  );
+  assert.equal(
+    urls.media("./assets/portrait.svg", corpus.prose[0].file),
+    "/media/home/portrait.svg",
+  );
+  assert.equal(
+    urls.link("../target/en.md#heading", source),
+    "/en/posts/different-slug/#heading",
+  );
+  for (const url of [
+    "#heading",
+    "/en/posts/other/#heading",
+    "https://example.invalid/a?x=1#b",
+    "mailto:name@example.invalid",
+    "unrelated%ZZ.html",
+  ])
+    assert.equal(urls.link(url, source), url);
 });
 
-test("literal markers in examples are preserved, actual unresolved images fail", () => {
-  const examples =
-    '<pre>&lt;img __ASTRO_IMAGE_="example"&gt;</pre><!-- <img __ASTRO_IMAGE_="comment"> -->';
-  assert.equal(restoreImageSuffixes(examples), examples);
-  assert.throws(
-    () => restoreImageSuffixes('<img __ASTRO_IMAGE_="unresolved">'),
-    /unresolved Markdown image/,
+test("local assets reject request suffixes and escaping paths consistently", () => {
+  const urls = contentUrls(corpus);
+  for (const url of [
+    "./assets/picture.svg?v=1",
+    "./assets/picture.svg#view",
+    "./assets/../outside.svg",
+    "./assets/%2e%2e/outside.svg",
+    "./assets/a%2Fb.svg",
+    "./assets/a%5Cb.svg",
+    "./assets/a%00b.svg",
+  ]) {
+    assert.throws(() => localAsset(url, source));
+    assert.throws(() => urls.link(url, source));
+    assert.throws(() => urls.media(url, source));
+  }
+  assert.equal(
+    localAsset("./assets/a%23b.svg", source).encodedPath,
+    "a%23b.svg",
   );
+});
+
+test("image imports use safe workspace names without modifying originals", () => {
+  const work = mkdtempSync(path.join(tmpdir(), "cfgb-image-workspace-"));
+  try {
+    const source = path.join(work, "input/en.md");
+    const assets = path.join(work, "input/assets");
+    const renderer = path.join(work, "renderer");
+    mkdirSync(assets, { recursive: true });
+    const original =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';
+    writeFileSync(path.join(assets, "a&b.svg"), original);
+    writeFileSync(path.join(assets, "same.svg"), original);
+    const prepare = imageWorkspace(renderer);
+    const first = prepare("./assets/a%26b.svg", source);
+    assert.match(first.url, /\.astro\/cfgb-images\/[a-f0-9]{64}\.svg$/);
+    assert.equal(
+      readFileSync(path.resolve(path.dirname(source), first.url), "utf8"),
+      original,
+    );
+    assert.deepEqual(prepare("./assets/same.svg", source), first);
+    assert.equal(readFileSync(path.join(assets, "a&b.svg"), "utf8"), original);
+    assert.equal(prepare("https://example.invalid/remote.png", source), null);
+    assert.throws(
+      () => prepare("./assets/a%26b.svg?v=1", source),
+      /query or fragment/,
+    );
+    assert.throws(() => prepare("./assets/missing.svg", source), /ENOENT/);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
 });

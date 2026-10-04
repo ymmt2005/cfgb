@@ -15,13 +15,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "parse5";
+import { createIndex } from "pagefind";
+import { gunzipSync } from "node:zlib";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
 test(
   "Markdown image and link patterns resolve in the actual built output",
   { timeout: 180_000 },
-  () => {
+  async () => {
     const work = mkdtempSync(path.join(tmpdir(), "cfgb-pattern-matrix-"));
     try {
       const renderer = path.join(work, "renderer");
@@ -142,23 +144,6 @@ test(
         "See [^note].\n\n[^note]: ![Footnote](./assets/picture.svg)",
         [image("Footnote")],
       );
-      for (const [label, suffix] of [
-        ["query", "?v=1"],
-        ["fragment", "#detail"],
-        ["both", "?v=1#detail"],
-      ]) {
-        add("inline-" + label, `![Suffix](./assets/picture.svg${suffix})`, [
-          image("Suffix", "64", "32", suffix),
-        ]);
-        add(
-          "reference-" + label,
-          `![Suffix][pic]\n\n[pic]: ./assets/picture.svg${suffix}`,
-          [image("Suffix", "64", "32", suffix)],
-        );
-      }
-      add("raster-query", "![Raster](./assets/pixel.png?v=1)", [
-        image("Raster", "1", "1", "?v=1"),
-      ]);
       for (const [label, url] of [
         ["space", "a%20b.svg"],
         ["unicode", "%E5%9B%B3.svg"],
@@ -168,9 +153,7 @@ test(
         add("reference-" + label, `![Path][pic]\n\n[pic]: ./assets/${url}`, [
           image("Path"),
         ]);
-        add("link-" + label, `[Download](./assets/${url}?download=1#detail)`, [
-          link("Download", "?download=1#detail"),
-        ]);
+        add("link-" + label, `[Download](./assets/${url})`, [link("Download")]);
       }
       add("inline-space-angle", "![Space](<./assets/a b.svg>)", [
         image("Space"),
@@ -178,24 +161,20 @@ test(
       add("inline-unicode-literal", "![Unicode](./assets/図.svg)", [
         image("Unicode"),
       ]);
-      add(
-        "raw-double",
-        '<img src="./assets/a%20b.svg?v=1&amp;x=2#detail" alt="Raw">',
-        [raw("Raw", "?v=1&x=2#detail")],
-      );
-      add("raw-single", "<img src='./assets/picture.svg#detail' alt='Raw'>", [
-        raw("Raw", "#detail"),
+      add("raw-double", '<img src="./assets/a%20b.svg" alt="Raw">', [
+        raw("Raw"),
+      ]);
+      add("raw-single", "<img src='./assets/picture.svg' alt='Raw'>", [
+        raw("Raw"),
       ]);
       add(
         "raw-unquoted-html-block",
         "<div><img src=./assets/picture.svg alt=Raw></div>",
         [raw("Raw")],
       );
-      add(
-        "raw-link",
-        '<a href="./assets/a%20b.svg?download=1&amp;x=2#detail">Download</a>',
-        [link("Download", "?download=1&x=2#detail")],
-      );
+      add("raw-link", '<a href="./assets/a%20b.svg">Download</a>', [
+        link("Download"),
+      ]);
       add(
         "external",
         "![Remote](https://example.invalid/picture.png)\n\n![Protocol](//example.invalid/picture.png)\n\n[External](https://example.invalid/page?x=1#detail)",
@@ -226,8 +205,8 @@ test(
       ]);
       add(
         "linked-image",
-        "[![Thumbnail](./assets/picture.svg)](./assets/picture.svg?download=1)",
-        [image("Thumbnail"), { kind: "image-link", suffix: "?download=1" }],
+        "[![Thumbnail](./assets/picture.svg)](./assets/picture.svg)",
+        [image("Thumbnail"), { kind: "image-link", suffix: "" }],
       );
       add(
         "article-link-inline",
@@ -278,9 +257,27 @@ test(
         '```markdown\n![Example](./assets/missing.svg)\n[Download][pic]\n```\n\n`![Inline](./assets/missing.svg)`\n\n<!-- <img src="./assets/missing.svg"> -->',
         [],
       );
+      add(
+        "cached-cards",
+        [
+          "https://example.invalid/docs",
+          "",
+          "[https://example.invalid/docs][doc]",
+          "",
+          "> [!NOTE]",
+          "> [https://example.invalid/docs][doc]",
+          "",
+          "[doc]: https://example.invalid/docs",
+          "",
+          "https://example.invalid/uncached",
+          "",
+          "[Meaningful label][doc]",
+        ].join("\n"),
+        [],
+      );
       const proseCases = [
         "reference-image-and-link",
-        "inline-both",
+        "image-in-alert",
         "reference-space",
         "inline-space-angle",
         "reference-shortcut",
@@ -294,7 +291,8 @@ test(
       proseBody +=
         '\n\n<label for="choice">Choice</label><input id="choice" aria-describedby="help"><p id="help">Help</p>\n\n<div id="details">Details</div><button aria-details="details">More</button>\n';
       const posts = cases.map((c) => {
-        if (c.name === "inline-svg") c.body = "## Linked heading\n\n" + c.body;
+        if (c.name === "inline-svg")
+          c.body = "## Content\n\n## Linked heading\n\n" + c.body;
         const file = path.join(content, "posts/2026", c.name, "en.md");
         write(file, c.body);
         return {
@@ -310,7 +308,10 @@ test(
             slug: c.name,
             publishedAt: "2026-09-20T00:00:00Z",
             topics: ["notes"],
-            summary: c.name,
+            summary: "Summary " + c.name,
+            ...(c.name === "inline-svg"
+              ? { aliases: ["/en/posts/old-inline-svg/"] }
+              : {}),
           },
         };
       });
@@ -369,6 +370,15 @@ test(
       };
       write(path.join(work, "site.json"), JSON.stringify(site));
       mkdirSync(site.linkcardsDir);
+      write(
+        path.join(site.linkcardsDir, "docs.json"),
+        JSON.stringify({
+          url: "https://example.invalid/docs",
+          title: "Documentation",
+          siteName: "Example",
+          description: "Cached docs",
+        }),
+      );
       execFileSync(
         process.execPath,
         [path.join(root, "node_modules/astro/bin/astro.mjs"), "build"],
@@ -566,6 +576,20 @@ test(
       const composed = elements(
         readFileSync(path.join(dist, "en/posts/inline-svg/index.html"), "utf8"),
       );
+      const ids = composed.map((node) => attr(node, "id")).filter(Boolean);
+      assert.equal(
+        new Set(ids).size,
+        ids.length,
+        "layout, article, and aside IDs are distinct",
+      );
+      assert.ok(
+        composed.some(
+          (node) =>
+            node.tagName === "a" &&
+            attr(node, "class") === "skip" &&
+            attr(node, "href") === "#cfgb-content",
+        ),
+      );
       const choice = composed.find((n) => attr(n, "id") === "aside-choice");
       assert.ok(choice);
       assert.ok(
@@ -576,6 +600,101 @@ test(
       assert.ok(
         composed.some((n) => attr(n, "aria-details") === "aside-details"),
       );
+      const cards = elements(
+        readFileSync(
+          path.join(dist, "en/posts/cached-cards/index.html"),
+          "utf8",
+        ),
+      );
+      const cached = cards.filter((node) => attr(node, "class") === "card");
+      assert.equal(
+        cached.length,
+        3,
+        "autolink, reference, and nested alert all become cards",
+      );
+      assert.ok(
+        cached.every(
+          (node) => attr(node, "href") === "https://example.invalid/docs",
+        ),
+      );
+      assert.ok(
+        cards.some(
+          (node) => node.tagName === "a" && textOf(node) === "Meaningful label",
+        ),
+      );
+      assert.ok(
+        cards.some(
+          (node) =>
+            node.tagName === "a" &&
+            attr(node, "href") === "https://example.invalid/uncached",
+        ),
+      );
+      assert.equal(
+        existsSync(path.join(dist, "en/posts/old-inline-svg/index.html")),
+        false,
+      );
+      assert.ok(
+        readFileSync(path.join(dist, "_redirects"), "utf8").includes(
+          "/en/posts/old-inline-svg/ /en/posts/inline-svg/ 301",
+        ),
+      );
+      const indexed = await createIndex();
+      try {
+        assert.deepEqual(indexed.errors, []);
+        const scanned = await indexed.index.addDirectory({ path: dist });
+        assert.deepEqual(scanned.errors, []);
+        // addDirectory.page_count counts scanned HTML, including ignored pages.
+        const generated = await indexed.index.getFiles();
+        assert.deepEqual(generated.errors, []);
+        const entry = generated.files.find(
+          (file) => file.path === "pagefind-entry.json",
+        );
+        const search = JSON.parse(Buffer.from(entry.content).toString("utf8"));
+        assert.equal(
+          search.languages.en.page_count,
+          posts.length,
+          "only canonical articles enter the search index",
+        );
+        const fragments = generated.files
+          .filter((file) => file.path.endsWith(".pf_fragment"))
+          .map((file) => {
+            const decoded = gunzipSync(file.content).toString("utf8");
+            return JSON.parse(decoded.slice("pagefind_dcd".length));
+          });
+        assert.equal(fragments.length, posts.length);
+        assert.ok(
+          fragments.every((fragment) =>
+            /^\/en\/posts\/[^/]+\/$/.test(fragment.url),
+          ),
+        );
+        assert.equal(
+          fragments.some((fragment) => fragment.url.includes("old-inline-svg")),
+          false,
+        );
+        const imageOnly = fragments.find(
+          (fragment) => fragment.url === "/en/posts/inline-raster/",
+        );
+        assert.ok(
+          imageOnly.content.includes("inline-raster"),
+          "image-only article title is indexed",
+        );
+        assert.equal(imageOnly.meta.summary, "Summary inline-raster");
+        assert.ok(
+          imageOnly.content.includes("Summary inline-raster"),
+          "summary is indexed",
+        );
+        assert.ok(
+          fragments.every((fragment) => !fragment.content.includes("Choice")),
+          "aside text is excluded",
+        );
+        assert.equal(
+          imageOnly.content.includes("Pattern review"),
+          false,
+          "layout brand is excluded",
+        );
+      } finally {
+        await indexed.index.deleteIndex();
+      }
       const literal = readFileSync(
         path.join(dist, "en/posts/literal-code/index.html"),
         "utf8",

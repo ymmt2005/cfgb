@@ -45,7 +45,7 @@ func TestSplitPreservesScalarsArraysAndBody(t *testing.T) {
 		t.Fatalf("body = %q", body)
 	}
 
-	data, _ = article(t, ""+
+	data = decodedFront(t, ""+
 		"summary: >\n"+
 		"  hello\n"+
 		"  world\n"+
@@ -54,7 +54,7 @@ func TestSplitPreservesScalarsArraysAndBody(t *testing.T) {
 		t.Fatalf("folded = %q", data["summary"])
 	}
 
-	data, _ = article(t, ""+
+	data = decodedFront(t, ""+
 		"summary: |\n"+
 		"  hello\n"+
 		"  world\n"+
@@ -82,7 +82,7 @@ func TestSplitLineEndingsAndDelimiters(t *testing.T) {
 		t.Fatalf("body = %q", body)
 	}
 
-	data, body = article(t, ""+
+	data = decodedFront(t, ""+
 		"summary: |\n"+
 		"  before\n"+
 		"  ---\n"+
@@ -92,8 +92,9 @@ func TestSplitLineEndingsAndDelimiters(t *testing.T) {
 	if data["summary"] != "before\n---\nafter\n" {
 		t.Fatalf("summary = %q", data["summary"])
 	}
-	if string(body) != "BODY\n" {
-		t.Fatalf("body = %q", body)
+	_, body, _, err := Split(strings.NewReader("---\n" + required + "summary: |\n  before\n  ---\n  after\n---\nBODY\n"))
+	if err != nil || string(body) != "BODY\n" {
+		t.Fatalf("body = %q, %v", body, err)
 	}
 
 	const markdown = "---\n" + required + "---\npara\n\n---\n\n```\n---\n```\n"
@@ -147,7 +148,7 @@ func TestArticleDataDoesNotCoerce(t *testing.T) {
 	if _, ok := mapping["topics"].(string); !ok {
 		t.Fatalf("topics = %#v", mapping["topics"])
 	}
-	if _, err := ArticleData(doc); err == nil || !strings.Contains(err.Error(), "topics must be an array") {
+	if _, err := ArticleData(doc); err == nil || !strings.Contains(err.Error(), "topics") {
 		t.Fatalf("topics err = %v", err)
 	}
 	cases := []string{
@@ -236,7 +237,7 @@ func TestArticleRejectsUnknownFields(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 			_, _, err := ReadArticle(strings.NewReader("---\n" + required + key + ": value\n---\nBody\n"))
-			if err == nil || !strings.Contains(err.Error(), "unknown article field") || !strings.Contains(err.Error(), key) {
+			if err == nil || !strings.Contains(err.Error(), "additional") || !strings.Contains(err.Error(), key) {
 				t.Fatalf("unknown field %s: %v", key, err)
 			}
 		})
@@ -349,4 +350,60 @@ func (c chunkReader) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 	return c.r.Read(p[:1])
+}
+
+// YAML scalar preservation is a parser contract; multiline summaries are
+// intentionally invalid articles and should not bypass their JSON Schema.
+func decodedFront(t *testing.T, tail string) map[string]any {
+	t.Helper()
+	front, _, _, err := Split(strings.NewReader("---\n" + identity + "topics: [protobuf]\n" + tail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := Document(front)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doc.(map[string]any)
+}
+
+func TestArticleSchemaConstraints(t *testing.T) {
+	t.Parallel()
+	cases := []struct{ name, field, value string }{
+		{"slug traversal", "slug", "../outside"},
+		{"slug uppercase", "slug", "Bad"},
+		{"date no zone", "publishedAt", "2026-01-02T03:04:05"},
+		{"date impossible", "publishedAt", "2026-02-30T03:04:05Z"},
+		{"date invalid offset", "publishedAt", "2026-01-02T03:04:05+25:00"},
+		{"date malformed", "publishedAt", "tomorrow"},
+		{"topic syntax", "topics", "[bad_topic]"},
+		{"topic duplicate", "topics", "[protobuf, protobuf]"},
+		{"summary multiline", "summary", "|\n  first\n  second"},
+		{"og path syntax", "ogImage", "../outside.png"},
+		{"alias syntax", "aliases", "[relative/]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := required
+			if tc.field == "slug" {
+				raw = strings.Replace(raw, "slug: t", "slug: "+tc.value, 1)
+			} else if tc.field == "publishedAt" {
+				raw = strings.Replace(raw, "'2026-01-02T03:04:05Z'", "'"+tc.value+"'", 1)
+			} else if tc.field == "topics" {
+				raw = strings.Replace(raw, "topics: [protobuf]", "topics: "+tc.value, 1)
+			} else {
+				raw += tc.field + ": " + tc.value + "\n"
+			}
+			_, _, err := ReadArticle(strings.NewReader("---\n" + raw + "---\nBody\n"))
+			if err == nil || !strings.Contains(err.Error(), tc.field) {
+				t.Fatalf("accepted invalid %s: %v", tc.field, err)
+			}
+		})
+	}
+	// These are structural allowances; authoring/publish semantics are later.
+	for _, tail := range []string{"", "summary: ''\n", "aliases: [/en/old/, /en/old/]\n", "updatedAt: '2026-01-02T03:04:05.123456Z'\n", "ogImage: ./assets/x/../../outside.png\n"} {
+		if _, _, err := ReadArticle(strings.NewReader("---\n" + required + tail + "---\nBody\n")); err != nil {
+			t.Fatalf("structurally valid allowance %q: %v", tail, err)
+		}
+	}
 }

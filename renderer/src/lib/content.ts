@@ -10,18 +10,17 @@ export type PostEntry = CollectionEntry<"posts"> & {
 
 export async function posts(): Promise<PostEntry[]> {
   const loaded = await getCollection("posts");
+  const metadata = new Map(loadSite().posts.map((post) => [post.id, post]));
   return loaded
     .map((entry) => {
-      const parts = entry.id.split("/");
-      const locale = parts.at(-1) || "";
-      const articleKey = parts.at(-2) || "";
-      const year = parts.at(-3) || "";
+      const post = metadata.get(entry.id);
+      if (!post) throw new Error(`Missing article metadata for ${entry.id}`);
       return {
         ...entry,
-        locale,
-        articleKey,
-        group: `${year}/${articleKey}`,
-        url: `/${locale}/posts/${entry.data.slug}/`,
+        locale: post.locale,
+        articleKey: post.articleKey,
+        group: post.group,
+        url: post.url,
       };
     })
     .sort((a, b) =>

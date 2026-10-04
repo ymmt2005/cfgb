@@ -4,6 +4,8 @@ import { loadSite } from "./lib/load-site.mjs";
 
 const { posts, prose } = loadSite();
 
+// Go validates article.schema.json before emitting metadata. This shape
+// supplies Astro collection types; structural rules live in that schema.
 const article = z.object({
   title: z.string().min(1),
   slug: z.string().min(1),

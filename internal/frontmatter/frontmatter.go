@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/goccy/go-yaml"
+
+	"github.com/ymmt2005/cfgb/schemas"
 )
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
@@ -122,41 +124,27 @@ func ArticleData(doc any) (map[string]any, error) {
 	if !ok || mapping == nil {
 		return nil, fmt.Errorf("front matter must be a mapping")
 	}
-	for key := range mapping {
-		switch key {
-		case "title", "slug", "publishedAt", "topics", "updatedAt", "summary", "ogImage", "aliases":
-		default:
-			return nil, fmt.Errorf("unknown article field %q", key)
+	if err := schemas.ValidateArticle(mapping); err != nil {
+		return nil, fmt.Errorf("article schema: %w", err)
+	}
+	// Schema validation happens before projection so fields cannot disappear
+	// silently. Keep the array representation expected by Go consumers.
+	data := make(map[string]any, len(mapping))
+	for key, value := range mapping {
+		if key == "topics" || key == "aliases" {
+			if strings, ok := value.([]string); ok {
+				data[key] = append([]string{}, strings...)
+			} else {
+				items := value.([]any)
+				strings := make([]string, len(items))
+				for i, item := range items {
+					strings[i] = item.(string)
+				}
+				data[key] = strings
+			}
+		} else {
+			data[key] = value
 		}
-	}
-	data := map[string]any{}
-	for _, key := range []string{"title", "slug", "publishedAt"} {
-		text, err := requiredString(mapping, key)
-		if err != nil {
-			return nil, err
-		}
-		data[key] = text
-	}
-	topics, err := requiredStrings(mapping, "topics")
-	if err != nil {
-		return nil, err
-	}
-	data["topics"] = topics
-	for _, key := range []string{"updatedAt", "summary", "ogImage"} {
-		text, present, err := optionalString(mapping, key)
-		if err != nil {
-			return nil, err
-		}
-		if present {
-			data[key] = text
-		}
-	}
-	aliases, present, err := optionalStrings(mapping, "aliases")
-	if err != nil {
-		return nil, err
-	}
-	if present {
-		data["aliases"] = aliases
 	}
 	return data, nil
 }
@@ -394,60 +382,6 @@ func collectProse(contentRoot string, root *os.Root, locales []string) ([]Prose,
 		prose = []Prose{}
 	}
 	return prose, nil
-}
-
-func requiredString(doc map[string]any, key string) (string, error) {
-	text, present, err := optionalString(doc, key)
-	if err != nil {
-		return "", err
-	}
-	if !present || text == "" {
-		return "", fmt.Errorf("%s is required", key)
-	}
-	return text, nil
-}
-
-func optionalString(doc map[string]any, key string) (string, bool, error) {
-	value, ok := doc[key]
-	if !ok {
-		return "", false, nil
-	}
-	text, ok := value.(string)
-	if !ok {
-		return "", false, fmt.Errorf("%s must be a string", key)
-	}
-	return text, true, nil
-}
-
-func requiredStrings(doc map[string]any, key string) ([]string, error) {
-	values, present, err := optionalStrings(doc, key)
-	if err != nil {
-		return nil, err
-	}
-	if !present || len(values) == 0 {
-		return nil, fmt.Errorf("%s must be a nonempty array of strings", key)
-	}
-	return values, nil
-}
-
-func optionalStrings(doc map[string]any, key string) ([]string, bool, error) {
-	value, ok := doc[key]
-	if !ok {
-		return nil, false, nil
-	}
-	items, ok := value.([]any)
-	if !ok {
-		return nil, false, fmt.Errorf("%s must be an array of strings", key)
-	}
-	values := make([]string, len(items))
-	for i, item := range items {
-		text, ok := item.(string)
-		if !ok {
-			return nil, false, fmt.Errorf("%s must be an array of strings", key)
-		}
-		values[i] = text
-	}
-	return values, true, nil
 }
 
 func rejectBOM(br *bufio.Reader) error {

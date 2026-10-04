@@ -124,8 +124,10 @@ through the route registry; root-relative internal URLs must also resolve.
 Fragment checks use the renderer's actual heading IDs, including duplicates and
 non-Latin headings. Go validation uses a shared heading-manifest adapter or the
 same algorithm, never an independent guess. Explicit HTML `id` values count too.
-Do not rewrite examples inside code fences. Markdown H1 is reserved for the
-layout title; article body headings begin at H2, TOC includes H2/H3.
+Do not rewrite examples inside code fences. Layout-owned targets use the
+`cfgb-` prefix (for example `cfgb-content`) so ordinary authored headings such
+as Content do not shadow the skip link. Markdown H1 is reserved for the layout
+title; article body headings begin at H2, TOC includes H2/H3.
 
 Raw HTML is allowed for trusted, reviewed authors. It does not imply arbitrary
 third-party scripts are acceptable; inventory and review migration embeds. Reject
@@ -138,17 +140,20 @@ including reference-style images, in articles and in home, about, and aside.
 It supplies dimensions and emits the processed file. A definition used by a
 Markdown image stays on that pipeline, even when a link uses the same definition.
 Resolve image and link consumers separately, preserving the definition's title
-and CommonMark identifier matching and first-definition precedence. Split URL
-query/fragment suffixes before filesystem lookup; decode path components once.
-Local Markdown image suffixes stay on the processed URL. Encoded filename
-characters such as `%26`, `%23`, and `%3F` denote filename characters, not URL
-delimiters. Relative Markdown article links use the same decoding rule before
-route lookup. External images remain external
-without build-time downloads and appear in migration/privacy reports. Raw HTML
-images and links to `./assets/...` are published under `/media/<year>/<article>/`.
-Home, about, and aside links and raw HTML images use `/media/home/`,
-`/media/about/`, and `/media/aside/`. Existing percent-escapes
-are not encoded again, and any query or fragment stays on a rewritten URL. Local SVG
+and CommonMark identifier matching and first-definition precedence. Decode
+local asset path components once; encoded filename characters such as `%26`,
+`%23`, and `%3F` denote filename characters, not URL delimiters. A `./assets/...`
+reference identifies a file and must not have a query or fragment. Reject such
+suffixes consistently in Markdown images, asset links, and raw HTML attributes.
+This restriction does not apply to published root-relative or remote URLs, or
+relative article links such as `../other-key/ja.md#heading`. Relative article
+links split their URL suffix before decoding and route lookup. External images
+remain external without build-time downloads and appear in migration/privacy
+reports. Raw HTML images and links to `./assets/...` are published under
+`/media/<year>/<article>/`. Home, about, and aside use `/media/home/`,
+`/media/about/`, and `/media/aside/`. Media scopes come from the normalized source
+metadata, not guesses based on the file's absolute path. Existing percent-escapes
+are not encoded again. Local SVG
 is used as an image, not blindly injected as trusted inline markup. The example
 includes SVG as a precise diagram and PNG as an original lossless raster fixture.
 OG fallback is a build-time PNG with title/branding and a bundled licensed font
@@ -186,15 +191,17 @@ may load the small global theme controller; no Mermaid/Pagefind there.
 
 Run Pagefind Extended on built output. Each page has correct `<html lang>`;
 load search only at `/<locale>/search/`, and reinitialize when locale changes.
-Use `data-pagefind-body` only on article content, with metadata for title, summary,
-publication date and topics; filters use stable topic IDs and site-local year.
+Use `data-pagefind-body` on the article title, summary, and Markdown body, with
+metadata for title, summary, publication date and topics; filters use stable topic IDs and site-local year.
 The publication timestamp is the `datetime` attribute of its `time` element,
 recorded as `published[datetime]`, not as a bracketed literal value.
 Pages that are not articles, including generated 404 pages, carry
 `data-pagefind-ignore="all"`. The search UI selects the document language as the
 `locale` filter. Navigation, the right-hand column, TOC, footer, and copy labels are excluded. Search title must remain searchable
 even if metadata is set outside the body. URL results must be canonical locale
-paths. The checked-in query corpus specifies top-k inclusion, not brittle ranking.
+paths. Aliases are emitted only in `_redirects`; static alias HTML is unnecessary
+for delivery. The checked-in query corpus specifies top-k inclusion, not brittle
+ranking.
 
 Generate canonical, reciprocal alternates, OpenGraph, Twitter cards, BlogPosting
 JSON-LD, sitemap and RSS. Feed descriptions reuse summaries; no full-body feed is

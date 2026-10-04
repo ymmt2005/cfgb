@@ -22,7 +22,7 @@
   function applyMode(mode) {
     if (mode === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", mode);
-    mark(document.getElementById("theme-list"), mode);
+    mark(document.getElementById("cfgb-theme-list"), mode);
     document.dispatchEvent(new CustomEvent("cfgb-theme"));
   }
 
@@ -97,7 +97,7 @@
   }
 
   applyMode(currentMode());
-  bindMenu("theme", function (value) {
+  bindMenu("cfgb-theme", function (value) {
     var next = modes[value] ? value : "system";
     try { localStorage.setItem(themeKey, next); } catch (error) {}
     applyMode(next);

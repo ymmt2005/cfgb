@@ -79,7 +79,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 {json && <script type="application/ld+json" is:inline set:html={json} />}
 </head>
 <body data-pagefind-ignore={pagefind ? undefined : "all"}>
-<a class="skip" href="#content">{copy.skip}</a>
+<a class="skip" href="#cfgb-content">{copy.skip}</a>
 <header class="mast">
   <div class="wrap">
     <div class="mast-row">
@@ -90,8 +90,8 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
           {other && <a href={localeChoice(other, otherDestination)} hreflang={other}>{site.locales[other].label}</a>}
         </nav>
         <div class="menu">
-          <button class="menu-button" id="theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">{copy.theme}</button>
-          <ul class="menu-list" id="theme-list" role="listbox" hidden>
+          <button class="menu-button" id="cfgb-theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="cfgb-theme-list">{copy.theme}</button>
+          <ul class="menu-list" id="cfgb-theme-list" role="listbox" hidden>
             <li role="option" tabindex="-1" data-value="system">{copy.system}</li>
             <li role="option" tabindex="-1" data-value="light">{copy.light}</li>
             <li role="option" tabindex="-1" data-value="dark">{copy.dark}</li>
@@ -106,7 +106,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     </nav>
   </div>
 </header>
-<main id="content">
+<main id="cfgb-content">
   <div class:list={["wrap", "frame", hasToc && "frame-article", !showAside && "frame-no-rail"]}>
     {hasToc && (
       <details class="toc toc-desktop" open>
