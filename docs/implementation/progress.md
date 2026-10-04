@@ -94,6 +94,11 @@ and publication policy remain later work.
 
 The input boundary rejects invalid UTF-8 before JSON normalization and enforces
 one nonempty YAML document for configuration/front matter/topics. Invalid
+custom YAML tags are rejected by a shared AST check before conversion can erase
+them, including nested values, sequences and anchors. Built-in decoder tags,
+quoted tag-like text and the untouched Markdown body retain their behavior.
+Regression tests cover configuration, articles, topics and build diagnostics,
+including preservation of existing output when configuration is invalid. Invalid
 content carries stable typed diagnostic codes and exits 1 from `build`; actual
 reader and filesystem failures remain exit 3. Regression tests cover these
 command exits and failed-build cleanup, including source encoding failures.

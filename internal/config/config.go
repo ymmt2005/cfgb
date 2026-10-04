@@ -15,6 +15,7 @@ import (
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
 	"github.com/ymmt2005/cfgb/internal/locale"
+	"github.com/ymmt2005/cfgb/internal/yamlutil"
 	"github.com/ymmt2005/cfgb/schemas"
 )
 
@@ -143,6 +144,9 @@ func load(repo, file string) (*File, error) {
 	}
 	if len(parsed.Docs) != 1 || parsed.Docs[0].Body == nil {
 		return nil, fmt.Errorf("cfgb.yaml must contain a single nonempty YAML document")
+	}
+	if err := yamlutil.ValidateTags(parsed.Docs[0].Body); err != nil {
+		return nil, fmt.Errorf("cfgb.yaml: E_SCHEMA: %w", err)
 	}
 	var doc any
 	if err := yaml.NodeToValue(parsed.Docs[0].Body, &doc); err != nil {

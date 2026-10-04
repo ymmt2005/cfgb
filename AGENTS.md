@@ -4,6 +4,54 @@ These instructions apply to the entire repository, including tests. Use English
 for repository documentation and review comments. The project name is
 **CFGB — Git-based Blog on Cloudflare**; retain the Apache-2.0 license.
 
+## Project map and sibling repositories
+
+CFGB is a multi-repository project. This checkout is the implementation and
+canonical contract repository; the example and setup Action are separate Git
+repositories, not packages or renderer directories inside this one.
+
+| Repository                                                          | Owns                                                                                                                                                         | Useful entry points                                                                                                                                                                    |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [ymmt2005/cfgb](https://github.com/ymmt2005/cfgb) (this repository) | CLI/domain behavior, embedded renderer/Worker/toolchain, canonical schemas/specifications/prompts, implementation tests and build/link-check tooling         | `cmd/cfgb/`, `internal/`, `renderer/`, `schemas/`, `prompts/`, `docs/spec/`, `docs/implementation/`, `scripts/`                                                                        |
+| [ymmt2005/cfgb-example](https://github.com/ymmt2005/cfgb-example)   | Synthetic publishable content/assets, settings, validation/search/AI/migration/delivery fixtures and expected outputs; consumes CFGB to check generated HTML | `cfgb.yaml`, `src/content/`, `src/data/`, `tests/README.md`, `tests/expected/`, `tests/fixtures/`, `tests/search/`, `tests/build-delivery/`, `tests/ai/`, `examples/ymmt2005.dev.yaml` |
+| [ymmt2005/cfgb-action](https://github.com/ymmt2005/cfgb-action)     | Setup-only GitHub Action, immutable-release/asset verification, installation/cache/PATH, setup tests and usage documentation                                 | `README.md`, `docs/usage.md`; root `action.yml` and installer/tests when implemented; canonical contract in this repository's `docs/spec/09-github-action.md`                          |
+| `ymmt2005/ymmt2005.dev` (intended content repository)               | Personal articles/assets/settings for `https://ymmt2005.dev`, using the same CLI as the example                                                              | Its own `cfgb.yaml` and content/data; the complete configuration example lives in `cfgb-example/examples/ymmt2005.dev.yaml`                                                            |
+
+The personal repository is a design target; do not assume it exists or is
+available. Inspect current sources/PRs and implementation notes before claiming
+that an Action, command or later-phase integration is implemented.
+
+In a conventional local workspace these are sibling checkouts: `cfgb/`,
+`cfgb-example/`, `cfgb-action/`, and optionally `ymmt2005.dev/`. Locate the actual
+checkouts rather than hard-code this layout. Example tests accept `CFGB_EXAMPLE`;
+this repository's CI checks the pinned corpus out at `cfgb-example/` inside the
+job workspace. Keep independent Git histories, branches, dependencies and
+releases; a directory named `renderer` belongs only to CFGB.
+
+The data flow is: authors edit Git content; GitHub checks install CFGB through
+the setup Action and call the CLI; `cfgb build` stages that content and extracts
+the embedded framework into a temporary toolchain workspace; it produces
+`site/`, `worker/index.js`, and `build-manifest.json`. Separate upload commands
+consume the artifact. Cloudflare Workers Builds bootstraps the CLI directly,
+without the GitHub Action. Visitors read Static Assets/Worker responses and use
+local Pagefind search, without AI or a runtime content database.
+
+For changes crossing repositories, keep ownership explicit:
+
+- Canonical schemas and domain specifications change in `cfgb`; inspect and
+  update corresponding `cfgb-example` fixtures/expected outputs. Most fixture
+  paths in `docs/spec/` refer to the example repository, not this checkout.
+- CLI setup/install contracts also require reviewing `cfgb-action/docs/usage.md`
+  and its implementation/tests when available. Keep Action and CLI versions
+  independently pinned; do not move CLI operations into Action wrappers.
+- Preserve the content-only boundary: add reusable framework/Worker behavior
+  here, not to example or personal content repositories. Personal URLs, exports
+  and settings belong to personal configuration, not reusable migration rules.
+- Coordinate required sibling changes and commit pins explicitly. A fixture or
+  consumer update does not automatically change `CFGB_EXAMPLE_REF` or another
+  repository's reviewed CFGB source/release pin. Read each checkout's own
+  `AGENTS.md` before editing it; these instructions apply to this repository.
+
 ## Read the contracts before changing behavior
 
 - Read the relevant `docs/spec/` documents and checked-in schemas. Consult
@@ -85,7 +133,9 @@ for repository documentation and review comments. The project name is
 - Isolate YAML front matter using complete unindented `---` delimiter lines;
   read lines with `bufio.Reader.ReadString`, parse only that block with
   `goccy/go-yaml`, and preserve the remaining Markdown bytes. Retain UTF-8/BOM,
-  duplicate-key, unknown-field and reader-error checks. Do not parse the body
+  duplicate-key, unknown-field and reader-error checks. Reject custom YAML tags
+  through the shared AST check before value conversion can erase them; apply
+  the same boundary to configuration, articles and topics. Do not parse the body
   as YAML or replace this with a whole-document delimiter regex.
 - Validate unprojected inputs against their canonical schemas before typed
   projection/defaults; semantic rules remain separate. Preserve semantic codes
@@ -152,6 +202,12 @@ go test ./... -skip '^TestExampleCorpus$'
 standard library exclusions for documented infallible operations. It does not
 prove that an assigned error was handled, so manual review and Staticcheck still
 matter.
+
+In particular, `_ = os.RemoveAll(path)` and `_, _ = os.Open(path)` are failures
+under the CI command above. Do not run bare `errcheck` and assume it enforces
+this policy: its default accepts explicit blank-identifier discards. Assigning
+an error to an ordinary variable and then overwriting/never handling it also
+needs review; this check is a guard, not a substitute for error-path tests.
 
 For renderer/build changes, also run the affected renderer tests and the pinned
 example corpus build. Use the workflow's toolchain; example acceptance must not

@@ -56,6 +56,7 @@ func TestRunSourceDiagnosticExitCodes(t *testing.T) {
 	}{
 		{"bad YAML", "posts/2026/example/ja.md", "---\ntitle: [bad\n---\n", "E_SCHEMA", 1},
 		{"unknown field", "posts/2026/example/ja.md", strings.Replace(article, "---\nBody", "summray: unknown\n---\nBody", 1), "E_SCHEMA", 1},
+		{"custom tag", "posts/2026/example/ja.md", strings.Replace(article, "title: T", "title: !custom T", 1), "E_SCHEMA", 1},
 		{"invalid UTF-8", "posts/2026/example/ja.md", article + "\xff", "E_SCHEMA", 1},
 		{"invalid prose", "home/ja.md", "Body\xff\n", "E_SCHEMA", 1},
 		{"disabled locale", "posts/2026/example/en.md", article, "E_TRANSLATION_GROUP", 1},
@@ -106,6 +107,7 @@ func TestRunInvalidConfigurationPreservesOutput(t *testing.T) {
 		testConfig + "\nhome:\n  latestPosts: -1\n",
 		strings.Replace(testConfig, "Asia/Tokyo", "Invalid/Timezone", 1),
 		testConfig + "\nsecurity:\n  previewAccess: false\n",
+		strings.Replace(testConfig, "title: CFGB Example", "title: !custom CFGB Example", 1),
 	} {
 		repo := t.TempDir()
 		if err := os.WriteFile(filepath.Join(repo, "cfgb.yaml"), []byte(body), 0o644); err != nil {

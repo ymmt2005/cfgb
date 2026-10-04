@@ -254,6 +254,26 @@ func TestDiscoveryReportsRepositoryProbeError(t *testing.T) {
 	}
 }
 
+func TestConfigurationRejectsCustomTagsBeforeProjection(t *testing.T) {
+	t.Parallel()
+	for _, raw := range []string{
+		strings.Replace(minimalConfig, "title: CFGB Example", "title: !custom CFGB Example", 1),
+		strings.Replace(minimalConfig, "site:", "site: !custom", 1),
+		minimalConfig + "\nai:\n  enabled: false\n  summary:\n    ja: {provider: !custom workers-ai, model: summary}\n",
+	} {
+		dir := t.TempDir()
+		writeConfig(t, dir, raw)
+		if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), "E_SCHEMA") || !strings.Contains(err.Error(), "YAML tag") {
+			t.Fatalf("custom configuration tag was erased: %v", err)
+		}
+	}
+	dir := t.TempDir()
+	writeConfig(t, dir, strings.Replace(minimalConfig, "title: CFGB Example", "title: !!str 42", 1))
+	if cfg, err := Load(dir); err != nil || cfg.Site.Title != "42" {
+		t.Fatalf("built-in string tag = %v, %v", cfg, err)
+	}
+}
+
 func TestLoadRejectsLocaleProblems(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
