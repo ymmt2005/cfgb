@@ -70,7 +70,7 @@ jobs:
         run: |
           npm ci
           npx --no-install playwright install --with-deps chromium
-          node --test site.test.mjs
+          node --test *.test.mjs
       - name: Test
         env:
           CFGB_EXAMPLE: ${{ github.workspace }}/cfgb-example

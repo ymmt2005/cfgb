@@ -59,6 +59,9 @@
       if (list.hidden) open();
       else close(false);
     });
+    button.parentElement.addEventListener("focusout", function (event) {
+      if (!button.parentElement.contains(event.relatedTarget)) close(false);
+    });
     button.addEventListener("keydown", function (event) {
       if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
       event.preventDefault();

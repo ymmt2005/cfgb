@@ -79,6 +79,9 @@ Persisted theme choices are members of an explicit `Set`; inherited JavaScript
 object properties cannot become theme values. The theme listbox is named by its
 button and supports focus movement, selection, and Escape back to the button.
 Storage failures do not prevent a visitor from changing the current page theme.
+Pointer clicks outside the menu and keyboard focus leaving it dismiss the popup
+without moving focus back to its trigger. Native fragment navigation has scroll
+padding below the sticky masthead; mobile pages with a static masthead omit it.
 
 The scroll observer groups desktop and mobile TOC links by heading ID in a
 `Map`. It updates the stored elements directly instead of constructing a CSS
@@ -100,10 +103,19 @@ searchable title/summary text. The pinned example corpus goes through the actual
 Go CLI, embedded extraction, dependency installation, Astro, and Pagefind.
 
 `renderer/tests/browser/` builds a small actual site and serves its generated
-HTML and scripts with the generated CSP. Playwright checks theme keyboard
-interaction, accessibility names, persisted and invalid storage values, storage
-failures, and native scroll observation at desktop/mobile widths. CI runs this
-suite on the Node 24/npm job. The browser-test package has its own pinned npm
+HTML and scripts with the generated security headers, then builds the real
+Pagefind index. Playwright runs 13 tests across two suites: the existing theme,
+storage and scroll-observer cases plus pre-interaction theme paint, real Mermaid
+SVG rendering and native system-theme changes, invalid-diagram recovery, native
+Unicode clipboard copy, Japanese/English WASM search and result/fragment
+navigation, empty-result recovery, skip-link keyboard navigation, native TOC
+collapse/reflow, footnote round trips and menu focus departure. Desktop and
+mobile viewports, reduced motion and JavaScript-disabled article navigation are
+covered. Tests await observable state rather than fixed sleeps, and new cases
+fail on runtime/resource errors or CSP violations. Browser APIs and libraries
+are not replaced with test doubles. CI runs this Chromium suite on the Node
+24/npm job; a mobile viewport is not a Safari/WebKit compatibility claim. The
+browser-test package has its own pinned npm
 lockfile and is not embedded or installed by `cfgb build`.
 
 Run the browser suite after installing renderer dependencies:
@@ -112,7 +124,7 @@ Run the browser suite after installing renderer dependencies:
 cd renderer/tests/browser
 npm ci
 npx --no-install playwright install --with-deps chromium
-node --test site.test.mjs
+node --test *.test.mjs
 ```
 
 Supported scenarios are based on the authoring contract. Local asset request

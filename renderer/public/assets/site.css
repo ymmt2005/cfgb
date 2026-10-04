@@ -319,7 +319,8 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+/* Fragment targets stay below the sticky two-row masthead. */
+html { scroll-behavior: smooth; scroll-padding-top: 8rem; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -885,6 +886,7 @@ footer.site a { color: var(--muted); }
 }
 
 @media (max-width: 860px) {
+  html { scroll-padding-top: 0; }
   .mast { position: static; }
   .mast-row, .tools { justify-content: flex-start; }
   .menu-list { right: auto; left: 0; }

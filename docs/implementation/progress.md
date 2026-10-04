@@ -75,6 +75,19 @@ Browser interaction tests build real pages and run Chromium with the generated
 CSP in the Node 24/npm CI job; their separate test dependencies are not part of
 the embedded renderer toolchain.
 
+The browser suites now run 13 tests, including real Pagefind WASM searches with
+a locale differing from the browser language, article/heading navigation and
+empty-result recovery; real Mermaid redraws on native color-scheme changes and
+rapid theme selections; malformed-diagram source/error preservation; actual
+multiline Unicode clipboard content; skip-link/TOC/footnote navigation, native
+desktop TOC reflow, mobile JavaScript-disabled navigation and reduced motion.
+The fixtures share build/server setup and enforce the generated headers.
+These tests exposed two UI defects: the theme popup stayed open after Tab moved
+focus outside it, and native fragments could land behind the sticky masthead.
+Focus departure now dismisses the popup without trapping focus, and desktop
+fragment scroll padding clears the masthead. Static-masthead mobile pages omit
+that padding. Runtime/resource failures and CSP violations fail the new cases.
+
 Static `_headers` and all Worker-created responses use the same baseline policy
 from `renderer/src/lib/security-headers.json`. Worker tests cover redirects,
 GET/HEAD/method/locale errors and the missing-binding fallback while preserving

@@ -1,74 +1,16 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
-import { createServer } from "node:http";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { after, before, describe, test } from "node:test";
-import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { startSite } from "./fixture.mjs";
 
-const rendererRoot = fileURLToPath(new URL("../..", import.meta.url));
-let browser, server, work, origin;
+let site, browser, origin;
 
 describe("generated site interactions", { timeout: 180_000 }, () => {
   before(async () => {
-    work = buildSite();
-    const dist = path.join(work, "renderer", "dist");
-    // Exercise the deployed CSP as well as the actual generated HTML/scripts.
-    const csp = readFileSync(path.join(dist, "_headers"), "utf8").match(
-      /Content-Security-Policy: (.+)/,
-    )[1];
-    server = createServer((request, response) => {
-      try {
-        const pathname = decodeURIComponent(
-          new URL(request.url, "http://localhost").pathname,
-        );
-        const relative = pathname.endsWith("/")
-          ? `${pathname}index.html`
-          : pathname;
-        const file = path.resolve(dist, `.${relative}`);
-        if (!file.startsWith(`${dist}${path.sep}`))
-          throw new Error("outside fixture");
-        const types = {
-          ".html": "text/html",
-          ".js": "text/javascript",
-          ".css": "text/css",
-          ".svg": "image/svg+xml",
-        };
-        response.writeHead(200, {
-          "Content-Type":
-            types[path.extname(file)] || "application/octet-stream",
-          "Content-Security-Policy": csp,
-        });
-        response.end(readFileSync(file));
-      } catch {
-        response.writeHead(404);
-        response.end();
-      }
-    });
-    await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", resolve);
-    });
-    origin = `http://127.0.0.1:${server.address().port}`;
-    browser = await chromium.launch({
-      executablePath: process.env.CFGB_TEST_CHROMIUM_EXECUTABLE,
-    });
+    site = await startSite();
+    ({ browser, origin } = site);
   });
   after(async () => {
-    await browser?.close();
-    if (server?.listening)
-      await new Promise((resolve) => server.close(resolve));
-    if (work) rmSync(work, { recursive: true, force: true });
+    await site?.close();
   });
 
   test("unknown persisted themes fall back to system", async () => {
@@ -236,96 +178,3 @@ describe("generated site interactions", { timeout: 180_000 }, () => {
     }
   });
 });
-
-function buildSite() {
-  const work = mkdtempSync(path.join(tmpdir(), "cfgb-browser-test-"));
-  try {
-    const renderer = path.join(work, "renderer");
-    cpSync(rendererRoot, renderer, {
-      recursive: true,
-      filter(src) {
-        const top = path.relative(rendererRoot, src).split(path.sep)[0];
-        return !["node_modules", "dist", ".astro", "tests"].includes(top);
-      },
-    });
-    symlinkSync(
-      path.join(rendererRoot, "node_modules"),
-      path.join(renderer, "node_modules"),
-    );
-    const content = path.join(work, "content");
-    const padding = Array.from(
-      { length: 20 },
-      () => "A paragraph of ordinary article text for scrolling.",
-    ).join("\n\n");
-    const body = [
-      "## Constructor",
-      padding,
-      "## `__proto__`",
-      padding,
-      "## Normal heading",
-      padding,
-    ].join("\n\n");
-    const posts = ["ja", "en"].map((locale) => ({
-      id: `posts/2026/browser/${locale}`,
-      file: path.join(content, "posts", "2026", "browser", `${locale}.md`),
-      body,
-      group: "2026/browser",
-      year: "2026",
-      articleKey: "browser",
-      locale,
-      data: {
-        title: "Browser interactions",
-        slug: "browser",
-        publishedAt: "2026-01-02T00:00:00Z",
-        topics: ["notes"],
-        summary: "Interaction test article.",
-      },
-    }));
-    for (const post of posts) {
-      mkdirSync(path.dirname(post.file), { recursive: true });
-      writeFileSync(post.file, post.body);
-    }
-    const metadata = path.join(work, "metadata.json");
-    writeFileSync(
-      metadata,
-      JSON.stringify({
-        posts,
-        prose: [],
-        topics: { notes: { ja: "メモ", en: "Notes" } },
-      }),
-    );
-    mkdirSync(path.join(work, "linkcards"));
-    const site = path.join(work, "site.json");
-    writeFileSync(
-      site,
-      JSON.stringify({
-        title: "CFGB Example",
-        baseUrl: "https://example.invalid",
-        defaultLocale: "ja",
-        timezone: "UTC",
-        locales: { ja: { label: "日本語" }, en: { label: "English" } },
-        contentRoot: content,
-        topicsFile: path.join(work, "topics.yaml"),
-        linkcardsDir: path.join(work, "linkcards"),
-        metadataFile: metadata,
-        latestPosts: 5,
-      }),
-    );
-    execFileSync(
-      process.execPath,
-      [
-        path.join(rendererRoot, "node_modules", "astro", "bin", "astro.mjs"),
-        "build",
-      ],
-      {
-        cwd: renderer,
-        env: { ...process.env, CFGB_SITE_JSON: site },
-        stdio: "pipe",
-      },
-    );
-    return work;
-  } catch (error) {
-    rmSync(work, { recursive: true, force: true });
-    throw error;
-  }
-}
