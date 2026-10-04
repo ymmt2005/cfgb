@@ -38,12 +38,24 @@ reusable workflow is a separate job-level mechanism and is not required for v1.
 | --- | --- |
 | `cfgb-version` | Exact installed version, emitted after successful verification |
 | `cfgb-path` | Absolute verified executable path on the runner |
+| `node-version` | Tested Node.js version from the selected CLI release's verified toolchain requirements |
+| `npm-version` | Tested npm version from the selected CLI release's verified toolchain requirements |
+| `pnpm-version` | Tested pnpm version from the selected CLI release's verified toolchain requirements |
 
 Setup registers the binary directory on PATH for subsequent steps in the same
 job. Every job that needs CFGB performs its own setup. No checkout, `cfgb.yaml`,
 Node.js, AI credentials or Cloudflare upload credentials are needed to install the
 CLI. Build-time Node.js/package-manager prerequisites are configured separately
 by the caller according to the selected CFGB release.
+
+Download `toolchain-requirements.json` from the selected immutable CLI release,
+verify it against that release's attestation before reading it, and check its
+`cfgbVersion` matches the requested version. Emit `testedNodeVersion`,
+`testedNpmVersion` and `testedPnpmVersion` as the corresponding outputs. These
+are exact tested build-toolchain versions, not minimum requirements, inferred
+defaults or the Action's internal Node runtime. Missing/invalid metadata fails
+setup. Callers run setup first, then feed `node-version` to `actions/setup-node`
+and install either the emitted npm or pnpm version before calling `cfgb build`.
 
 ## Installation and versioning
 
