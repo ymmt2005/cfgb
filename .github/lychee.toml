@@ -1,8 +1,0 @@
-# Generated HTML is the input; negative Markdown fixtures are not scanned.
-include_fragments = "anchor-only"
-index_files = ["index.html"]
-max_concurrency = 4
-max_retries = 2
-retry_wait_time = 2
-timeout = 20
-max_cache_age = "1d"

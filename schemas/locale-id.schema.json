@@ -1,8 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "locale-id.schema.json",
-  "title": "CFGB locale identifier",
-  "description": "Path-safe language tag. A match is not a release-supported locale. The identifier pattern is shared with renderer/src/lib/locales.json.",
-  "type": "string",
-  "pattern": "^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?$"
-}
