@@ -1,0 +1,22 @@
+---
+import Base from "../../layouts/Base.astro";
+import { renderedProse } from "../../lib/content";
+import { pageCounterparts } from "../../lib/locale-link.mjs";
+import { copyFor, loadSite } from "../../lib/load-site.mjs";
+
+export function getStaticPaths() {
+  const { site } = loadSite();
+  return Object.keys(site.locales).map((locale) => ({ params: { locale } }));
+}
+const { locale } = Astro.params;
+const { site } = loadSite();
+const copy = copyFor(locale);
+const about = await renderedProse("about", locale);
+const aside = await renderedProse("aside", locale);
+const counterparts = pageCounterparts(Object.keys(site.locales), (item) => `/${item}/about/`);
+---
+<Base locale={locale} title={copy.about} path={`/${locale}/about/`} counterparts={counterparts} showAside={!!aside}>
+  {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
+  <h1 class="home-title">{copy.about}</h1>
+  {about && <div class="prose"><about.Content /></div>}
+</Base>

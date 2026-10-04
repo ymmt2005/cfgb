@@ -10,12 +10,8 @@
   "additionalProperties": {
     "type": "object",
     "additionalProperties": false,
-    "properties": {
-      "ja": {
-        "type": "string",
-        "minLength": 1
-      },
-      "en": {
+    "patternProperties": {
+      "^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?$": {
         "type": "string",
         "minLength": 1
       }

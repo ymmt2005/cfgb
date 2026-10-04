@@ -20,42 +20,51 @@ implementation starts and when upgrading the pinned toolchain.
 
 | Workers Builds setting | Command | Responsibility |
 | --- | --- | --- |
-| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, finalize artifact manifest and hashes |
-| Deploy command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" deploy --from dist` | Verify artifact and publication gate; upload production Worker/assets |
-| Preview command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" preview --from dist` | Verify artifact and private-preview gate; upload branch preview |
+| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, write the artifact manifest |
+| Deploy command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" deploy --from dist` | Check required files, runtime compatibility, and the publication gate; upload the supplied production Worker/assets |
+| Preview command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" preview --from dist` | Check required files, runtime compatibility, and the private-preview gate; upload the supplied branch preview |
 
 The build command never uploads or invokes a deployment command. Deploy and
-preview consume the same verified build artifact without rebuilding. Neither
+preview consume the supplied build artifact without rebuilding. Neither
 command generates summaries, fetches link cards, or imports Hatena content.
 After dependency installation, rendering and indexing must work with network
 access denied. Assets, content and link metadata all come from Git.
 
 The artifact contains `site/`, `worker/index.js` and `build-manifest.json`. The
-manifest records source commit and branch, CFGB/schema/toolchain versions,
-configuration and input/output hashes, successful build checks, publication
-metadata, toolchain requirements/observations, session identity and provenance
-provider. Workers Builds supplies authoritative source commit/branch/build UUID;
-compare commit with checkout HEAD and retain the UUID for tracing. Node and pnpm
-are configured through `NODE_VERSION`/`PNPM_VERSION` and checked at runtime, not
-pinned by the lockfile. The workspace with installed Wrangler survives through
-the same build's upload command and is excluded from the deployable artifact.
-Uploads require a clean source checkout matching the artifact; ignored
-build output is not a source edit. Reject stale, incomplete or altered artifacts.
+manifest records CFGB, schema, and toolchain versions, successful build checks,
+the publication snapshot, toolchain requirements and observations, and the
+workspace basename. Source commit, branch, build UUID, and provenance provider
+are optional diagnostics. Workers Builds supplies those values when they are
+present, including a branch name for a detached checkout. A missing or differing
+value stays in the manifest only as a diagnostic and leaves the command
+successful. The manifest carries no configuration, input, or output hashes.
+npm >= 12 is
+the default installer. `NODE_VERSION` must be Node 24.15.0 or newer on the Node
+24 line, or Node 26.0.0 or newer. Node 25 is outside that set. These releases
+bundle npm 11, so the build environment installs npm >= 12 separately. `PNPM_VERSION` applies only when `CFGB_PACKAGE_MANAGER=pnpm`, and that pnpm must be >= 11.
+The selected package manager is checked at runtime. Node itself is not pinned by
+the lockfile. The workspace is a fresh `cfgb-build-*` directory. Its basename is
+`toolchainSessionId`. The installed Wrangler survives through the same build's
+upload command, which finds the directory by joining `os.TempDir()` with that
+basename, and the workspace is excluded from the deployable artifact. Upload
+removes the workspace when it finishes or fails.
+Upload accepts the supplied artifact, including one from a dirty checkout and
+one whose site bytes were edited after the build. Generated output stays out of
+the dirty record. CFGB uploads those bytes without rebuilding or changing them.
+Required files, artifact format, and the runtime versions needed for Wrangler
+remain checks.
 
-These artifact checks are a deployment-correctness boundary, not an independent
-security or authenticity boundary. They are intended to catch wrong commits,
-stale outputs, accidental byte changes, incompatible toolchains and unintended
-rebuilds. CFGB v1 assumes CI artifact storage/transfer and the deployment
-environment are operator-trusted. If those are compromised, CFGB does not claim
-that its manifest or hashes prevent arbitrary deployment; an operator may layer
-external artifact attestations on top, but CFGB does not require or interpret
-them. Transferred artifacts remain supported and receive the same
-consistency/source/runtime checks without a CFGB-specific signature.
+CFGB v1 treats CI artifact storage, transfer, and the deployment environment as
+operator-trusted. The operator may publish an artifact they edited after the
+build. An external digest or CI attestation may accompany that artifact; CFGB
+does not require or interpret one for site files. Transferred artifacts use the
+same required-file, runtime, publication, and target checks. Verification of the
+CFGB executable remains the release and setup-Action contract.
 
 Build uses default validation, which permits future publication timestamps; it
-must still reject missing summaries. Production deploy additionally checks
-publication timestamps from the verified snapshot against the current time and
-requires the recorded/current branch to equal `deploy.productionBranch`
+must still reject missing summaries. Production deploy checks
+publication timestamps from the artifact snapshot against the current time. The
+current invocation's branch must equal `deploy.productionBranch`
 (default `main`). A future-dated change can have a private preview while its final
 `validate --publish` merge check fails. Preview requires a non-production branch.
 Use the trusted environment variables defined in the CLI specification for the
@@ -75,8 +84,8 @@ The configured production origin is canonical. For an apex deployment, redirect
 the alternate production workers.dev origin through the explicit config setting.
 Preview URLs remain enabled independently and are protected by Access; Version
 URLs enabled by the same `preview_urls` setting are included in that coverage.
-Do not redirect previews to production. Check deployed source-commit metadata and retain platform rollback
-to the last good Worker version. Runtime has no AI or Hatena credentials.
+Do not redirect previews to production. Deployed source-commit metadata is
+diagnostic. Retain platform rollback to the last good Worker version. Runtime has no AI or Hatena credentials.
 
 ## GitHub Action setup
 
@@ -105,8 +114,8 @@ and narrowly scoped automation acting for them. This is a security boundary:
 Workers Builds executes the pushed branch before any later PR approval. Review
 configuration, workflow and tool-version changes before pushing them to an
 automatically built branch. PR branch protection alone is not a deployment gate.
-This boundary concerns who may cause credentialed build/deployment execution; it
-does not turn the artifact manifest/hash checks into a tamper-proof attestation.
+This boundary concerns who may cause credentialed build/deployment execution.
+Site artifacts are uploaded as the operator supplied them.
 
 External contributors use fork PRs. Fork jobs are read-only, receive no privileged
 credentials and create no automatic preview. A maintainer can review and transfer
@@ -116,8 +125,9 @@ use a gated deployment pipeline, such as GitHub Actions with a protected
 Environment; do not assume the automatic Workers Builds setup enforces that gate.
 
 1. Run read-only `validate --authoring` checks on the PR head with `contents: read`,
-   no secrets and no persisted checkout credentials. Non-string summaries
-   remain schema errors; missing/empty summaries are warnings in this mode.
+   no secrets and no persisted checkout credentials. Summary checks use the
+   decoded Go string; decoder failures are errors, and missing/empty summaries
+   are warnings in this mode. Do not impose a separate raw-YAML type gate.
 2. For trusted authoring automation, use a reviewed pinned CFGB release and
    trusted configuration. Generate only eligible summaries; protect human edits.
    Use trusted base-branch configuration/prompts, never PR scripts. Restrict writes
@@ -126,11 +136,12 @@ Environment; do not assume the automatic Workers Builds setup enforces that gate
    Commit the generated diff using a scoped GitHub App token. Do not assume
    `GITHUB_TOKEN`-generated activity automatically reruns checks.
 3. Guard against stale heads and bot loops. A generated commit changes the head,
-   so final required checks must run on that new commit. Never validate one head
-   and upload artifacts from another.
+   so final required checks must run on that new commit. Uploading an artifact
+   does not require its recorded commit to equal that head.
 4. Final required checks include default validation, `validate --publish` and
-   build integration checks. Production publication uses the exact successful
-   artifact from `deploy.productionBranch`. Other branches use the Preview
+   build integration checks. Production publication uploads the artifact supplied
+   by the build when the current invocation's branch equals
+   `deploy.productionBranch`. Other branches use the Preview
    command and Access gate. Align Workers Builds' production-branch setting and
    protected Git branch with this reviewed configuration (default `main`).
 
@@ -193,13 +204,17 @@ if a miss reaches Worker code it delegates to `ASSETS.fetch(request)`.
 
 - `/` is a runtime route, with no generated root `index.html`. It returns a **302**
   redirect to `/<locale>/`: valid locale cookie first, then supported
-  `Accept-Language` ranges by descending quality (exclude `q=0`), then configured
-  default locale. Preserve deterministic tie handling. Emit `Cache-Control:
+  `Accept-Language` ranges by descending quality (exclude `q=0`; the parameter
+  name is case-insensitive, so `Q=0` is the same exclusion), then configured
+  default locale. Browser ranges such as `en-US` may negotiate the configured
+  content language `en`; this does not add `en-US` to the supported catalog.
+  Explicit language selections and cookie values require an exact, case-sensitive
+  configured identifier. Preserve deterministic tie handling. Emit `Cache-Control:
   private, no-store` and `Vary: Cookie, Accept-Language` so negotiation is not
   shared-cached. No cookie is set merely by negotiation. Locale URLs are never
   redirected according to browser preference.
-- `GET /__locale?lang=ja|en&next=<local-path>` validates a supported locale, sets
-  the `cfgb_locale` cookie and returns **303**. Cookie attributes are `Secure`,
+- `GET /__locale?lang=<configured-locale>&next=<local-path>` validates a configured locale, sets
+  the `cfgb_locale` cookie and returns **303**. This release configures `ja` and `en` only. Cookie attributes are `Secure`,
   `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age=31536000`. Reject unsupported
   methods/locales; invalid or absent `next` falls back to the selected locale
   home. Accept only a same-site absolute path beginning with a single `/`;
@@ -232,10 +247,18 @@ same-site aliases. Worker redirects/errors set their own headers; static
 `_headers` does not apply to them. Set nosniff, strict-origin-when-cross-origin,
 DENY framing and disabled camera/microphone/geolocation. Apply a CSP consistent with local fonts,
 assets, code-copy, Pagefind and Mermaid behavior; no content-time remote scripts
-or fonts. Specify permitted inline-script/style handling during renderer
+or fonts. Image sources are the site itself, data URLs, and HTTPS, so a remote
+article image that the build does not fetch can still load. Specify permitted inline-script/style handling during renderer
 implementation, prefer generated script hashes, and test both themes, keyboard
 access and no-JS fallbacks. No tracking cookies or analytics by default; analytics
 is a future explicit opt-in.
+
+The renderer and generated Worker share the release's baseline header definition
+in `renderer/src/lib/security-headers.json`. Every Worker-created response uses
+that policy, including redirects and method/locale/not-found errors, while
+retaining endpoint-specific cache, cookie, `Vary`, `Location` and `Allow` headers.
+Responses delegated to Static Assets are returned unchanged; their `_headers`
+rules apply there.
 
 Cloudflare Access enforcement and ordinary cache/security headers are separate
 checks. Validate all exposed preview hosts rather than assuming asset, feed or

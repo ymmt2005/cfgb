@@ -14,7 +14,7 @@ the intended implementation, not features already delivered in this repository.
 
 The personal site repository is a design target; its existence is not required
 to use the example corpus. The Go CLI discovers `cfgb.yaml`; article repositories
-contain no Astro source/configuration, package.json, pnpm lockfile or Worker code.
+contain no Astro source/configuration, package.json, lockfile or Worker code.
 CFGB owns rendering and delivery. Shared schemas are versioned in CFGB; the example
 repository links to their canonical definitions. Schema changes must review the
 example fixtures too. No runtime database, CMS, accounts, comments, newsletter,
@@ -23,24 +23,27 @@ recommendations, R2, scheduling, or visitor-triggered AI in v1.
 Renderer, Worker, package manifest, dependency lockfile and build checks live in
 CFGB and are embedded in the released Go executable. Builds extract them into a
 disposable workspace and stage a snapshot of configured content without modifying
-its repository. Node.js and the supported pinned package manager remain build
-prerequisites; embedding sources does not embed a JS runtime or node_modules.
+its repository. Node.js and npm remain build prerequisites. pnpm is optional
+and is selected with `CFGB_PACKAGE_MANAGER=pnpm`. Embedding sources does not
+embed a JS runtime or node_modules.
 Dependency installation may use network; rendering and artifact tests must work
 offline. Renderer implementation and dependencies can change without adding files
-to article repositories. A release records its embedded renderer version and publishes/embeds Node range,
-exact pnpm/Wrangler, tested Workers compatibility date and lockfile requirements.
+to article repositories. A release records its renderer version. The Node range and Wrangler version come
+from the embedded renderer package manifest, the npm and pnpm floors are part of
+the build, and the Workers compatibility date is pinned with the Worker source.
+The embedded lockfiles are the dependency pins.
 Retain each external toolchain
 workspace through its upload command. Workers Builds bootstraps the exact binary
-under HOME and obtains provenance from official CI variables; see the
+under HOME. Available CI variables are recorded as diagnostic build metadata; see the
 [build runtime contract](10-build-runtime.md).
 
 The public interface is `cfgb build`, `cfgb deploy` and `cfgb preview`. Builds
-create artifacts, never deploy them. Upload commands consume the same verified
-artifact and do not rebuild. The artifact manifest, hashes and source/session
-checks are deployment-correctness and reproducibility guards, not a cryptographic
-trust boundary for transferred site artifacts. CFGB v1 assumes CI artifact
-storage/transfer and the deployment environment are operator-trusted. This is
-separate from supply-chain verification of CFGB executable releases and from the
+create artifacts and do not deploy them. Upload commands consume the supplied
+artifact and do not rebuild. Required files, runtime compatibility, the
+publication snapshot, the current invocation's branch, and Access are the upload
+checks. Source commit, branch, and build ID are diagnostics. CFGB v1 treats CI
+artifact storage, transfer, and the deployment environment as operator-trusted.
+This is separate from supply-chain verification of CFGB executable releases and from the
 PR/credential trust boundaries. See [delivery](04-delivery.md) and the
 [build runtime contract](10-build-runtime.md).
 
@@ -72,8 +75,12 @@ parsing, migration planning and validation do not require a Cloudflare account.
 - Canonical personal origin: `https://ymmt2005.dev`, with a trailing slash on
   content routes. `www.ymmt2005.dev` redirects to the apex at the zone/host layer.
 - Go CLI: `cfgb`; configuration: `cfgb.yaml`; generated provenance: `.cfgb.json`.
-- Astro 6 is the selected major baseline; select compatible maintained patch
-  versions at implementation time, pin packages and commit `pnpm-lock.yaml` in CFGB.
+- Node.js 24 (Krypton, Active LTS) and Node.js 26 or newer are accepted build
+  runtimes. The range is `>=24.15.0 <25 || >=26.0.0`, matching the versions
+  npm >= 12 can run. Node 25 is not included.
+- Astro 7 is the selected major baseline. The pinned release is 7.3.5.
+  Pin packages and commit `package-lock.json` in CFGB.
+  `pnpm-lock.yaml` stays in CFGB for `CFGB_PACKAGE_MANAGER=pnpm`.
   Worker Previews requires Wrangler 4.135.0+; pin one tested version in CFGB.
 - Original images live beside articles. Git branches/PRs are drafts; the configured
   `deploy.productionBranch` (default `main`) contains published content. No `draft`,

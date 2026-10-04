@@ -1,0 +1,184 @@
+---
+import { alternateMembers, languageDestination } from "../lib/locale-link.mjs";
+import { absolute, copyFor, loadSite, openGraphLocale } from "../lib/load-site.mjs";
+
+interface Props {
+  locale: string;
+  title: string;
+  description?: string;
+  path: string;
+  counterparts?: Record<string, string>;
+  untranslated?: boolean;
+  headings?: { depth: number; slug: string; text: string }[];
+  showAside?: boolean;
+  pagefind?: boolean;
+  jsonLd?: Record<string, unknown> | null;
+}
+const {
+  locale,
+  title,
+  description = "",
+  path,
+  counterparts,
+  untranslated = false,
+  headings = [],
+  showAside = false,
+  pagefind = false,
+  jsonLd = null,
+} = Astro.props;
+const { site, routes } = loadSite();
+const copy = copyFor(locale);
+const other = Object.keys(site.locales).find((item) => item !== locale) || "";
+const members = alternateMembers(counterparts);
+const otherMember = members.find((item) => item.locale === other);
+const otherDestination = languageDestination({ path, locale, destination: other, counterparts, routes });
+const canonical = absolute(site, path);
+const pageTitle = path === `/${locale}/` ? site.title : `${title} · ${site.title}`;
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const hasToc = toc.length > 0;
+const topicNav = [...routes].filter((route) => route.startsWith(`/${locale}/topics/`)).sort()[0] || `/${locale}/posts/`;
+const nav = [
+  [copy.home, `/${locale}/`],
+  [copy.posts, `/${locale}/posts/`],
+  [copy.archive, `/${locale}/archive/`],
+  [copy.topics, topicNav],
+  [copy.search, `/${locale}/search/`],
+  [copy.about, `/${locale}/about/`],
+];
+function localeChoice(lang: string, destination: string) {
+  return `/__locale?lang=${encodeURIComponent(lang)}&next=${encodeURIComponent(destination)}`;
+}
+function currentNav(href: string) {
+  if (href === `/${locale}/`) return path === href;
+  if (href.includes("/topics/") && path.includes("/topics/")) return true;
+  return path === href || path.startsWith(href);
+}
+const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
+---
+<!DOCTYPE html>
+<html lang={locale}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{pageTitle}</title>
+{description && <meta name="description" content={description} />}
+<link rel="canonical" href={canonical}>
+<link rel="alternate" type="application/rss+xml" title={copy.feed} href={`/${locale}/feed.xml`}>
+<meta property="og:title" content={title}>
+{description && <meta property="og:description" content={description} />}
+<meta property="og:url" content={canonical}>
+<meta property="og:type" content={pagefind ? "article" : "website"}>
+<meta property="og:locale" content={openGraphLocale(locale)}>
+<meta property="og:site_name" content={site.title}>
+{members.filter((item) => item.locale !== locale).map((item) => (
+  <link rel="alternate" hreflang={item.locale} href={absolute(site, item.href)} />
+))}
+{members.some((item) => item.locale === locale) && <link rel="alternate" hreflang={locale} href={canonical} />}
+<link rel="stylesheet" href="/assets/site.css">
+<script is:inline src="/assets/theme-boot.js"></script>
+{json && <script type="application/ld+json" is:inline set:html={json} />}
+</head>
+<body data-pagefind-ignore={pagefind ? undefined : "all"}>
+<a class="skip" href="#cfgb-content">{copy.skip}</a>
+<header class="mast">
+  <div class="wrap">
+    <div class="mast-row">
+      <a class="brand" href={`/${locale}/`}>{site.title.split(" ")[0]} <span>{site.title.split(" ").slice(1).join(" ")}</span></a>
+      <div class="tools">
+        <nav class="locales" aria-label={copy.language}>
+          <a href={localeChoice(locale, path)} aria-current="true" hreflang={locale}>{site.locales[locale].label}</a>
+          {other && <a href={localeChoice(other, otherDestination)} hreflang={other}>{site.locales[other].label}</a>}
+        </nav>
+        <div class="menu">
+          <button class="menu-button" id="cfgb-theme" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="cfgb-theme-list">{copy.theme}</button>
+          <ul class="menu-list" id="cfgb-theme-list" role="listbox" aria-labelledby="cfgb-theme" hidden>
+            <li role="option" tabindex="-1" data-value="system">{copy.system}</li>
+            <li role="option" tabindex="-1" data-value="light">{copy.light}</li>
+            <li role="option" tabindex="-1" data-value="dark">{copy.dark}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <nav class="sections" aria-label={copy.sections}>
+      {nav.map(([label, href]) => (
+        <a href={href} aria-current={currentNav(href) ? "page" : undefined}>{label}</a>
+      ))}
+    </nav>
+  </div>
+</header>
+<main id="cfgb-content">
+  <div class:list={["wrap", "frame", hasToc && "frame-article", !showAside && "frame-no-rail"]}>
+    {hasToc && (
+      <details class="toc toc-desktop" open>
+        <summary>{copy.toc}</summary>
+        <ol>
+          {toc.map((heading) => (
+            <li class={heading.depth === 3 ? "sub" : undefined}><a href={`#${heading.slug}`}>{heading.text}</a></li>
+          ))}
+        </ol>
+      </details>
+    )}
+    <div class="frame-main">
+      <slot name="before" />
+      {otherMember && <p class="translation">{copy.hasTranslation} <a href={otherMember.href}>{copy.openTranslation}</a></p>}
+      {untranslated && <p class="translation">{copy.noTranslation}</p>}
+      {hasToc && (
+        <details class="toc-mobile" open>
+          <summary>{copy.toc}</summary>
+          <ol>
+            {toc.map((heading) => (
+              <li class={heading.depth === 3 ? "sub" : undefined}><a href={`#${heading.slug}`}>{heading.text}</a></li>
+            ))}
+          </ol>
+        </details>
+      )}
+      <slot />
+    </div>
+    {showAside && <aside class="rail"><slot name="aside" /></aside>}
+  </div>
+</main>
+<footer class="site"><div class="wrap"><span>{site.title} · {new URL(site.baseUrl).host}</span><span><a href={`/${locale}/feed.xml`}>{copy.feed}</a></span></div></footer>
+<script is:inline src="/assets/site.js"></script>
+<script>
+  import { localizeDates } from "../lib/dates.mjs";
+  localizeDates(document);
+  import { createThemeQueue } from "../lib/theme-queue.mjs";
+  import { watchSystemTheme } from "../lib/system-theme.mjs";
+  const blocks = document.querySelectorAll("pre.mermaid");
+  const requestDraw = createThemeQueue(async (current) => {
+    if (!blocks.length || !current()) return;
+    const mermaid = (await import("mermaid")).default;
+    if (!current()) return;
+    const dark = document.documentElement.getAttribute("data-theme") === "dark"
+      || (!document.documentElement.hasAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "neutral" });
+    for (const block of blocks) {
+      if (!current()) return;
+      if (!block.dataset.source) block.dataset.source = block.textContent || "";
+      const source = block.dataset.source;
+      if (block.nextElementSibling?.classList.contains("mermaid-error")) block.nextElementSibling.remove();
+      const id = "m" + Math.random().toString(36).slice(2);
+      try {
+        const result = await mermaid.render(id, source);
+        if (!current()) return;
+        block.innerHTML = result.svg;
+      } catch (error) {
+        if (!current()) return;
+        block.textContent = source;
+        const note = document.createElement("p");
+        note.className = "mermaid-error";
+        note.textContent = error instanceof Error ? error.message : "Mermaid error";
+        block.insertAdjacentElement("afterend", note);
+      }
+    }
+  });
+  requestDraw();
+  document.addEventListener("cfgb-theme", () => { requestDraw(); });
+  watchSystemTheme(
+    window.matchMedia("(prefers-color-scheme: dark)"),
+    () => !document.documentElement.hasAttribute("data-theme"),
+    requestDraw,
+  );
+</script>
+</body>
+</html>

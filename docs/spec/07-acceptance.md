@@ -1,7 +1,13 @@
 # Acceptance and fixture guide
 
-The documents define the desired behavior. The example corpus is acceptance data, not a CLI or renderer implementation.
-Initial preparation checks only its structural and referential integrity.
+The documents describe existing design work, subject to the human-approval
+priority in [AGENTS.md](../../AGENTS.md). A document or fixture is not approval
+for a new input-rejection policy. The example corpus is acceptance data, not a
+CLI or renderer implementation. Standalone Schema checks are optional and
+separate from typed YAML loading and build acceptance.
+`tests/fixtures/validation/schema-cases.json` in the example repository holds
+the optional standalone scenarios; the CLI cases use decoded values. Do not
+run the standalone scenarios as negative CLI acceptance.
 
 | Gate | Evidence / fixture | Implementing component |
 | --- | --- | --- |
@@ -13,11 +19,11 @@ Initial preparation checks only its structural and referential integrity.
 | Paste/drop colocates originals | `.vscode/settings.json` | VS Code and Cursor manual check |
 | Image warnings and local-path isolation | Negative cases + asset inventory | CLI |
 | Cached link card / missing cache fallback | Protobuf URL and IANA URL | CLI + renderer |
-| Monthly ordering and timezone boundary | 2025 and 2026 groups; UTC boundary article | Renderer |
+| Monthly ordering and timezone boundary | Fixed archive-timezone year/month, UTC machine timestamps, reader-local visible dates and UTC no-JS fallback | Go + Renderer + Browser |
 | Topic IDs and labels | `src/data/topics.yaml`; schema-valid missing/empty locale labels fail semantic `E_TOPIC` | CLI + renderer |
 | Static, runtime, fallback routes and aliases | `static-routes.json`, `worker-routes.json`, `fallbacks.json`, aliases | CFGB renderer + Worker + Static Assets |
 | Local links and fragment resolution | Cross-article/HTML/reference links | Shared renderer manifest + CLI |
-| 20–30 search cases | `tests/search/queries.yaml` (24 queries) | Actual Pagefind browser search |
+| Search query behavior | `tests/search/queries.yaml` | Actual Pagefind browser search |
 | Locale isolation and filters | Each query has locale; topic/year cases | Pagefind |
 | SEO, RSS, OG and sitemap | Locale pairs + explicit/fallback OG; sitemap index, numbered files and canonical sets in `sitemap.json` | Renderer integration tests |
 | AI lifecycle and human edit preservation | `tests/ai/lifecycle.json` | CLI with fake provider |
@@ -25,19 +31,19 @@ Initial preparation checks only its structural and referential integrity.
 | No runtime/build-time AI/content fetching | Network-denied build after installation | CFGB build |
 | Framework-free content repositories | No Astro/Worker/package files added; embedded toolchain extraction | CFGB build |
 | Pinned Workers Builds bootstrap | Runtime contract; release/digest verification in separate command shells | Build integration |
-| Retained toolchain and runtime validation | Delivery cases; Node/pnpm/Wrangler and session/opaque build-ID mismatch failures and hash-derived path safety | CFGB build/deploy/preview |
-| Authoritative CI provenance | Detached HEAD and official CI-variable/checkout checks | CFGB provenance adapter |
-| Separate build/upload stages | `tests/build-delivery/cases.json`; artifact consistency/source-identity and timestamp gates | CFGB build/deploy/preview |
-| Summary validation modes | Missing/empty/whitespace/non-string mutations and exit codes | Schema + CLI |
+| Retained toolchain and runtime validation | Delivery cases; Node/npm/Wrangler, the optional pnpm path, a fresh workspace per build, and basename session IDs that are not derived from the build identifier | CFGB build/deploy/preview |
+| Diagnostic CI metadata | Detached HEAD records an available CI branch; a missing or differing commit, branch, or build ID stays successful | CFGB build |
+| Separate build/upload stages | `tests/build-delivery/cases.json`; supplied-artifact upload, publication timestamps, and the current-branch gate | CFGB build/deploy/preview |
+| Summary validation modes | Mode checks on decoded strings; decoder failures; optional standalone raw-type Schema scenarios | CLI / optional Schema tooling |
 | Future-date validation modes | Default/authoring `W_FUTURE_DATE`, exit 0; publish `E_FUTURE_DATE`, exit 1 | CLI |
 | Cross-locale alias rejection | Schema-valid alias in another locale; `E_URL_COLLISION`, exit 1 | CLI |
-| Semantic alias uniqueness | Duplicate arrays in every mode and duplicates across variants; `E_ALIAS_DUPLICATE` after Schema | CLI |
-| Configuration defaults and semantics | `tests/fixtures/configuration/cases.json`; preview access, production branch and enabled AI with an empty summary map | Configuration loader |
+| Semantic alias uniqueness | Duplicate arrays in every mode and duplicates across variants; `E_ALIAS_DUPLICATE` on decoded aliases | CLI |
+| Configuration defaults and semantics | `tests/fixtures/configuration/cases.json`; typed loading/defaults followed by checks only in the command that uses each setting | Configuration loader + relevant commands |
 | Setup Action and immutable-release verification | [Action contract](09-github-action.md), attestation/platform/cache failures and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
-| Configured production branch | Default `main`, custom `master`, wrong-branch deploy/preview rejection; recorded/current branch identity | CLI + Cloudflare Builds |
-| Configured-blog import and syntax inventory | Synthetic Atom exports (two blogs in this corpus) | Importer |
+| Configured production branch | Default `main`, custom `master`, wrong-branch deploy/preview rejection; the current invocation's branch | CLI + Cloudflare Builds |
+| Configured-blog import and syntax inventory | Synthetic Atom exports from configured blogs | Importer |
 | Deterministic migration pairing without AI | Candidate repeatability, absent AI credentials, zero model calls and explicit decisions | Importer |
 | Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, `workers_dev: false`, `preview_urls: true`, `previews: {}` and top-level assets | CFGB release + upload adapter |
 | Complete map before link rewriting | Migration expected map and forward link | Importer |
@@ -45,19 +51,19 @@ Initial preparation checks only its structural and referential integrity.
 | Rerun and conflicts | Hatena cases and separate expected conflict reports; unchanged last-applied hash pair | Importer |
 | Independent tool/site versions | Config schema + pinned corpus commit | CLI/release management |
 
-Artifact consistency tests are correctness/reproducibility tests, not a claim
-that CFGB authenticates site artifacts against a malicious CI artifact store,
-transfer channel or compromised deployment environment. Transferred-artifact
-tests assume operator-trusted storage/transport and verify that CFGB does not
-re-render or silently change the artifact while recreating only the upload
-toolchain. CFGB executable release verification and PR/credential isolation are
-separate security concerns.
+Upload tests check required files, runtime compatibility, publication timestamps,
+the current branch, and Access. A dirty checkout, an edited site artifact, or a
+difference in recorded commit, branch, or build ID stays successful.
+Transferred-artifact tests recreate only the upload toolchain and leave the
+supplied bytes unchanged. CFGB executable release verification and PR/credential
+isolation are separate security concerns.
 
 ## Test execution levels
 
-1. Corpus preparation: verify schema validity, routes, links, asset references,
-   target hashes and summary lifecycle expectations with temporary tooling. Do not
-   treat this as implementation acceptance.
+1. Corpus preparation: inspect routes, links, asset references, target hashes
+   and summary lifecycle expectations with temporary tooling. Optional standalone
+   Schema checks report their own results; they are not CLI loading prerequisites
+   or implementation acceptance.
 2. During CLI implementation: copy each mutation onto a fresh positive tree, run
    the real `cfgb validate` in the specified mode, and require the expected error or warning
    code and exit status. Keep fixtures out of normal content discovery. Do not compare full English
@@ -72,7 +78,7 @@ separate security concerns.
 4. Search: serve the actual built output, open `/<locale>/search/`, run each query
    through Pagefind and materialize result data. Assert expected canonical URLs
    appear within topK, unexpected locale URLs do not appear, and filters work.
-   Token presence in source is not a search test. Add 20–30 real-article Japanese
+   Token presence in source is not a search test. Add real-article Japanese
    queries after Hatena import; do not replace them with synthetic easy matches.
 5. Delivery/import: execute integration tests in disposable branches/environments
    with controlled HTTP/fake-provider responses. Never use actual old-site writes

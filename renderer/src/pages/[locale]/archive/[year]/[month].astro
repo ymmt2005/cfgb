@@ -1,0 +1,34 @@
+---
+import Base from "../../../../layouts/Base.astro";
+import PostList from "../../../../components/PostList.astro";
+import { posts, renderedProse } from "../../../../lib/content";
+import { archiveTitle, copyFor } from "../../../../lib/load-site.mjs";
+
+export async function getStaticPaths() {
+  const seen = new Set<string>();
+  const paths = [];
+  for (const post of await posts()) {
+    const month = post.archive;
+    const id = `${post.locale}/${month.year}/${month.month}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    paths.push({ params: { locale: post.locale, year: month.year, month: month.month } });
+  }
+  return paths;
+}
+const { locale, year, month } = Astro.params;
+const copy = copyFor(locale);
+const list = (await posts()).filter((post) => {
+  if (post.locale !== locale) return false;
+  const parts = post.archive;
+  return parts.year === year && parts.month === month;
+});
+const aside = await renderedProse("aside", locale);
+const title = archiveTitle(year, month, locale);
+---
+<Base locale={locale} title={title} path={`/${locale}/archive/${year}/${month}/`} showAside={!!aside}>
+  {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
+  <p class="kicker">{copy.archiveTitle}</p>
+  <h1 class="home-title">{title}</h1>
+  <PostList locale={locale} posts={list} />
+</Base>

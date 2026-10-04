@@ -4,3 +4,5 @@ node_modules/
 .pnpm-store/
 __pycache__/
 *.pyc
+.lycheecache
+external-links.md

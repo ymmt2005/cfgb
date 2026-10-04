@@ -37,14 +37,11 @@
             "pattern": "^https?://"
           },
           "locale": {
-            "enum": [
-              "ja",
-              "en"
-            ]
+            "$ref": "locale-id.schema.json"
           },
           "articleKey": {
             "type": "string",
-            "pattern": "^[0-9]{4}/[a-z0-9]+(?:-[a-z0-9]+)*$"
+            "pattern": "^[0-9]{4}/[^/]+$"
           },
           "targetUrl": {
             "type": "string",

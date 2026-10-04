@@ -35,18 +35,20 @@ not read from articles or PR-controlled scripts:
 | --- | --- |
 | `CFGB_VERSION` | Exact reviewed release tag, e.g. `vX.Y.Z`; no latest/range |
 | `CFGB_SHA256` | Reviewed 64-character lowercase SHA-256 for that executable |
-| `NODE_VERSION` | Exact supported Node.js version selected from the release requirements |
-| `PNPM_VERSION` | Exact pnpm version specified by the release |
+| `NODE_VERSION` | Exact Node release inside `>=24.15.0 <25` or `>=26.0.0`. Node 24.21.0 is the tested Active LTS. Install npm >= 12 separately; these lines bundle npm 11 |
+| `PNPM_VERSION` | Optional. A pnpm release >= 11, used only when `CFGB_PACKAGE_MANAGER=pnpm`. The tested release is recorded in `pnpmVersion` |
 | `SKIP_DEPENDENCY_INSTALL` | `1`; CFGB owns dependency installation outside the content checkout |
 
-Each CFGB release publishes `toolchain-requirements.json` and embeds the same
-requirements. Required fields are `schemaVersion: 1`, `nodeRange` (SemVer range),
-`testedNodeVersion` (exact version satisfying that range), `pnpmVersion`,
-`wranglerVersion`, `workerCompatibilityDate` (tested Workers runtime date in
-`YYYY-MM-DD` form), `rendererVersion` and `lockfileHash` (SHA-256 of embedded
-lockfile bytes). A compatible Node range such as `24.x` is illustrative, not an
-already selected runtime. The actual versions are verified when releasing CFGB.
-Wrangler must meet the Preview minimum of 4.135.0.
+The CFGB executable embeds the renderer `package.json`, `package-lock.json`, and
+`pnpm-lock.yaml`, and the build copies those files into the workspace. `engines.node`
+is the Node range. npm >= 12.0.0 and optional pnpm >= 11.0.0 are the installer
+floors. The tested Node, npm, and pnpm releases are `24.21.0`, `12.2.0`, and
+`12.8.1`; the manifest records them. The exact `wrangler` dependency is the
+Wrangler pin, and it must be at least 4.135.0. `workerCompatibilityDate` is the
+Workers runtime date pinned with the Worker source, in `YYYY-MM-DD` form. The
+lockfiles are the dependency pins. A compatible Node range such as `24.x` is
+illustrative, not an already selected runtime. The actual versions are verified
+when releasing CFGB.
 
 The Build command first downloads the pinned binary into a temporary file,
 verifies the independently configured digest, installs it under
@@ -97,75 +99,121 @@ both environments then verify the same executable bytes. Action callers need no
 platform-specific digest configuration. Other runner targets use different
 executable bytes from the same exact immutable CFGB release.
 
-## Node, pnpm and toolchain workspace
+## Node, npm and toolchain workspace
 
-Node.js is not pinned by a JavaScript package lockfile. Before dependency install,
-`build` checks the actual Node runtime against the embedded `nodeRange` and the
-actual pnpm against exact `pnpmVersion`; it does not trust environment-variable
-values as proof of the installed versions. Workers Builds uses `NODE_VERSION`
-and `PNPM_VERSION` to provision them. Other environments install compatible Node
-and the same pinned pnpm independently. Unsupported/missing runtimes fail with
-`E_TOOLCHAIN`, exit 2, before rendering or upload.
+Node.js is not pinned by a JavaScript package lockfile. npm >= 12 is the default
+installer because that release makes dependency install scripts opt-in. Before
+dependency install, `build` checks the actual Node runtime against the renderer's
+`engines.node` and requires the actual npm to be >= 12.0.0. npm 11 and older still
+run those scripts by default, so they fail `E_TOOLCHAIN`. The check does not
+require an exact npm patch, and it does not trust environment-variable values as
+proof of the installed versions. Observed Node, npm, and pnpm strings must be
+valid semantic versions. Comparison uses semantic version precedence, so a
+prerelease is lower than the same numbered release and does not satisfy a
+stable range, including a prerelease whose numeric version is above the floor. Malformed output, including a numeric prefix with trailing junk,
+is rejected before the range is applied. Workers Builds uses `NODE_VERSION` to provision
+Node 24.15.0 or newer on the Node 24 line, or Node 26.0.0 or newer. Node 25 is
+outside npm 12's supported engines. Node 24 (Krypton) is the tested Active LTS
+release. Node 26 and newer are accepted. These releases bundle npm 11, so the
+environment also installs npm >= 12. Other environments do the same.
 
-`build` creates a toolchain session outside the content repository. In Workers
-Builds `toolchainSessionId` is the 64-character lowercase hexadecimal SHA-256
-of the exact UTF-8 bytes of `buildUUID`, and its root is
-`$HOME/.cache/cfgb/builds/<sha256(buildUUID)>/`. Never use the raw build identifier
-as a path component. Elsewhere use an opaque random session ID under CFGB's user
-cache. Reject symlink/path escapes regardless of the hashed component. The
-workspace contains extracted package/lockfile sources,
-`pnpm install --frozen-lockfile` dependencies, including the pinned Wrangler, and
-private session metadata. Dependency installation is allowed network access;
+`CFGB_PACKAGE_MANAGER` selects the installer. An empty value or `npm` runs
+`npm ci` and `npm exec`. `pnpm` requires pnpm >= 11.0.0, then runs
+`pnpm install --frozen-lockfile`. pnpm 10 and older are rejected. Any other value fails
+with `E_TOOLCHAIN`, exit 2. The variable is a build-environment setting. It is
+not a field in the content repository's `cfgb.yaml`. Workers Builds sets
+`PNPM_VERSION` only for that optional path. Unsupported or missing runtimes fail
+with `E_TOOLCHAIN`, exit 2, before rendering or upload.
+
+`build` creates a fresh toolchain workspace outside the content repository:
+
+```go
+workspace, err := os.MkdirTemp("", "cfgb-build-*")
+```
+
+`MkdirTemp` creates that directory with mode `0700` before umask. The returned
+directory is this invocation's workspace. Open it as an `os.Root` when an operation
+must stay inside it. Every build gets a new directory, including two builds that
+carry the same `buildUUID`. Do not reuse a user-cache path, and do not derive the
+directory name from `sha256(buildUUID)` or from the raw build identifier.
+
+`build-manifest.json` records `toolchainSessionId` as `filepath.Base(workspace)`.
+A workspace `/tmp/cfgb-build-1234567890` records `cfgb-build-1234567890`. That
+field is the generated basename, not an absolute path and not a caller-supplied
+relative path. The manifest also records toolchain requirements and observed
+versions. It contains no absolute workspace path, `node_modules`, or source
+snapshot. `buildUUID` remains the original opaque `WORKERS_CI_BUILD_UUID` when
+that variable is present. It is diagnostic metadata, and it does not name the workspace.
+
+In the same build environment, deploy and preview resolve the workspace as
+`filepath.Join(os.TempDir(), toolchainSessionId)`. Those commands must share the
+temporary-directory setting and filesystem with the build that created it. Reject
+an ID that is absolute, contains a path separator, or is `.` or `..` before
+joining it. Do not recompute the ID from `buildUUID`.
+
+A failed build removes the workspace that invocation created and does not remove
+another build's workspace. A successful build retains the workspace for the
+subsequent deploy or preview command. Do not remove it when build returns
+successfully. After upload completion or failure, remove that workspace. Disposal
+of the build environment also ends its lifetime. Deploy and preview themselves
+are later work. The workspace contains extracted package and lockfile sources, `npm ci` dependencies
+by default (or the frozen pnpm install when selected), including the pinned
+Wrangler, and private session metadata. The renderer `package.json` `allowScripts`
+field permits install scripts for `esbuild` and `workerd`. The pnpm
+path permits the same two packages through `allowBuilds` in
+`pnpm-workspace.yaml`, and sets `fsevents` to false. sharp 0.35 has no
+install script. Every other dependency install script stays blocked.
+Dependency installation is allowed network access;
 content rendering, indexing and integration checks subsequently run offline.
 
-Retain this workspace after `build` returns and through the Deploy/Preview
-command in the same Workers Build. Cleanup is after upload completion/failure or
-build-environment disposal, never at successful build return. The workspace is
-not part of the deployable artifact and does not belong in Git, static assets,
-artifact transfer or visitor runtime. No credentials are stored in session state.
+The workspace is not part of the deployable artifact and does not belong in Git,
+static assets, artifact transfer or visitor runtime. No credentials are stored in
+workspace state.
 
-`build-manifest.json` records `toolchainSessionId` and toolchain requirements plus
-observed versions; it contains no absolute workspace paths or node_modules.
-Session metadata binds its ID, original raw build identifier when present,
-source identity, embedded lockfile digest, verified
-artifact-manifest digest and installed tool versions. Upload resolves that session
-through CFGB's cache registry/deterministic Workers Build path, verifies these
-bindings and invokes Wrangler by its workspace path. Never use a global Wrangler
-or unpinned npx resolution.
-For Workers Builds, recompute the session ID from the manifest's raw `buildUUID`
-and require it to match the recorded `toolchainSessionId` before resolving the
-workspace. A hash-derived path does not replace exact raw provenance comparison.
+Session metadata records the workspace basename, the original raw build
+identifier when present, and the installed tool versions. Upload resolves the
+recorded basename under the shared temp directory and invokes Wrangler by its
+workspace path. A difference in source commit, branch, or build identifier
+leaves that lookup unchanged. Never use a global Wrangler or unpinned npx resolution.
 
-Same-build uploads require the original matching session. Missing/corrupt session
-state fails with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. The
-session binding prevents accidental cross-build/session reuse and preserves
-toolchain consistency; it does not provide cryptographic authentication of site
-artifacts. For an artifact intentionally moved outside the original build environment, the CLI
+Same-build uploads require that workspace. Missing or corrupt workspace state fails
+with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. The
+recorded basename selects that invocation's workspace.
+For an artifact moved outside the original build environment, the CLI
 may recreate only the identical embedded upload toolchain using the same CFGB
-release, after artifact/runtime verification. It must not render, generate content
+release, after the required-file and runtime checks. It must not render, generate content,
 or alter artifact bytes. This recreation is dependency installation, not a site
-rebuild. Record a fresh local session binding; preserve artifact provenance.
+rebuild. Record a fresh local session for the recreated toolchain. The supplied
+artifact, including its diagnostic metadata, stays unchanged.
 
-Upload rechecks the actual Node/pnpm/Wrangler versions and session integrity.
+Upload rechecks the actual Node version, the package manager used for the build,
+and Wrangler.
 Within the original session, observed Node must also match the build observation;
 a recreated upload session can use another Node version within the recorded
 supported range, while retaining a separate record of that upload runtime. The
-manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `pnpmVersion`,
-`wranglerVersion`, `workerCompatibilityDate`, `rendererVersion`, `lockfileHash`
-and observed `nodeVersion`;
-observed pnpm/Wrangler must match their exact required versions. The selected
-CFGB release's requirements must match the artifact's recorded requirements.
-Altered/incompatible artifact metadata fails with `E_ARTIFACT`, exit 1.
+manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `packageManager`
+(the installer this build used), `npmVersion`, `pnpmVersion`, `wranglerVersion`,
+`workerCompatibilityDate`, `rendererVersion`, and observed `nodeVersion`,
+`observedNpmVersion` and `observedPnpmVersion`. `nodeRange` is the renderer's
+`engines.node`. `wranglerVersion` is its exact `wrangler` dependency.
+`workerCompatibilityDate` is the date pinned with the Worker source.
+An npm build records the observed npm version and requires npm >= 12.0.0.
+A pnpm build records the observed pnpm version and requires pnpm >= 11.0.0.
+Observed Wrangler must match its exact required
+version. The artifact's `workerCompatibilityDate` must match the release pin
+used to generate Wrangler configuration. A mismatch fails with `E_ARTIFACT`, exit 1.
 
 ## Generated Wrangler runtime configuration
 
-The CFGB release pins `workerCompatibilityDate` together with its Worker source
-and Wrangler version, and records it in the artifact's toolchain requirements.
-Release testing covers that exact runtime date for production and preview.
-Build/deploy/preview must not derive it from their execution date, the source
+The CFGB release pins `workerCompatibilityDate` with its Worker source and pins
+Wrangler in the renderer package manifest. The artifact records both. Release
+testing covers that exact runtime date for production and preview.
+Build/deploy/preview must not derive the date from their execution date, the source
 commit date or the current platform default. Changing it requires a reviewed,
-tested CFGB release. Missing/invalid embedded requirements fail `E_TOOLCHAIN`,
-exit 2; a mismatching artifact requirement fails `E_ARTIFACT`, exit 1.
+tested CFGB release. A missing `engines.node`, or a Wrangler dependency that is
+not an exact version of at least 4.135.0, fails `E_TOOLCHAIN`, exit 2. An
+artifact whose `workerCompatibilityDate` differs from the release pin fails
+`E_ARTIFACT`, exit 1.
 
 Generate temporary Wrangler configuration for both upload commands with top-level
 `compatibility_date` equal to that pinned value, `workers_dev: false`,
@@ -204,36 +252,36 @@ anonymous access denied by the reviewed Access policy. Test a fresh Worker and
 an existing Worker whose URL settings were previously different.
 No Wrangler configuration or runtime-date override belongs in a content repository.
 
-## Artifact verification scope
+## Artifact checks
 
-The artifact manifest, output hashes, source checks and toolchain-session bindings
-are deployment-correctness and reproducibility mechanisms. They establish that
-CFGB is operating on a self-consistent artifact for the expected source/runtime
-context and that upload does not silently rebuild or change its bytes. They do
-not provide cryptographic authentication of a site artifact against a malicious
-artifact store, transfer channel or compromised deployment environment.
+Upload checks that `site/`, `worker/index.js`, and `build-manifest.json` are
+present, that the artifact format is one this release can upload, and that the
+recorded `workerCompatibilityDate` matches the release pin used to generate
+Wrangler configuration. It also checks the Node, package-manager, and Wrangler
+versions required to run that toolchain, the publication snapshot against the
+command's date rule, the current invocation's branch, and Preview Access. The
+upload sends the supplied bytes. An edit made after the build remains in that
+upload. CFGB does not rebuild the site during upload.
 
-CFGB v1 assumes CI artifact storage/transfer and the deployment environment are
-inside the operator's trusted CI boundary. This is appropriate for the site
-artifact, which is deployed by that same operator rather than distributed as a
-trusted executable to third parties. If a deployment environment with upload
-credentials is compromised, an attacker can deploy arbitrary Worker/assets
-regardless of the CFGB manifest, so CFGB does not add a site-artifact signing or
-attestation requirement in v1. Operators that need a stronger provenance model
-may layer an external digest/signature/CI attestation on top; CFGB neither
-requires nor interprets it.
+The workspace basename locates the installed toolchain for a same-environment
+upload. Its lifetime and cleanup rules are unchanged. A missing or corrupt
+workspace fails with `E_TOOLCHAIN`, exit 2.
 
-Transferred artifacts are therefore supported without a CFGB-specific external
-attestation. They still undergo the ordinary artifact-byte/hash, source identity,
-publication, runtime-version and target checks, and upload-toolchain recreation
-must leave their bytes unchanged. Supply-chain verification of the CFGB
-executable itself remains a separate security mechanism defined by the release
-and setup-Action contracts.
+CFGB v1 treats CI artifact storage, transfer, and the deployment environment as
+operator-trusted. The operator may publish an artifact they edited after the
+build. An external digest or CI attestation may accompany that artifact; CFGB
+does not require or interpret one for site files. Verification of the downloaded
+CFGB executable remains the release, bootstrap, and setup-Action contract.
 
-## Provenance resolution
+## Diagnostic source metadata
 
-When `WORKERS_CI=1` or any Workers Builds provenance variable is present, use the
-Workers Builds adapter. Its authoritative inputs are:
+Source commit, branch, build identifier, and provenance provider are optional.
+Record a value when the environment supplies it. A missing value, a partial set,
+or a difference from the current checkout leaves the build and the upload
+successful.
+
+When `WORKERS_CI=1` or any of the Workers Builds variables below is non-empty,
+record `provenanceProvider: workers-builds` and each value that is present:
 
 | Variable | Build manifest field |
 | --- | --- |
@@ -241,61 +289,55 @@ Workers Builds adapter. Its authoritative inputs are:
 | `WORKERS_CI_BRANCH` | `sourceBranch` |
 | `WORKERS_CI_BUILD_UUID` | `buildUUID` |
 
-All three must be present and valid in Workers Builds; missing/invalid or
-checkout-mismatched metadata fails with `E_BUILD_SOURCE`, exit 1. Do not fall back to Git
-branch discovery on missing/partial CI metadata. Store `provenanceProvider:
-workers-builds` and validate the declared commit against `git rev-parse HEAD`.
-Detached HEAD is normal; it does not replace the CI branch with `HEAD`. Treat the
-branch as a literal ref name, never executable input. `buildUUID` is optional in
-the general artifact contract but required for Workers Builds artifacts.
-
-Treat `WORKERS_CI_BUILD_UUID` as a non-empty opaque UTF-8 build identifier,
-not an RFC UUID. Store its exact value as `buildUUID`, without trimming,
-case-folding, parsing UUID syntax or normalizing path separators. Compare the
-original values exactly during same-build upload. Cloudflare's
+A detached HEAD records `WORKERS_CI_BRANCH` when that variable is present. The
+branch is a literal ref name. `buildUUID` stores the exact variable value,
+including prefixes and path separators, without trimming, case-folding, UUID
+parsing, or path normalization. An empty value is omitted. The workspace path
+remains the generated basename. Cloudflare's
 [event examples](https://developers.cloudflare.com/workers/ci-cd/builds/event-subscriptions/)
 also use prefixed build identifiers; their format is not a CFGB validation rule.
 
-These platform variables can be overridden. Trusted build settings must leave
-them platform-managed, and repository scripts may not replace them. Environment
-provenance alone does not prove a checkout is trustworthy; retain clean-source,
-input-hash and commit checks.
+These platform variables can be overridden. Trusted build settings leave them
+platform-managed, and repository scripts may not replace them. The recorded
+values stay diagnostic.
 
-Outside Workers Builds, obtain commit and branch from the original Git checkout
-and record `provenanceProvider: git`. Never inspect the extracted renderer/upload
-workspace for branch identity. Detached Git checkouts can build read-only artifacts
-with an unknown branch, but uploads requiring a branch must fail with
-`E_BUILD_SOURCE`, exit 1. Other CI upload pipelines must check out the actual
-reviewed named branch; do not guess from tags or silently assign the configured
-production branch.
+Outside Workers Builds, record commit and branch from the content checkout and
+`provenanceProvider: git` when those values are available. A detached checkout
+with no CI branch omits `sourceBranch`, and the build still succeeds. Read that
+identity from the content checkout. The extracted renderer workspace is not a
+source of branch identity. Other CI upload pipelines pass the current
+invocation's branch into the production-branch guard below.
 
-Build and upload compare current source identity to the finalized artifact. In the
-same Workers Build require commit, branch and build UUID to agree; retry builds
-have their own UUID/session and build their own artifact. Reject mismatches before
-upload with `E_BUILD_SOURCE`, exit 1. Production requires both the recorded and
-current source branch to equal `deploy.productionBranch` (parser default `main`);
-Preview requires a different branch. Wrong-branch attempts fail before upload
-with `E_DEPLOY_TARGET`, exit 1. Commit identity is compared with the current
-checkout, not with the production branch's tip. Align the platform's production
-branch and branch protection with the configured value. Pass the authoritative
-branch to the pinned Wrangler Preview adapter, derive its Preview name using
-the pinned Wrangler naming behavior, and pass that name explicitly with `--name`.
-Do not let Wrangler infer it from detached HEAD or a temporary workspace. Reject
-invalid/colliding names and verify branch/name mapping against the pinned Wrangler
-during implementation.
-A transferred artifact retains its original build UUID for traceability; it does
-not impersonate the new environment's build UUID.
+Production compares the current invocation's branch with
+`deploy.productionBranch` (parser default `main`). Preview requires a different
+branch. A wrong branch fails before upload with `E_DEPLOY_TARGET`, exit 1.
+Align the platform's production branch and branch protection with the configured
+value. Pass the current branch to the pinned Wrangler Preview adapter, derive
+its Preview name using the pinned Wrangler naming behavior, and pass that name
+explicitly with `--name`. Derive the name from that branch rather than from a
+detached HEAD or a temporary workspace. Reject invalid or colliding names and
+verify the branch and name mapping against the pinned Wrangler during
+implementation. A transferred artifact keeps the build UUID already stored in
+its manifest. Upload leaves that file unchanged.
+
+The manifest also records `publications`: each variant's article key, locale,
+slug, summary, and timestamps. Production deploy uses that snapshot for the
+current-time future-date check. The snapshot is publication metadata. It is not
+a hash of source content.
 
 ## Acceptance
 
 Before relying on this integration, test the bootstrap and separate command shells
-in a disposable Workers Build: exact binary/hash reuse, retained session/Wrangler,
-Node/pnpm version checks, no toolchain files in the artifact, CI detached HEAD,
-partial/overridden/mismatched provenance, opaque build-ID/session isolation and clean-source
-checks. Test transferred-artifact upload toolchain recreation separately, asserting
+in a disposable Workers Build: exact binary hash reuse of the CFGB executable,
+retained session and Wrangler, Node and npm version checks, the optional pnpm >= 11
+path, no toolchain files in the artifact, a detached HEAD that records an
+available CI branch, and opaque build-ID and session isolation. Missing, partial,
+and differing diagnostic metadata stay successful, as does a dirty checkout.
+Test transferred-artifact upload toolchain recreation separately, asserting
 zero renderer calls and identical artifact bytes. Data fixtures are future test
 inputs, not evidence of executed Cloudflare deployment.
-Include non-RFC identifiers and identifiers containing path separators/traversal
-text: preserve the raw manifest value, derive only the lowercase SHA-256 workspace
-component, and never create paths from raw values. Empty identifiers fail source
-validation; different identifiers must not reuse an artifact/session from another build identity.
+Include non-RFC build identifiers and identifiers containing path separators.
+Preserve a non-empty raw `buildUUID`. It is never a path component.
+`toolchainSessionId` is only the generated workspace basename. An empty build
+identifier is omitted, and the build succeeds. Two builds
+do not share a workspace, even when their build identifiers are equal.

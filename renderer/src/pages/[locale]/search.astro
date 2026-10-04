@@ -1,0 +1,22 @@
+---
+import Base from "../../layouts/Base.astro";
+import { renderedProse } from "../../lib/content";
+import { copyFor, loadSite } from "../../lib/load-site.mjs";
+
+export function getStaticPaths() {
+  const { site } = loadSite();
+  return Object.keys(site.locales).map((locale) => ({ params: { locale } }));
+}
+const { locale } = Astro.params;
+const copy = copyFor(locale);
+const aside = await renderedProse("aside", locale);
+---
+<Base locale={locale} title={copy.searchTitle} path={`/${locale}/search/`} showAside={!!aside}>
+  {aside && <Fragment slot="aside"><aside.Content /></Fragment>}
+  <h1 class="home-title">{copy.searchTitle}</h1>
+  <p>{copy.searchHint}</p>
+  <link rel="stylesheet" href="/pagefind/pagefind-ui.css">
+  <div id="search"></div>
+  <script is:inline src="/pagefind/pagefind-ui.js"></script>
+  <script is:inline src="/assets/search.js"></script>
+</Base>

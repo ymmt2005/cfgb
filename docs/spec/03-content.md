@@ -3,14 +3,36 @@
 ## Identity and frontmatter
 
 Discover only `content.root/posts/<YYYY>/<article-key>/<locale>.md`.
-The pair `<YYYY>/<article-key>` is the logical article identity. Article keys
-match `[a-z0-9]+(-[a-z0-9]+)*`; the initial `YYYY-MM-DD-` prefix is a creation
+The pair `<YYYY>/<article-key>` is the logical article identity. An article key
+is the literal directory name, without an additional character pattern. It is
+independent of the public slug; spaces, Unicode and punctuation are preserved.
+Encode each literal group component when constructing public media URLs.
+The initial `YYYY-MM-DD-` prefix is a creation
 convention, not a source of publication dates. Do not rename published groups.
-The filename supplies locale. An article group has one or both enabled locales
-and shared `assets/`; `.cfgb.json` is optional. A stray `fr.md`, nested variant,
-or duplicate locale is an error. Discovery excludes `tests`, docs and examples.
+The filename supplies locale. An article group has each enabled locale that was
+authored, and shared `assets/`; `.cfgb.json` is optional. A stray `fr.md`, nested variant,
+or duplicate locale is an error. Directories inside a group other than `assets/`
+fail with `E_TRANSLATION_GROUP`, exit 1. Subdirectories
+inside `assets/` remain shared assets, not article variants. Discovery excludes
+`tests`, docs and examples.
 
-Frontmatter structure requires `title`, `slug`, `publishedAt`, `topics`.
+`build` isolates each article's front matter with a line reader and decodes only
+that block with `goccy/go-yaml`. The Markdown body, including a later `---` or
+fenced code, is unchanged. Home, about, and aside files have no front matter, so
+their entire contents stay the body. `topics.yaml` decodes into its typed map.
+Article YAML unmarshals directly into the Go metadata struct; fields are strings,
+string slices and Go time values. Consumers use those fields, not generic maps.
+The YAML library supplies conversions and decoding errors; loaders add no AST,
+custom-tag/document restrictions or mandatory JSON Schema validation. Article
+body bytes are preserved. The renderer consumes serialized typed records and
+does not parse YAML itself.
+
+The following authoring/validation conventions describe the existing corpus and
+optional standalone/editor schema. They are not YAML-loader prerequisites.
+New runtime rejection rules require explicit human approval under `AGENTS.md`;
+see the [PR #3 policy audit](../reviews/pr-3-policy-audit.md) for unverified rules.
+
+The documented article structure includes `title`, `slug`, `publishedAt`, `topics`.
 `summary` is structurally optional and may be empty during authoring. Default
 validation and publication require a nonempty summary as a semantic rule.
 Optionally `updatedAt`, `ogImage`, `aliases`. No other keys.
@@ -61,8 +83,17 @@ excluded from canonical lists/search/feeds/sitemap. Root can be an x-default
 alternate but is not an indexable generated page. Empty locale archives/home lists remain
 valid. Monthly/topic pages exist only where that locale has matching articles.
 Default lists are unpaginated in v1. Latest = descending publication instant,
-then ascending article key as a deterministic tie break. `updatedAt` never
-reorders publication feeds. Archive year/month and visible dates use site timezone.
+then ascending article key and full year/group identity as deterministic tie
+breaks. `updatedAt` never
+reorders publication feeds. `site.timezone` is used only for monthly archive
+classification: Go derives each article's archive year/month from its publication
+instant and passes these fields separately from UTC publication/update timestamps.
+Article lists, homes and article pages initially show the UTC date. JavaScript
+uses the reader's browser timezone to update date text in the existing language
+format; without JavaScript the UTC fallback remains. Generated `datetime`,
+JSON-LD, Pagefind publication metadata and RSS retain UTC instants. Archive page
+membership and links remain fixed even when a reader's visible date falls in a
+different month. Directory names do not determine archive membership.
 
 An article's URL never depends on directory year, title, or date. Build a single
 route registry before rendering. Aliases are origin-relative paths with a trailing
@@ -71,20 +102,27 @@ slash; reject queries/fragments, encoded separators, dot segments, backslashes,
 using letters/digits/hyphens/underscores. Reject alias loops, duplicate aliases,
 canonical collisions, reserved routes and cross-locale aliases. Emit direct 301s
 to current canonical routes (no chains). Hatena URLs are provenance, not aliases.
-Alias array/item structure is checked by JSON Schema. Duplicate aliases within
+Alias array/item structure is documented by the optional standalone JSON Schema;
+the YAML loader decodes the Go slice directly. Duplicate aliases within
 one variant or across variants are semantic errors: `E_ALIAS_DUPLICATE`, exit 1,
 in default, authoring and publish validation. Do not reject duplicates as
-`E_SCHEMA`; structural alias type/path failures remain schema errors.
-A schema-valid alias must begin with its owning variant's `/<locale>/` prefix.
+`E_SCHEMA`; values that cannot decode into the Go slice remain decoder errors.
+Optional Schema path checks are separate from YAML loading. The existing
+semantic alias-ownership rule requires the owning variant's `/<locale>/` prefix.
 A cross-locale alias is `E_URL_COLLISION`, exit 1, in every validation mode,
 even when its path does not otherwise exist in the route registry.
 
-Global language links target the same article's counterpart if available;
-otherwise target the other locale home. Only real pairs receive an article-level
-translation notice and reciprocal `hreflang`. Each pair member uses its own
-canonical and its own summary/dates. Do not pretend untranslated content has an
-alternate. Other translated page pairs have reciprocal locale links. Root may
-use `x-default`; unpaired articles must not invent a language alternate.
+Global language links use the article group's locale-to-URL map. The requested
+locale resolves to that group's counterpart, or to that locale's home when the
+group has no translation. A different group that publishes the same slug is not
+a counterpart. Alternate-language metadata is the collection of actual group
+members and is omitted when the group has only one. The shipped header still
+shows the other configured language; a selector for more than two languages is
+separate work. Only a real counterpart receives the article-level translation
+notice and reciprocal `hreflang`. Each member uses its own canonical and its
+own summary/dates. Do not pretend untranslated content has an alternate. Home
+and about use the same map over the configured locales. Root may use
+`x-default`; unpaired articles must not invent a language alternate.
 
 ## Markdown and images
 
@@ -95,16 +133,28 @@ extension. Keep that extension enabled. Place the definitions at the end of the
 article body, numbered by first reference. Each reference links to its
 definition, and each definition links back to every reference that uses it. The
 same id keeps one number. Render inline Markdown inside a definition. Show the
-list without JavaScript. A reference with no definition is `E_LINK_BROKEN`.
+list without JavaScript. Aside is rendered on its own and then placed beside the
+page. Prefix that fragment's generated ids, fragment links, footnote
+backreferences, and accessibility references with `aside-` so they do not collide
+with the page. Renamed authored ids also require their HTML `for`, `list`, `form`,
+and `headers` references and ARIA id references to be updated. Rewrite only
+targets inside the fragment; references outside it and links to other pages stay
+unchanged. Article heading anchors stay unchanged. A reference with no definition is `E_LINK_BROKEN`.
 Omit a definition that nothing references. Leave footnote syntax inside code
 fences unchanged. Process Markdown via AST, including reference
-links and raw HTML attributes. Local links to `../other-key/ja.md#heading` resolve
+links and raw HTML attributes. Parse those attributes with an HTML syntax tree,
+including unquoted values, and do not rewrite text inside HTML comments. Replace
+the attribute value in the original tag text. An opening tag stays an opening tag,
+so the visible label remains inside the anchor when Markdown splits the tag from
+its text. Local links to `../other-key/ja.md#heading` resolve
 through the route registry; root-relative internal URLs must also resolve.
 Fragment checks use the renderer's actual heading IDs, including duplicates and
 non-Latin headings. Go validation uses a shared heading-manifest adapter or the
 same algorithm, never an independent guess. Explicit HTML `id` values count too.
-Do not rewrite examples inside code fences. Markdown H1 is reserved for the
-layout title; article body headings begin at H2, TOC includes H2/H3.
+Do not rewrite examples inside code fences. Layout-owned targets use the
+`cfgb-` prefix (for example `cfgb-content`) so ordinary authored headings such
+as Content do not shadow the skip link. Markdown H1 is reserved for the layout
+title; article body headings begin at H2, TOC includes H2/H3.
 
 Raw HTML is allowed for trusted, reviewed authors. It does not imply arbitrary
 third-party scripts are acceptable; inventory and review migration embeds. Reject
@@ -112,9 +162,25 @@ javascript URLs. No MDX/code execution. Imported inline event handlers, iframes
 and scripts are surfaced as review blockers before publication. Any approved
 embed must be consistent with the final CSP/privacy policy.
 
-Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images
-and supplies dimensions/responsive delivery. External images remain external
-without build-time downloads and appear in migration/privacy reports. Local SVG
+Original PNG/JPEG/SVG/etc. remain in Git. Astro processes local Markdown images,
+including reference-style images, in articles and in home, about, and aside.
+It supplies dimensions and emits the processed file. A definition used by a
+Markdown image stays on that pipeline, even when a link uses the same definition.
+Resolve image and link consumers separately, preserving the definition's title
+and CommonMark identifier matching and first-definition precedence. Decode
+local asset path components once; encoded filename characters such as `%26`,
+`%23`, and `%3F` denote filename characters, not URL delimiters. A `./assets/...`
+reference identifies a file and must not have a query or fragment. Reject such
+suffixes consistently in Markdown images, asset links, and raw HTML attributes.
+This restriction does not apply to published root-relative or remote URLs, or
+relative article links such as `../other-key/ja.md#heading`. Relative article
+links split their URL suffix before decoding and route lookup. External images
+remain external without build-time downloads and appear in migration/privacy
+reports. Raw HTML images and links to `./assets/...` are published under
+`/media/<year>/<article>/`. Home, about, and aside use `/media/home/`,
+`/media/about/`, and `/media/aside/`. Media scopes come from the normalized source
+metadata, not guesses based on the file's absolute path. Existing percent-escapes
+are not encoded again. Local SVG
 is used as an image, not blindly injected as trusted inline markup. The example
 includes SVG as a precise diagram and PNG as an original lossless raster fixture.
 OG fallback is a build-time PNG with title/branding and a bundled licensed font
@@ -128,11 +194,15 @@ An escaping path is `E_LOCAL_PATH`, exit 1, even if the target does not exist.
 
 Expressive Code + Shiki handles syntax, `title="main.go"`, line/text marks, copy
 buttons and accessible filename frames. One light/dark representation follows
-page theme. Mermaid fences are extracted before code highlighting. Lazy-load a
+page theme. Selectors are `[data-theme="light"]` and `[data-theme="dark"]`, so
+system mode, which has no `data-theme` attribute, keeps the library's
+`prefers-color-scheme` rules. Mermaid fences are extracted before code highlighting. Lazy-load a
 local Mermaid bundle only when a page contains diagrams; use `securityLevel:
-strict`. Keep original source in a no-JS fallback; hide it only after successful
-rendering. Invalid Mermaid keeps source with a useful error, not blank content.
-Re-render from original source on theme change; serialize renders to avoid races.
+strict`. Keep the original source in that render target as the no-JS fallback;
+hide it only after successful rendering by replacing the element with the diagram.
+Do not emit a second copy of the source. Invalid Mermaid keeps source with a useful error, not blank content.
+Re-render from original source on theme change, including a system color-scheme
+change while the page remains in system mode; serialize renders to avoid races.
 
 Theme states are system/light/dark. The color palette is specified only in
 `cfgb.yaml`, not by a visitor control and not by a content file. Store explicit choice locally, handle storage
@@ -148,11 +218,17 @@ may load the small global theme controller; no Mermaid/Pagefind there.
 
 Run Pagefind Extended on built output. Each page has correct `<html lang>`;
 load search only at `/<locale>/search/`, and reinitialize when locale changes.
-Use `data-pagefind-body` only on article content, with metadata for title, summary,
-publication date and topics; filters use stable topic IDs and site-local year.
-Navigation, the right-hand column, TOC, footer, and copy labels are excluded. Search title must remain searchable
+Use `data-pagefind-body` on the article title, summary, and Markdown body, with
+metadata for title, summary, publication date and topics; filters use stable topic IDs and the archive-timezone publication year.
+The publication timestamp is the `datetime` attribute of its `time` element,
+recorded as `published[datetime]`, not as a bracketed literal value.
+Pages that are not articles, including generated 404 pages, carry
+`data-pagefind-ignore="all"`. The search UI selects the document language as the
+`locale` filter. Navigation, the right-hand column, TOC, footer, and copy labels are excluded. Search title must remain searchable
 even if metadata is set outside the body. URL results must be canonical locale
-paths. The checked-in query corpus specifies top-k inclusion, not brittle ranking.
+paths. Aliases are emitted only in `_redirects`; static alias HTML is unnecessary
+for delivery. The checked-in query corpus specifies top-k inclusion, not brittle
+ranking.
 
 Generate canonical, reciprocal alternates, OpenGraph, Twitter cards, BlogPosting
 JSON-LD, sitemap and RSS. Feed descriptions reuse summaries; no full-body feed is
@@ -182,7 +258,9 @@ Use the integration's `serialize` hook to supply article `lastmod` from `updated
 when present, otherwise `publishedAt`; never use the build clock. Pages without
 source modification metadata omit `lastmod`. Supply language links from actual
 translation groups and confirmed translated page counterparts, including each
-paired page itself. Unpaired articles have no language alternates. Do not use
+paired page itself. Home and about routes are generated for every configured
+locale, so their alternates come from that locale list rather than from
+optional prose files. Unpaired articles have no language alternates. Do not use
 automatic pathname-based i18n matching: paired locale articles may have different
 slugs. The integration still owns XML serialization and file splitting.
 
