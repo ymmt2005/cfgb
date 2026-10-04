@@ -163,6 +163,25 @@ func TestArticleUsesTypedDecoder(t *testing.T) {
 	}
 }
 
+func TestSummaryUsesDecodedString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		yaml string
+		want string
+	}{
+		{yaml: "42", want: "42"},
+		{yaml: "false", want: "false"},
+		{yaml: "null", want: ""},
+	} {
+		t.Run(tc.yaml, func(t *testing.T) {
+			data := decodedFront(t, "summary: "+tc.yaml+"\n---\n")
+			if data.Summary != tc.want {
+				t.Fatalf("decoded summary = %q, want %q", data.Summary, tc.want)
+			}
+		})
+	}
+}
+
 func TestCollectAgreesOnMetadata(t *testing.T) {
 	dir := t.TempDir()
 	articleDir := filepath.Join(dir, "posts", "2026", "2026-09-19-protobuf-guide")

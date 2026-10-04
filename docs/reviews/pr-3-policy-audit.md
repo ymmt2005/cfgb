@@ -125,6 +125,16 @@ to the renderer. The loader test is not proof of byte-for-byte preservation of
 arbitrary invalid UTF-8 through JSON and HTML. This does not authorize adding an
 encoding rejection policy.
 
+The sibling example fixtures are now separated accordingly. The nine null,
+numeric and boolean summary cases check the decoded Go string: null follows
+the empty-summary mode rule, while numeric/boolean scalars do not produce a
+raw-type error. A loader regression test verifies all three conversions.
+Five optional standalone Schema cases live in a separate file, including the
+former invalid-slug/external-alias cases and the three raw summary types.
+These cases do not authorize CLI rejection. `validate` is not implemented in
+this PR, so its future semantic fixture outcomes are not claimed as executed
+command acceptance.
+
 ## Instructions verified in the visible user discussion
 
 - Use `os.Root` for repository input reads and respect the repository boundary.
