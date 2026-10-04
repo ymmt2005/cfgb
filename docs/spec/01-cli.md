@@ -92,7 +92,7 @@ those are not mandatory CLI checks. New runtime constraints require human approv
 `ymmt2005/cfgb-action` installs a verified, exact CFGB release and registers it on
 PATH. Caller workflow `run` steps execute the CLI directly, retaining its argument,
 diagnostic and exit-code contract. Setup inputs, outputs and release installation
-are specified in the [Action contract](09-github-action.md).
+are documented in the [Action repository](https://github.com/ymmt2005/cfgb-action#readme).
 
 ## Build and delivery
 

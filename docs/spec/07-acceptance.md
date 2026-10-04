@@ -39,7 +39,7 @@ run the standalone scenarios as negative CLI acceptance.
 | Cross-locale alias rejection | Schema-valid alias in another locale; `E_URL_COLLISION`, exit 1 | CLI |
 | Semantic alias uniqueness | Duplicate arrays in every mode and duplicates across variants; `E_ALIAS_DUPLICATE` on decoded aliases | CLI |
 | Configuration defaults and semantics | `tests/fixtures/configuration/cases.json`; typed loading/defaults followed by checks only in the command that uses each setting | Configuration loader + relevant commands |
-| Setup Action and immutable-release verification | [Action contract](09-github-action.md), attestation/platform/cache failures and subsequent direct CLI execution | `cfgb-action` |
+| Setup Action and immutable-release verification | [Action documentation](https://github.com/ymmt2005/cfgb-action#readme), verified installation/toolchain metadata, package-manager selection and subsequent direct CLI execution | `cfgb-action` |
 | PR generated diff / latest-head validation | Delivery race and retry scenarios | GitHub CI |
 | Private preview on every exposed host | Pre-upload `preview_worker` identity/policy check plus anonymous denied / authorized successful | Cloudflare integration |
 | Configured production branch | Default `main`, custom `master`, wrong-branch deploy/preview rejection; the current invocation's branch | CLI + Cloudflare Builds |

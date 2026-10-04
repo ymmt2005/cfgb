@@ -52,7 +52,7 @@ CLI release and register it on PATH. Workflow `run` steps execute CFGB commands
 directly. Action and CLI releases are separately pinned. Future GitHub-specific
 capabilities, if needed, stay in the same public Action repository and entry point.
 Workers Builds invokes the CLI directly, without requiring the Action.
-See the [setup Action contract](09-github-action.md).
+See the [setup Action documentation](https://github.com/ymmt2005/cfgb-action#readme).
 
 ```mermaid
 flowchart TD

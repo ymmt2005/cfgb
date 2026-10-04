@@ -53,7 +53,7 @@ through [cfgb-action](https://github.com/ymmt2005/cfgb-action) before running bu
 | [Hatena migration](docs/spec/06-migration.md) | Inventory, pairing, links/assets, checkpoints and conflicts |
 | [Acceptance](docs/spec/07-acceptance.md) | Traceable implementation gates and fixture semantics |
 | [References](docs/spec/08-references.md) | Primary platform documentation reviewed for the design |
-| [GitHub Action](docs/spec/09-github-action.md) | CLI setup Action, inputs/outputs, versions and installation contract |
+| [GitHub Action](https://github.com/ymmt2005/cfgb-action#readme) | CLI setup Action documentation, inputs/outputs and installation |
 | [Build runtime](docs/spec/10-build-runtime.md) | Workers Builds bootstrap, Node/npm/Wrangler lifecycle, and diagnostic build metadata |
 
 [JSON Schemas](schemas/) are optional standalone/editor validation aids; YAML
