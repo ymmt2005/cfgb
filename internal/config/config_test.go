@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/goccy/go-yaml/ast"
 )
 
 func TestLoadSelectedFile(t *testing.T) {
@@ -98,7 +96,7 @@ hatena:
 	if cfg.Search.Provider != "pagefind" || cfg.AI.Gateway != "cloudflare" || cfg.Deploy.ProductionBranch != "main" || !cfg.Security.PreviewAccess {
 		t.Fatalf("defaults = %+v", cfg)
 	}
-	if cfg.Hatena == nil || cfg.Hatena.Type() != ast.MappingType {
+	if len(cfg.Hatena.Blogs) != 1 || cfg.Hatena.Blogs[0].URL != "https://example.invalid" || cfg.Hatena.Blogs[0].Locale != "ja" {
 		t.Fatalf("hatena = %#v", cfg.Hatena)
 	}
 }
@@ -125,9 +123,9 @@ func TestLoadSummaryEntries(t *testing.T) {
 		{"extra-field", "  summary:\n    ja:\n      provider: example\n      model: summary-v1\n      temperature: 0\n", true},
 		{"scalar-entry", "  summary:\n    ja: example\n", true},
 		{"list-entry", "  summary:\n    ja: [example]\n", true},
-		{"null-entry", "  summary:\n    ja: null\n", true},
-		{"missing-model", "  summary:\n    ja:\n      provider: example\n", true},
-		{"empty-provider", "  summary:\n    ja:\n      provider: ''\n      model: summary-v1\n", true},
+		{"null-entry", "  summary:\n    ja: null\n", false},
+		{"missing-model", "  summary:\n    ja:\n      provider: example\n", false},
+		{"empty-provider", "  summary:\n    ja:\n      provider: ''\n      model: summary-v1\n", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -254,27 +252,34 @@ func TestDiscoveryReportsRepositoryProbeError(t *testing.T) {
 	}
 }
 
-func TestConfigurationRejectsCustomTagsBeforeProjection(t *testing.T) {
+// YAML syntax is the decoder's responsibility, without a separate AST policy.
+func TestLoadUsesYAMLDecoderBehavior(t *testing.T) {
 	t.Parallel()
-	for _, raw := range []string{
+	for _, body := range []string{
 		strings.Replace(minimalConfig, "title: CFGB Example", "title: !custom CFGB Example", 1),
-		strings.Replace(minimalConfig, "site:", "site: !custom", 1),
-		minimalConfig + "\nai:\n  enabled: false\n  summary:\n    ja: {provider: !custom workers-ai, model: summary}\n",
+		minimalConfig + "\n---\nignored: second document\n",
+		minimalConfig + "\n---\n",
 	} {
 		dir := t.TempDir()
-		writeConfig(t, dir, raw)
-		if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), "E_SCHEMA") || !strings.Contains(err.Error(), "YAML tag") {
-			t.Fatalf("custom configuration tag was erased: %v", err)
+		writeConfig(t, dir, body)
+		cfg, err := Load(dir)
+		if err != nil || cfg.Site.Title != "CFGB Example" {
+			t.Fatalf("decoder-compatible config = %v, %v", cfg, err)
 		}
-	}
-	dir := t.TempDir()
-	writeConfig(t, dir, strings.Replace(minimalConfig, "title: CFGB Example", "title: !!str 42", 1))
-	if cfg, err := Load(dir); err != nil || cfg.Site.Title != "42" {
-		t.Fatalf("built-in string tag = %v, %v", cfg, err)
 	}
 }
 
-func TestLoadRejectsLocaleProblems(t *testing.T) {
+func TestLoadDoesNotRequireSchemaFields(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, "schemaVersion: 2\n")
+	cfg, err := Load(dir)
+	if err != nil || cfg.SchemaVersion != 2 || cfg.Site.Title != "" || cfg.Home.LatestPosts != 5 {
+		t.Fatalf("decodable configuration was schema-gated: %v, %v", cfg, err)
+	}
+}
+
+func TestValidateSiteRejectsLocaleProblems(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -284,17 +289,17 @@ func TestLoadRejectsLocaleProblems(t *testing.T) {
 		{
 			name: "unsafe identifier",
 			body: localeConfig("ja", "  \"../../escape\":\n    label: Bad\n"),
-			want: "locales",
+			want: "locale",
 		},
 		{
 			name: "percent escape",
 			body: localeConfig("ja", "  \"%2e%2e\":\n    label: Bad\n"),
-			want: "locales",
+			want: "locale",
 		},
 		{
 			name: "dot segment",
 			body: localeConfig("ja", "  \"..\":\n    label: Bad\n"),
-			want: "locales",
+			want: "locale",
 		},
 		{
 			name: "unsupported",
@@ -332,7 +337,11 @@ func TestLoadRejectsLocaleProblems(t *testing.T) {
 			t.Parallel()
 			dir := t.TempDir()
 			writeConfig(t, dir, tc.body)
-			_, err := Load(dir)
+			cfg, err := Load(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = cfg.ValidateSite()
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error = %v, want %q", err, tc.want)
 			}
@@ -361,65 +370,64 @@ func writeConfig(t *testing.T, dir, body string) {
 	}
 }
 
-func TestLoadRejectsInvalidEncodingAndExtraDocuments(t *testing.T) {
+func TestLoadRejectsDecodeErrors(t *testing.T) {
 	t.Parallel()
-	for _, body := range []string{
-		"\ufeff" + minimalConfig,
-		strings.Replace(minimalConfig, "CFGB Example", "Bad\xff", 1),
-		minimalConfig + "\n---\nschemaVersion: 1\n",
-		minimalConfig + "\n---\n",
-	} {
-		dir := t.TempDir()
-		writeConfig(t, dir, body)
-		if _, err := Load(dir); err == nil {
-			t.Fatalf("invalid config accepted: %q", body)
-		}
-	}
-}
-
-func TestLoadSchemaAndTimezone(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name, from, to, tail, field string
-	}{
-		{"negative count", "", "", "home:\n  latestPosts: -1\n", "latestPosts"},
-		{"zero count", "", "", "home:\n  latestPosts: 0\n", "latestPosts"},
-		{"large count", "", "", "home:\n  latestPosts: 51\n", "latestPosts"},
-		{"string count", "", "", "home:\n  latestPosts: '5'\n", "latestPosts"},
-		{"HTTP origin", "https://example.invalid", "http://example.invalid", "", "baseUrl"},
-		{"origin path", "https://example.invalid", "https://example.invalid/blog", "", "baseUrl"},
-		{"origin slash", "https://example.invalid", "https://example.invalid/", "", "baseUrl"},
-		{"origin query", "https://example.invalid", "https://example.invalid?q=1", "", "baseUrl"},
-		{"origin credentials", "https://example.invalid", "https://user@example.invalid", "", "baseUrl"},
-		{"URI format", "https://example.invalid", "https://bad host", "", "baseUrl"},
-		{"unknown timezone", "Asia/Tokyo", "Invalid/Timezone", "", "timezone"},
-		{"machine timezone", "Asia/Tokyo", "Local", "", "timezone"},
-		{"search provider", "", "", "search:\n  provider: other\n", "provider"},
-		{"preview access", "", "", "security:\n  previewAccess: false\n", "previewAccess"},
-		{"null section", "", "", "home: null\n", "home"},
-		{"empty path", "", "", "content:\n  root: ''\n", "root"},
-		{"hatena field", "", "", "hatena:\n  extra: true\n", "extra"},
-		{"hatena locale ref", "", "", "hatena:\n  blogs:\n    - url: https://example.invalid\n      locale: '../ja'\n", "locale"},
-		{"default locale ref", "defaultLocale: ja", "defaultLocale: '../ja'", "", "defaultLocale"},
+	for _, tc := range []struct{ name, body, field string }{
+		{"malformed YAML", minimalConfig + "\nhome: [\n", "cfgb.yaml"},
+		{"incompatible type", minimalConfig + "\nhome: [one, two]\n", "home"},
+		{"hatena unknown field", minimalConfig + "\nhatena:\n  extra: true\n", "extra"},
+		{"hatena blog unknown field", minimalConfig + "\nhatena:\n  blogs:\n    - url: https://example.invalid\n      locale: ja\n      extra: true\n", "extra"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			body := minimalConfig
-			if tc.from != "" {
-				body = strings.Replace(body, tc.from, tc.to, 1)
-			}
 			dir := t.TempDir()
-			writeConfig(t, dir, body+"\n"+tc.tail)
+			writeConfig(t, dir, tc.body)
 			if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), tc.field) {
 				t.Fatalf("Load = %v, want %s error", err, tc.field)
 			}
 		})
 	}
-	for _, tail := range []string{"home:\n  latestPosts: 1\n", "home:\n  latestPosts: 50\n", "security: {}\n", "security:\n  previewAccess: true\n", "content: {}\n", "deploy:\n  productionBranch: master\n"} {
+}
+
+func TestLoadPreservesExplicitValuesWithoutSchemaValidation(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, strings.Replace(minimalConfig, "https://example.invalid", "http://example.invalid/blog", 1)+`
+content:
+  root: ''
+home:
+  latestPosts: 0
+search:
+  provider: other
+deploy:
+  productionBranch: master
+security:
+  previewAccess: false
+ai:
+  enabled: false
+  summary:
+    ja: {provider: example}
+`)
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Site.BaseURL != "http://example.invalid/blog" || cfg.Content.Root != "" || cfg.Home.LatestPosts != 0 || cfg.Search.Provider != "other" || cfg.Deploy.ProductionBranch != "master" || cfg.Security.PreviewAccess || cfg.AI.Summary["ja"].Model != "" {
+		t.Fatalf("explicit values were rejected or replaced: %+v", cfg)
+	}
+}
+
+func TestTimezoneChecksAreSeparateFromDecoding(t *testing.T) {
+	t.Parallel()
+	for _, timezone := range []string{"Invalid/Timezone", "Local"} {
 		dir := t.TempDir()
-		writeConfig(t, dir, minimalConfig+"\n"+tail)
-		if cfg, err := Load(dir); err != nil || !cfg.Security.PreviewAccess {
-			t.Fatalf("valid config %s: %v", tail, err)
+		writeConfig(t, dir, strings.Replace(minimalConfig, "Asia/Tokyo", timezone, 1))
+		cfg, err := Load(dir)
+		if err != nil || cfg.Site.Timezone != timezone {
+			t.Fatalf("decodable timezone was rejected: %v, %v", cfg, err)
+		}
+		if err := cfg.ValidateSite(); err == nil || !strings.Contains(err.Error(), "timezone") {
+			t.Fatalf("invalid render timezone accepted: %v", err)
 		}
 	}
 }

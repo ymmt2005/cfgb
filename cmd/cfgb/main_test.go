@@ -133,7 +133,7 @@ func TestCLIUsesSelectedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, stderr bytes.Buffer
-	if code := run([]string{"build", "--config", file}, &out, &stderr); code != 2 || !strings.Contains(stderr.String(), "E_SCHEMA") {
+	if code := run([]string{"build", "--config", file}, &out, &stderr); code != 2 || !strings.Contains(stderr.String(), "schemaVersion") {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", code, &out, &stderr)
 	}
 }

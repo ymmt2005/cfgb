@@ -17,7 +17,6 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/parser"
-	"github.com/ymmt2005/cfgb/internal/yamlutil"
 	"github.com/ymmt2005/cfgb/schemas"
 )
 
@@ -131,9 +130,6 @@ func Document(raw []byte) (any, error) {
 	}
 	if len(parsed.Docs) != 1 {
 		return nil, invalid("YAML document must be a single document")
-	}
-	if err := yamlutil.ValidateTags(parsed.Docs[0].Body); err != nil {
-		return nil, invalid("YAML: %w", err)
 	}
 	var doc any
 	if err := yaml.NodeToValue(parsed.Docs[0].Body, &doc); err != nil {

@@ -29,7 +29,7 @@ var (
 	loadErr  error
 )
 
-// Validate checks configured locales while cfgb.yaml is loading.
+// Validate checks configured languages before site rendering.
 // An identifier must be a path-safe language tag. A tag is not supported
 // unless the shared catalog defines it. This release defines ja and en.
 func Validate(configured map[string]Entry, defaultLocale string) error {

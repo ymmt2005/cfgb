@@ -2,24 +2,15 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
-	_ "time/tzdata"
-	"unicode/utf8"
 
 	"github.com/goccy/go-yaml"
-	"github.com/goccy/go-yaml/ast"
-	"github.com/goccy/go-yaml/parser"
-	"github.com/ymmt2005/cfgb/internal/locale"
-	"github.com/ymmt2005/cfgb/internal/yamlutil"
-	"github.com/ymmt2005/cfgb/schemas"
 )
 
-// File is the subset of cfgb.yaml the renderer needs.
+// File is the typed site configuration decoded from cfgb.yaml.
 type File struct {
 	SchemaVersion int `yaml:"schemaVersion"`
 	Site          struct {
@@ -53,12 +44,20 @@ type File struct {
 	Security struct {
 		PreviewAccess bool `yaml:"previewAccess"`
 	} `yaml:"security"`
-	Hatena ast.Node `yaml:"hatena"`
-	path   string
-	root   string
+	Hatena struct {
+		Blogs []HatenaBlog `yaml:"blogs"`
+	} `yaml:"hatena"`
+	path string
+	root string
 }
 
-// SummaryConfig is the structural contract for one locale's summary model.
+// HatenaBlog is one configured source blog.
+type HatenaBlog struct {
+	URL    string `yaml:"url"`
+	Locale string `yaml:"locale"`
+}
+
+// SummaryConfig selects one locale's summary model.
 type SummaryConfig struct {
 	Provider string `yaml:"provider"`
 	Model    string `yaml:"model"`
@@ -135,66 +134,19 @@ func load(repo, file string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !utf8.Valid(raw) || bytes.HasPrefix(raw, []byte("\ufeff")) {
-		return nil, fmt.Errorf("cfgb.yaml must be UTF-8 without a BOM")
-	}
-	parsed, err := parser.ParseBytes(raw, 0)
-	if err != nil {
-		return nil, fmt.Errorf("cfgb.yaml: %w", err)
-	}
-	if len(parsed.Docs) != 1 || parsed.Docs[0].Body == nil {
-		return nil, fmt.Errorf("cfgb.yaml must contain a single nonempty YAML document")
-	}
-	if err := yamlutil.ValidateTags(parsed.Docs[0].Body); err != nil {
-		return nil, fmt.Errorf("cfgb.yaml: E_SCHEMA: %w", err)
-	}
-	var doc any
-	if err := yaml.NodeToValue(parsed.Docs[0].Body, &doc); err != nil {
-		return nil, fmt.Errorf("cfgb.yaml: %w", err)
-	}
-	if err := schemas.ValidateConfig(doc); err != nil {
-		return nil, fmt.Errorf("cfgb.yaml: E_SCHEMA: %w", err)
-	}
 	var cfg File
-	if err := yaml.NodeToValue(parsed.Docs[0].Body, &cfg, yaml.DisallowUnknownField()); err != nil {
+	// Seed defaults before decoding so explicitly supplied values remain intact.
+	cfg.Content.Root = "src/content"
+	cfg.Content.Topics = "src/data/topics.yaml"
+	cfg.Content.Linkcards = "src/data/linkcards"
+	cfg.Home.LatestPosts = 5
+	cfg.Search.Provider = "pagefind"
+	cfg.AI.Gateway = "cloudflare"
+	cfg.Deploy.ProductionBranch = "main"
+	cfg.Security.PreviewAccess = true
+	if err := yaml.UnmarshalWithOptions(raw, &cfg, yaml.DisallowUnknownField()); err != nil {
 		return nil, fmt.Errorf("cfgb.yaml: %w", err)
 	}
-	if cfg.Site.Timezone == "Local" {
-		return nil, fmt.Errorf("cfgb.yaml site.timezone must be an IANA timezone, not Local")
-	}
-	if _, err := time.LoadLocation(cfg.Site.Timezone); err != nil {
-		return nil, fmt.Errorf("cfgb.yaml site.timezone: %w", err)
-	}
-	configured := make(map[string]locale.Entry, len(cfg.Locales))
-	for key, item := range cfg.Locales {
-		configured[key] = locale.Entry{Label: item.Label}
-	}
-	if err := locale.Validate(configured, cfg.Site.DefaultLocale); err != nil {
-		return nil, err
-	}
-	if cfg.Content.Root == "" {
-		cfg.Content.Root = "src/content"
-	}
-	if cfg.Content.Topics == "" {
-		cfg.Content.Topics = "src/data/topics.yaml"
-	}
-	if cfg.Content.Linkcards == "" {
-		cfg.Content.Linkcards = "src/data/linkcards"
-	}
-	if cfg.Home.LatestPosts == 0 {
-		cfg.Home.LatestPosts = 5
-	}
-	if cfg.Search.Provider == "" {
-		cfg.Search.Provider = "pagefind"
-	}
-	if cfg.AI.Gateway == "" {
-		cfg.AI.Gateway = "cloudflare"
-	}
-	if cfg.Deploy.ProductionBranch == "" {
-		cfg.Deploy.ProductionBranch = "main"
-	}
-	// The schema permits only true; omitted fields/sections also mean true.
-	cfg.Security.PreviewAccess = true
 	cfg.path = file
 	cfg.root = repo
 	return &cfg, nil

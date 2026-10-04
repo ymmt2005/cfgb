@@ -107,34 +107,15 @@ func TestDocumentRejectsExtraYAMLDocuments(t *testing.T) {
 	}
 }
 
-func TestArticlesAndTopicsRejectCustomTags(t *testing.T) {
+func TestArticlesAndTopicsDecodeTags(t *testing.T) {
 	t.Parallel()
-	for _, front := range []string{
-		strings.Replace(required, "title: T", "title: !custom T", 1),
-		strings.Replace(required, "topics: [protobuf]", "topics: [!custom protobuf]", 1),
-		strings.Replace(required, "topics: [protobuf]", "topics: !custom [protobuf]", 1),
-	} {
-		_, _, err := ReadArticle(strings.NewReader("---\n" + front + "---\nBody\n"))
-		assertValidationCode(t, err, "E_SCHEMA")
-		if !strings.Contains(err.Error(), "YAML tag") {
-			t.Fatal(err)
-		}
-	}
-	for _, raw := range []string{"protobuf: !custom {ja: PB}\n", "protobuf: {ja: !custom PB}\n"} {
-		_, err := Topics([]byte(raw))
-		assertValidationCode(t, err, "E_SCHEMA")
-		if !strings.Contains(err.Error(), "YAML tag") {
-			t.Fatal(err)
-		}
-	}
-	// Parse only front matter. A tag-looking Markdown example is authored text.
-	front := strings.Replace(required, "title: T", "title: !!str 42", 1)
+	front := strings.Replace(required, "title: T", "title: !custom T", 1)
 	data, body, err := ReadArticle(strings.NewReader("---\n" + front + "---\n!custom Example\n"))
-	if err != nil || data["title"] != "42" || string(body) != "!custom Example\n" {
-		t.Fatalf("built-in tag/body = %v, %q, %v", data, body, err)
+	if err != nil || data["title"] != "T" || string(body) != "!custom Example\n" {
+		t.Fatalf("decoded tag/body = %v, %q, %v", data, body, err)
 	}
-	if topics, err := Topics([]byte("protobuf: {ja: !!str 42}\n")); err != nil || topics["protobuf"]["ja"] != "42" {
-		t.Fatalf("built-in topic tag = %v, %v", topics, err)
+	if topics, err := Topics([]byte("protobuf: {ja: !custom PB}\n")); err != nil || topics["protobuf"]["ja"] != "PB" {
+		t.Fatalf("decoded topic tag = %v, %v", topics, err)
 	}
 }
 

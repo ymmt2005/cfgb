@@ -111,6 +111,9 @@ func Run(opts Options) (err error) {
 	if err != nil {
 		return &ExitError{Code: 2, Err: err}
 	}
+	if err := cfg.ValidateSite(); err != nil {
+		return &ExitError{Code: 2, Err: err}
+	}
 	out, err := outputDir(cfg, opts.Out)
 	if err != nil {
 		return &ExitError{Code: 2, Err: err}

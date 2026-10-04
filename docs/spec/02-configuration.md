@@ -1,9 +1,16 @@
 # Configuration and schemas
 
-`cfgb.yaml` is the only site configuration read by the CLI. JSON Schema 2020-12
-files in `schemas/` specify structural validation; semantic rules here and in
-the content contract also apply. Unknown fields fail, except inside explicitly
-open topic/locale maps. Require format assertion for `date-time` and `uri`.
+`cfgb.yaml` is the only site configuration read by the CLI. Decode it directly
+into the complete Go configuration struct with `goccy/go-yaml`, rejecting unknown
+fields. The YAML decoder determines which document/tag syntax can be decoded;
+configuration loading adds no AST syntax policy or JSON Schema validation gate.
+`schemas/cfgb.schema.json` remains an optional editor/standalone validation aid,
+not a prerequisite for using the CLI. JSON Schema 2020-12 validation of content
+is separate and asserts `date-time` and `uri` formats.
+
+The table describes site settings, defaults and the requirements of commands
+that consume them. Decoding does not itself enforce every publishing/provider
+constraint. Keep those domain checks in their relevant commands.
 
 | Field | Requirement / default |
 | --- | --- |
@@ -56,14 +63,17 @@ belong to the build environment, not site YAML or runtime Worker variables.
 See the [build runtime contract](10-build-runtime.md). `.env.example` contains
 names only.
 
-CFGB applies defaults in its parser; JSON Schema default annotations do not
-populate missing configuration. The loader validates the original YAML value
-against the bundled configuration schema, with format assertion and bundled
-references, before projecting it into renderer settings. It also checks the
-IANA timezone against the CLI's bundled timezone database (`Local` is not a
-site timezone). These checks fail with exit 2 before removing existing output;
-invalid values must not be replaced by defaults. In v1, `security.previewAccess: false` is an
-error. Omission of the field or parent section still requires private previews.
+CFGB seeds the Go struct with defaults before decoding; JSON Schema default
+annotations do not populate configuration. Explicit values, including zero,
+false and empty strings, are preserved. Hatena blogs are typed Go entries, not
+AST nodes or opaque YAML. Build calls the separate `ValidateSite` check for
+supported languages and IANA timezones using the CLI's bundled database
+(`Local` is not a site timezone). Decode/build-setting failures exit 2 before
+removing existing output. Provider/deployment validation belongs to the commands that
+use those settings. Omitted preview protection defaults to true; an explicit
+false remains false and must fail the private-preview gate when preview is
+requested.
+
 The setting is an assertion, not automatic creation of Access policies. Default
 protection uses Worker-level previews-only `preview_worker` Access with verified
 Worker identity and policy; hostname-specific coverage is an advanced option.
@@ -78,11 +88,9 @@ contract accepts tags such as `pt-BR` and `zh-Hant` and rejects path separators,
 dot segments, percent escapes, and any other character outside it. A match is
 not support. UI copy, date presentation, and OpenGraph locale metadata live in
 one catalog, `renderer/src/lib/locales.json`, read by the CLI and the renderer.
-This release's catalog is `ja` and `en`. The loader rejects an empty locale
-map, a blank or whitespace-only label, a default locale that is not one of the
+This release's catalog is `ja` and `en`. Build rejects an empty locale map, a blank or whitespace-only label, a default locale that is not one of the
 configured keys, an unsafe identifier, and a safe tag that the catalog does not
-define. Those checks happen while `cfgb.yaml` is loaded, before the output
-directory is removed or the renderer runs. The renderer does not treat an
+define. Those checks happen after decoding, before the output directory is removed or the renderer runs. The renderer does not treat an
 unknown locale as English. Adding a language means extending that catalog; it
 does not mean another language already works. The shipped pages still present
 the current two-language header.
@@ -118,7 +126,7 @@ from that root. The example repository retains a reserved non-routable origin.
 
 ## Schema inventory
 
-- `cfgb.schema.json`: site configuration.
+- `cfgb.schema.json`: optional standalone/editor validation of site configuration; not applied during configuration loading.
 - `article.schema.json`: article frontmatter structure; omitted/empty summary is structurally valid, with mode-specific semantic requirements.
 - `topics.schema.json`: localized topic master.
 - `sidecar.schema.json`: AI and import provenance per variant.
@@ -126,7 +134,9 @@ from that root. The example repository retains a reserved non-routable origin.
 - `migration-manifest.schema.json`: paired source/target identity for successful applications only; no conflict status.
 - `migration-conflicts.schema.json`: separate conflict observations/proposals, never ownership records.
 
-Schema versions are not CLI release numbers. Unsupported newer versions fail
-with a clear upgrade diagnostic. Breaking upgrades are explicit migrations with
+Schema versions are not CLI release numbers. Commands that consume versioned
+content reject unsupported versions with a clear upgrade diagnostic; the
+configuration decoder preserves the supplied `schemaVersion` without a Schema
+gate. Breaking upgrades are explicit migrations with
 a dry-run diff. Renderer and CLI must run the same conformance fixtures, including
 duplicate YAML key rejection; schema validation alone is insufficient.

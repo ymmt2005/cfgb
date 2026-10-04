@@ -130,16 +130,24 @@ For changes crossing repositories, keep ownership explicit:
 
 ## Parse and render through shared boundaries
 
+- Decode `cfgb.yaml` directly into the complete Go configuration struct with
+  `goccy/go-yaml` and unknown-field rejection. Set defaults before decoding;
+  preserve explicitly supplied values. Keep Hatena settings typed too. Do not
+  add an AST policy, reject otherwise decodable documents/tags, or run JSON
+  Schema validation as a prerequisite to loading configuration. Configuration
+  schemas are optional standalone/editor tools. Keep checks actually needed by
+  a command separate from decoding. Build calls `ValidateSite` before toolchain
+  probes/output removal for its language-catalog and timezone requirements.
 - Isolate YAML front matter using complete unindented `---` delimiter lines;
   read lines with `bufio.Reader.ReadString`, parse only that block with
   `goccy/go-yaml`, and preserve the remaining Markdown bytes. Retain UTF-8/BOM,
-  duplicate-key, unknown-field and reader-error checks. Reject custom YAML tags
-  through the shared AST check before value conversion can erase them; apply
-  the same boundary to configuration, articles and topics. Do not parse the body
-  as YAML or replace this with a whole-document delimiter regex.
-- Validate unprojected inputs against their canonical schemas before typed
-  projection/defaults; semantic rules remain separate. Preserve semantic codes
-  such as duplicate-alias diagnostics rather than moving them into schema
+  duplicate-key, unknown-field and reader-error checks. Do not add a custom-tag
+  restriction on top of the YAML decoder. Configuration uses the direct struct
+  decoder described above. Do not parse the body as YAML or replace this with a
+  whole-document delimiter regex.
+- Article/content validation checks unprojected inputs against their canonical
+  schemas; configuration loading does not. Semantic rules remain separate.
+  Preserve semantic codes such as duplicate-alias diagnostics rather than moving them into schema
   constraints. Missing/empty summaries are structurally valid for authoring.
 - Supported content languages come from the shared release catalog and match
   exactly, case sensitively. A syntactically valid language tag alone is not

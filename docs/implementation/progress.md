@@ -76,30 +76,30 @@ exclusion. Title and summary are searchable even for image-only article bodies.
 Layout-owned IDs use a `cfgb-` prefix; aside IDs use `aside-` and keep their HTML
 and ARIA associations. See [renderer design](renderer.md).
 
-Go validates decoded configuration and article mappings against the embedded
-schemas with `github.com/santhosh-tekuri/jsonschema/v6` `v6.0.3`, asserted URI
-and date-time formats, and locally bundled references before projecting them. This
-includes unknown keys, ID patterns, date syntax and validity, topic uniqueness,
-single-line summaries, and asset/alias path syntax. The YAML parser tests still
-check scalar and body preservation separately from article validity. Config
-loading rejects unknown AI summary entry fields and structurally incomplete
-entries, invalid origins/counts/providers and disabled preview protection. It
-checks timezones using bundled tzdata and applies omitted configuration defaults,
-including mandatory preview protection. These configuration errors precede
-toolchain probes and output removal. Discovery rejects invalid article keys,
+Configuration loads directly into the complete Go struct with goccy/go-yaml's
+unknown-field rejection. Defaults are seeded before decoding so explicit values
+are preserved; Hatena blog entries are typed. There is no configuration AST
+policy, custom-tag/document restriction or runtime JSON Schema gate. The
+configuration schema remains available as an optional standalone/editor aid.
+Build calls the separate `ValidateSite` method for its supported-language and
+bundled-timezone requirements; decoding itself does not perform these checks.
+Decode and build-setting errors precede toolchain probes and output removal.
+
+Go validates article mappings against the embedded article schema with
+`github.com/santhosh-tekuri/jsonschema/v6` `v6.0.3`, asserted URI/date-time formats
+and locally bundled references. This includes unknown keys, ID patterns, date
+syntax and validity, topic uniqueness, single-line summaries and asset/alias
+path syntax. The YAML parser tests check scalar and body preservation separately
+from article validity. Discovery rejects invalid article keys,
 unconfigured variants and directories other than shared `assets/` inside a
 group. Nested shared assets remain supported. Semantic
 requirements such as required summaries, alias ownership, URL/fragment validation,
 and publication policy remain later work.
 
-The input boundary rejects invalid UTF-8 before JSON normalization and enforces
-one nonempty YAML document for configuration/front matter/topics. Invalid
-custom YAML tags are rejected by a shared AST check before conversion can erase
-them, including nested values, sequences and anchors. Built-in decoder tags,
-quoted tag-like text and the untouched Markdown body retain their behavior.
-Regression tests cover configuration, articles, topics and build diagnostics,
-including preservation of existing output when configuration is invalid. Invalid
-content carries stable typed diagnostic codes and exits 1 from `build`; actual
+The content input boundary rejects invalid UTF-8 before JSON normalization and
+enforces one nonempty YAML document for front matter/topics. YAML tags use the
+decoder's behavior without an added custom-tag rejection pass. Invalid content
+carries stable typed diagnostic codes and exits 1 from `build`; actual
 reader and filesystem failures remain exit 3. Regression tests cover these
 command exits and failed-build cleanup, including source encoding failures.
 The theme listbox is named by its trigger. Theme values use an explicit set,
