@@ -17,7 +17,9 @@ documentation. `cfgb-example` supplies the CLI conformance corpus.
 Workflows run `cfgb prepare`, `cfgb validate`, `cfgb summarize`, `cfgb build`,
 `cfgb deploy` or `cfgb preview` directly in `run` steps after setup. The CLI handles
 arguments, diagnostics, exit codes, summary ownership and deployment gates.
-The Action has no `operation` selector or command-specific inputs/outputs. It
+The Action has no `operation` selector or domain-command wrappers. Its optional
+package-manager selection configures the job environment for subsequent CLI
+steps without executing a build. It
 never discovers content, executes a domain command or commits/pushes files.
 Checkout, job permissions, trusted configuration, runtime prerequisites,
 concurrency, bot commits and merge gates belong to the caller workflow.
@@ -32,6 +34,7 @@ reusable workflow is a separate job-level mechanism and is not required for v1.
 | Input | Requirement |
 | --- | --- |
 | `cfgb-version` | Required exact released CFGB version from an immutable release; no implicit latest, branch or range |
+| `package-manager` | Optional `npm` or `pnpm`; exports `CFGB_PACKAGE_MANAGER` to subsequent steps in the same job; omission preserves the caller's environment |
 | `github-token` | Optional read-only token, defaulting to the job GitHub token; used only for public release verification |
 
 | Output | Meaning |
@@ -47,6 +50,12 @@ job. Every job that needs CFGB performs its own setup. No checkout, `cfgb.yaml`,
 Node.js, AI credentials or Cloudflare upload credentials are needed to install the
 CLI. Build-time Node.js/package-manager prerequisites are configured separately
 by the caller according to the selected CFGB release.
+
+An explicit `package-manager` input sets `CFGB_PACKAGE_MANAGER` through
+`GITHUB_ENV` only after successful setup. It selects the CLI package manager;
+it does not install npm/pnpm or change the build's arguments. Omission writes no
+environment selection, preserving existing workflow/job settings. When neither
+an input nor an environment selection is present, the CLI defaults to npm.
 
 Download `toolchain-requirements.json` from the selected immutable CLI release,
 verify it against that release's attestation before reading it, and check its
