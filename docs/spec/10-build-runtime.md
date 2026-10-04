@@ -4,7 +4,7 @@ Release binaries and the setup Action implement the installation part of this
 contract. Workers Builds bootstrap/upload and Cloudflare resources remain later
 work.
 This contract complements [CLI](01-cli.md), [delivery](04-delivery.md) and the
-[setup Action](09-github-action.md).
+[setup Action documentation](https://github.com/ymmt2005/cfgb-action#readme).
 
 ## Release and Workers Builds bootstrap
 
