@@ -6,7 +6,7 @@ on:
   pull_request:
 
 env:
-  CFGB_EXAMPLE_REF: 5838ff1b20f11c86d4a0517e326604602c8a342c
+  CFGB_EXAMPLE_REF: 8f09a38a373c0187437a6608559ca3c62f5fe42f
 
 jobs:
   go:
@@ -86,6 +86,7 @@ jobs:
           CFGB_EXAMPLE: ${{ github.workspace }}/cfgb-example
           CFGB_REQUIRE_EXAMPLE: "1"
           CFGB_PACKAGE_MANAGER: ${{ matrix.package-manager }}
+          CFGB_REQUIRE_SEARCH: ${{ matrix.node == '24.21.0' && matrix.package-manager == 'npm' && '1' || '0' }}
         run: go test ./internal/build -run '^TestExample(Corpus|StaticHost)$' -count=1
 
   links:

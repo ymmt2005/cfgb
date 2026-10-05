@@ -39,6 +39,7 @@ func TestExampleCorpus(t *testing.T) {
 	}
 	cleanupExampleWorkspace(t, out)
 	want := checkExampleCorpus(t, root, out, "")
+	checkExampleSearch(t, want)
 	if !t.Failed() {
 		proveCorpusChecks(t, want, out)
 	}
