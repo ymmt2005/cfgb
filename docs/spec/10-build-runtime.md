@@ -70,7 +70,7 @@ curl --fail --silent --show-error --location \
 printf '%s  %s\n' "$CFGB_SHA256" "$cfgb_download" | sha256sum --check --status
 mkdir -p "$HOME/.local/bin"
 install -m 0755 "$cfgb_download" "$HOME/.local/bin/cfgb"
-"$HOME/.local/bin/cfgb" build --out dist
+"$HOME/.local/bin/cfgb" build --force --out dist
 ```
 
 The configured Build command must fail before build on download/checksum/install

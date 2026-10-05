@@ -7,6 +7,13 @@ input independently. Content repositories contain Markdown and assets.
 The renderer does not parse front matter again or infer article identity from a
 collection ID or an absolute filesystem path.
 
+After configuration/toolchain checks, an existing output entry triggers a warning
+with its resolved path and a stdin confirmation. Only `y`/`yes` proceeds;
+cancellation leaves the entry untouched. Missing output needs no confirmation.
+`--force` / `-f` bypasses confirmation for automation. Replacement still uses
+`os.RemoveAll` on the selected entry, including when it overlaps inputs or is a
+symlink. Failed-build cleanup starts only after confirmation and output reset.
+
 Astro's content/image cache and Vite's dependency cache both live under the
 invocation's `.astro/` directory. Vite has its own `cacheDir`; setting only
 Astro's cache does not isolate it. Test workspaces may share installed dependencies

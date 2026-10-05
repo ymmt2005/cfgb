@@ -81,6 +81,28 @@ func TestGlobalConfigAndBuildFlags(t *testing.T) {
 	}
 }
 
+func TestBuildForceFlagsAndInput(t *testing.T) {
+	for _, args := range [][]string{{"build"}, {"build", "--force"}, {"build", "-f"}, {"build", "--force=false"}} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			input := strings.NewReader("yes\n")
+			called := false
+			cmd := newRootCommand(func(opts build.Options) error {
+				called = true
+				wantForce := len(args) == 2 && args[1] != "--force=false"
+				if opts.Force != wantForce || opts.Stdin != input {
+					t.Fatalf("force/input not forwarded: %+v", opts)
+				}
+				return nil
+			})
+			cmd.SetArgs(args)
+			cmd.SetIn(input)
+			if err := cmd.Execute(); err != nil || !called {
+				t.Fatalf("Execute = %v, called = %t", err, called)
+			}
+		})
+	}
+}
+
 func TestCLIHelpVersionAndUsage(t *testing.T) {
 	// Neither help nor version may load configuration or probe Node.
 	t.Setenv("PATH", t.TempDir())
