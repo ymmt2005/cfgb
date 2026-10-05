@@ -25,6 +25,7 @@ type corpusArticle struct {
 	Locale     string               `json:"locale"`
 	Path       string               `json:"path"`
 	URL        string               `json:"url"`
+	Year       string               `json:"year"`
 	Alternates map[string]string    `json:"alternates"`
 	Data       frontmatter.Metadata `json:"data"`
 }
@@ -51,6 +52,10 @@ type corpusExpectations struct {
 func loadCorpusExpectations(root, out, baseURL string) (corpusExpectations, error) {
 	var want corpusExpectations
 	cfg, err := config.Load(root)
+	if err != nil {
+		return want, err
+	}
+	location, err := time.LoadLocation(cfg.Site.Timezone)
 	if err != nil {
 		return want, err
 	}
@@ -91,6 +96,7 @@ func loadCorpusExpectations(root, out, baseURL string) (corpusExpectations, erro
 			return want, fmt.Errorf("article fixture does not match source: %s", article.Path)
 		}
 		article.Data = post.Data
+		article.Year = post.Data.PublishedAt.In(location).Format("2006")
 		delete(sources, article.Path)
 	}
 	if len(sources) != 0 {

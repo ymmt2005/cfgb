@@ -4,16 +4,14 @@ import {
   cpSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { serveBuiltSite } from "./site-server.mjs";
 
 const rendererRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const code = 'const greeting = "こんにちは";\nconsole.log(greeting);';
@@ -40,72 +38,22 @@ export async function startSite({
   permissionsPolicy,
 } = {}) {
   const work = buildSite(basePath, staticSite, enabledLanguages, presentation, siteImage);
-  let browser, server;
   try {
-    const dist = path.join(work, "renderer", "dist");
-    const headers = Object.fromEntries(
-      readFileSync(path.join(dist, "_headers"), "utf8")
-        .split("\n")
-        .filter((line) => line.startsWith("  "))
-        .map((line) => {
-          const colon = line.indexOf(":");
-          return [line.slice(0, colon).trim(), line.slice(colon + 1).trim()];
-        }),
-    );
-    const types = {
-      ".html": "text/html",
-      ".js": "text/javascript",
-      ".css": "text/css",
-      ".svg": "image/svg+xml",
-      ".wasm": "application/wasm",
-      ".json": "application/json",
-    };
-    server = createServer((request, response) => {
-      try {
-        const pathname = decodeURIComponent(
-          new URL(request.url, "http://localhost").pathname,
-        );
-        if (!pathname.startsWith(`${basePath}/`))
-          throw new Error("outside hosting prefix");
-        const route = pathname.slice(basePath.length);
-        const relative = route.endsWith("/") ? `${route}index.html` : route;
-        const file = path.resolve(dist, `.${relative}`);
-        if (!file.startsWith(`${dist}${path.sep}`))
-          throw new Error("outside fixture");
-        const body = readFileSync(file);
-        response.writeHead(200, {
-          ...headers,
-          ...(permissionsPolicy ? { "Permissions-Policy": permissionsPolicy } : {}),
-          "Content-Type":
-            types[path.extname(file)] || "application/octet-stream",
-        });
-        response.end(body);
-      } catch {
-        response.writeHead(404, headers);
-        response.end();
-      }
+    const site = await serveBuiltSite(path.join(work, "renderer", "dist"), {
+      basePath,
+      permissionsPolicy,
     });
-    await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", resolve);
-    });
-    browser = await chromium.launch({
-      executablePath: process.env.CFGB_TEST_CHROMIUM_EXECUTABLE,
-    });
-    const origin = `http://127.0.0.1:${server.address().port}`;
     return {
-      browser,
-      origin,
+      ...site,
       async close() {
-        await browser.close();
-        await new Promise((resolve) => server.close(resolve));
-        rmSync(work, { recursive: true, force: true });
+        try {
+          await site.close();
+        } finally {
+          rmSync(work, { recursive: true, force: true });
+        }
       },
     };
   } catch (error) {
-    await browser?.close();
-    if (server?.listening)
-      await new Promise((resolve) => server.close(resolve));
     rmSync(work, { recursive: true, force: true });
     throw error;
   }
@@ -117,6 +65,7 @@ export async function withPage(site, options, run) {
   const page = await context.newPage();
   page.setDefaultTimeout(10_000);
   const failures = [];
+  const cspViolations = [];
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("response", (response) => {
     if (
@@ -127,20 +76,21 @@ export async function withPage(site, options, run) {
     )
       failures.push(`${response.status()} ${response.url()}`);
   });
+  await page.exposeFunction("cfgbRecordTestCSP", (detail) => cspViolations.push(detail));
   await page.addInitScript(() => {
     window.cspViolations = [];
-    document.addEventListener("securitypolicyviolation", (event) =>
-      window.cspViolations.push(
-        `${event.violatedDirective}: ${event.blockedURI}`,
-      ),
-    );
+    document.addEventListener("securitypolicyviolation", (event) => {
+      const detail = `${event.violatedDirective}: ${event.blockedURI}`;
+      window.cspViolations.push(detail);
+      window.cfgbRecordTestCSP(detail);
+    });
   });
   try {
     await run(page, context);
     assert.deepEqual(failures, [], "browser runtime/resource errors");
     if (options.javaScriptEnabled !== false)
       assert.deepEqual(
-        await page.evaluate(() => window.cspViolations),
+        cspViolations,
         [],
         "generated CSP violations",
       );

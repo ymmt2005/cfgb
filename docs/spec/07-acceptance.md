@@ -10,8 +10,10 @@ The executed `TestExampleCorpus` and `TestExampleStaticHost` builds compare
 complete sitemap and article fixtures and validate per-locale RSS and article
 metadata against source front matter. They also decode emitted OG images;
 artifact corruption cases verify that the assertions detect incorrect output.
-These checks run in the renderer toolchain CI matrix. Later-phase validation,
-search-corpus, delivery, AI and migration scenarios retain their separate gates.
+These checks run in the renderer toolchain CI matrix. The Chromium job also
+serves the completed artifacts and executes `tests/search/queries.yaml` through
+real Pagefind search, its rendered UI and native filter controls. Later-phase
+validation, delivery, AI and migration scenarios retain their separate gates.
 
 `tests/fixtures/validation/schema-cases.json` in the example repository holds
 the optional standalone scenarios; the CLI cases use decoded values. Do not
@@ -86,6 +88,12 @@ isolation are separate security concerns.
 4. Search: serve the actual built output, open `/<locale>/search/`, run each query
    through Pagefind and materialize result data. Assert expected canonical URLs
    appear within topK, unexpected locale URLs do not appear, and filters work.
+   An empty expected list requires no results. Compare complete article-only
+   index membership and materialized title, summary, publication time, locale,
+   topic IDs and archive year with the source corpus. Exercise native input and
+   filter controls and follow real result links in both normal and prefixed
+   static output; fail on resource errors, CSP violations or remote search
+   requests. The browser's UI language must not override the document language.
    Token presence in source is not a search test. Add real-article Japanese
    queries after Hatena import; do not replace them with synthetic easy matches.
 5. Delivery/import: execute integration tests in disposable branches/environments

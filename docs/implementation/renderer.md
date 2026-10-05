@@ -187,6 +187,25 @@ missing/duplicate/unexpected entries, incorrect dates/alternates, malformed
 XML/JSON and inconsistent metadata. The metadata helper uses dependencies from
 the build's retained toolchain, without requiring an installed source renderer.
 
+With `CFGB_REQUIRE_SEARCH=1`, those same completed normal and prefixed static
+artifacts are served with their generated security headers. The Go helper decodes
+the pinned corpus's `tests/search/queries.yaml` and passes source metadata to
+`renderer/tests/browser/corpus-search.mjs`. Chromium runs the real language WASM,
+materializes every result, checks expected top-k inclusion or an empty result
+set, and compares the complete article-only index and result metadata with
+source. The rendered input, topic/year checkboxes and real result navigation are
+also exercised. Checks fail on runtime/resource errors, CSP violations, remote
+requests, incorrect locale selection or lost hosting prefixes. This is mandatory
+in the Node 24/npm CI job, which installs the pinned browser dependencies;
+other toolchain jobs retain the non-browser corpus checks.
+
+To run corpus search locally from this checkout after browser setup:
+
+```sh
+CFGB_EXAMPLE=/path/to/cfgb-example CFGB_REQUIRE_EXAMPLE=1 CFGB_REQUIRE_SEARCH=1 \
+  CFGB_PACKAGE_MANAGER=npm go test ./internal/build -run '^TestExample(Corpus|StaticHost)$' -count=1
+```
+
 `renderer/tests/browser/` builds a small actual site and serves its generated
 HTML and scripts with the generated security headers, then builds the real
 Pagefind index. Playwright covers theme, storage and scroll-observer behavior,

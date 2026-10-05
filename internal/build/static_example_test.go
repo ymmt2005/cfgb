@@ -25,7 +25,8 @@ func TestExampleStaticHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	cleanupExampleWorkspace(t, out)
-	checkExampleCorpus(t, root, out, "https://example.invalid/blog/")
+	want := checkExampleCorpus(t, root, out, "https://example.invalid/blog/")
+	checkExampleSearch(t, want)
 	for _, name := range []string{"index.html", "ja/index.html", "ja/posts/markdown-showcase/index.html", "ja/posts/old-protobuf-guide/index.html", "ja/feed.xml", "sitemap-index.xml", "sitemap-0.xml", "robots.txt"} {
 		raw, err := os.ReadFile(filepath.Join(out, "site", name))
 		if err != nil {
