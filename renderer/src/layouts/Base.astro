@@ -166,6 +166,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 <script>
   import { localizeDates } from "../lib/dates.mjs";
   localizeDates(document);
+  import { mermaidTheme } from "../lib/mermaid-theme.mjs";
   import { createThemeQueue } from "../lib/theme-queue.mjs";
   import { watchSystemTheme } from "../lib/system-theme.mjs";
   const blocks = document.querySelectorAll("pre.mermaid");
@@ -173,9 +174,14 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
     if (!blocks.length || !current()) return;
     const mermaid = (await import("mermaid")).default;
     if (!current()) return;
-    const dark = document.documentElement.getAttribute("data-theme") === "dark"
-      || (!document.documentElement.hasAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "neutral" });
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      ...mermaidTheme(document),
+      // Keep wide diagrams readable and let their frame scroll on mobile.
+      flowchart: { useMaxWidth: false },
+      sequence: { useMaxWidth: false },
+    });
     for (const block of blocks) {
       if (!current()) return;
       if (!block.dataset.source) block.dataset.source = block.textContent || "";

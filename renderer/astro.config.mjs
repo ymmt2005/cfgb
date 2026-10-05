@@ -1,6 +1,7 @@
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 import expressiveCode from "astro-expressive-code";
+import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers";
 import { unified } from "@astrojs/markdown-remark";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -13,6 +14,7 @@ import {
   localePageAlternates,
   pagePath,
 } from "./src/lib/sitemap.mjs";
+import { rehypePresentation } from "./src/plugins/rehype-presentation.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
 import { imageWorkspace } from "./src/lib/image-paths.mjs";
 import { basePath, routePath, sitePath } from "./src/lib/site-path.mjs";
@@ -32,10 +34,41 @@ export default defineConfig({
   output: "static",
   integrations: [
     expressiveCode({
+      plugins: [pluginLineNumbers()],
+      defaultProps: { showLineNumbers: true },
       themes: ["github-light", "github-dark"],
       themeCssSelector: (theme) =>
         theme.type === "dark" ? '[data-theme="dark"]' : '[data-theme="light"]',
       useStyleReset: false,
+      // Use the same spacing and palette tokens as the approved mockup.
+      styleOverrides: {
+        borderRadius: "0.45rem",
+        borderWidth: "1px",
+        borderColor: "var(--line)",
+        gutterForeground: "var(--faint)",
+        gutterBorderWidth: "0px",
+        codeBackground: "var(--code-bg)",
+        codeFontFamily: "var(--mono)",
+        codeFontSize: "0.86rem",
+        codeLineHeight: "1.55",
+        codePaddingBlock: "0.75rem",
+        codePaddingInline: "0.9rem",
+        uiFontFamily: "var(--mono)",
+        uiFontSize: "0.78rem",
+        frames: {
+          frameBoxShadowCssValue: "var(--shadow)",
+          editorActiveTabBackground: "var(--code-bg)",
+          editorActiveTabForeground: "var(--muted)",
+          editorTabBarBackground: "var(--code-bg)",
+          editorTabBarBorderBottomColor: "var(--line)",
+          editorActiveTabIndicatorTopColor: "transparent",
+          editorActiveTabIndicatorBottomColor: "transparent",
+        },
+        textMarkers: {
+          markBackground: "var(--mark)",
+          markBorderColor: "transparent",
+        },
+      },
     }),
     sitemap({
       filenameBase: "sitemap",
@@ -65,6 +98,7 @@ export default defineConfig({
   markdown: {
     processor: unified({
       gfm: true,
+      rehypePlugins: [rehypePresentation],
       remarkPlugins: [
         [
           remarkCfgb,

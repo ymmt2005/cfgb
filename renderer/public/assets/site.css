@@ -723,7 +723,11 @@ h1, h2, h3 { font-weight: 600; line-height: 1.35; }
 
 .toc-mobile { display: none; margin: 0 0 1.2rem; }
 
-.code {
+.expressive-code { margin: 1.1rem 0 1.3rem; }
+
+/* Scope the mockup frame classes: Expressive Code also uses .code per line
+   and .copy for its button wrapper. */
+figure.code {
   margin: 1.1rem 0 1.3rem;
   background: var(--code-bg);
   border: 1px solid var(--line);
@@ -731,7 +735,7 @@ h1, h2, h3 { font-weight: 600; line-height: 1.35; }
   overflow: hidden;
   box-shadow: var(--shadow);
 }
-.code figcaption {
+figure.code figcaption {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -742,7 +746,7 @@ h1, h2, h3 { font-weight: 600; line-height: 1.35; }
   font-size: 0.78rem;
   color: var(--muted);
 }
-.copy {
+button.copy {
   appearance: none;
   border: 1px solid var(--line);
   background: var(--bg-raised);
@@ -753,7 +757,7 @@ h1, h2, h3 { font-weight: 600; line-height: 1.35; }
   padding: 0.15rem 0.5rem;
   cursor: pointer;
 }
-.code pre {
+figure.code pre {
   margin: 0;
   padding: 0.75rem 0;
   overflow-x: auto;
@@ -761,9 +765,9 @@ h1, h2, h3 { font-weight: 600; line-height: 1.35; }
   font-size: 0.86rem;
   line-height: 1.55;
 }
-.code .row { display: block; padding: 0 0.9rem; }
-.code .row.mark { background: var(--mark); }
-.code .ln {
+figure.code .row { display: block; padding: 0 0.9rem; }
+figure.code .row.mark { background: var(--mark); }
+figure.code .ln {
   display: inline-block;
   width: 1.6rem;
   color: var(--faint);
@@ -845,6 +849,23 @@ th { color: var(--muted); font-weight: 600; }
 .footnotes li { margin: 0.35rem 0; }
 .footnotes p { display: inline; margin: 0; }
 .footnote-back { margin-left: 0.35rem; text-decoration: none; }
+.diagram-block {
+  margin: 1.2rem 0;
+  padding: 0.9rem;
+  overflow-x: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+}
+pre.mermaid {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+pre.mermaid:has(svg) { white-space: normal; }
+pre.mermaid svg { display: block; margin: 0 auto; }
 .mermaid-error { margin-top: 0.4rem; color: var(--muted); font-size: 0.85rem; }
 
 .page-narrow { max-width: var(--measure); }
