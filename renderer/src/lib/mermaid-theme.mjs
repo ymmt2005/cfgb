@@ -10,14 +10,12 @@ export function mermaidTheme(document) {
   const background = token("bg-raised");
   return {
     theme: "base",
-    look: "classic",
     fontFamily: token("serif"),
     themeVariables: {
       darkMode: style.colorScheme === "dark",
       background,
       fontFamily: token("serif"),
       fontSize: "18px",
-      dropShadow: "none",
       primaryColor: token("soft"),
       primaryBorderColor: line,
       primaryTextColor: ink,

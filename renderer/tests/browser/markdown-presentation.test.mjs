@@ -135,7 +135,10 @@ describe("Markdown presentation from the mockup", { timeout: 180_000 }, () => {
           }
           for (const font of colors.sequenceFonts)
             assert.equal(font, colors.font);
-          for (const shadow of colors.shadows) assert.equal(shadow, "none");
+          assert.ok(
+            colors.shadows.some((shadow) => shadow !== "none"),
+            "retain Mermaid's default drop shadows",
+          );
           assert.ok(colors.nodes.length > 0);
           for (const fill of colors.nodes)
             assert.equal(fill, colors.expected.soft);

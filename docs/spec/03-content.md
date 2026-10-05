@@ -214,8 +214,8 @@ system mode, which has no `data-theme` attribute, keeps the library's
 local Mermaid bundle only when a page contains diagrams; use `securityLevel:
 strict`. Keep the original source in that render target as the no-JS fallback;
 hide it only after successful rendering by replacing the element with the diagram.
-Use Mermaid's classic look without drop shadows, with the page's resolved
-palette colors and prose font for diagram labels, nodes and edges. Place diagrams in the mockup's bordered frame; wide flowcharts and
+Keep Mermaid's default look and drop shadows. Use the page's resolved palette
+colors and prose font for diagram labels, nodes and edges. Place diagrams in the mockup's bordered frame; wide flowcharts and
 sequence diagrams scroll within it rather than shrinking their labels. Diagram
 layout follows the authored Mermaid source, not the hand-drawn mockup geometry.
 Do not emit a second copy of the source. Invalid Mermaid keeps source with a useful error, not blank content.
