@@ -188,6 +188,28 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
   </div>
 </main>
 <footer class="site"><div class="wrap"><span>{site.title} · {new URL(site.baseUrl).host}</span><span><a href={sitePath(site, `/${locale}/feed.xml`)}>{copy.feed}</a></span></div></footer>
+<template id="cfgb-diagram-viewer" data-expand-label={copy.diagramExpand}>
+  <dialog class="diagram-viewer" aria-label={copy.diagram} data-pagefind-ignore>
+    <div class="diagram-viewer-shell">
+      <div class="diagram-toolbar">
+        <strong>{copy.diagram}</strong>
+        <div class="diagram-zoom-controls">
+          <button type="button" data-diagram-zoom-out aria-label={copy.diagramZoomOut} title={copy.diagramZoomOut}>−</button>
+          <output aria-label={copy.diagramZoom} aria-live="polite">100%</output>
+          <button type="button" data-diagram-zoom-in aria-label={copy.diagramZoomIn} title={copy.diagramZoomIn}>+</button>
+          <button type="button" data-diagram-fit>{copy.diagramFit}</button>
+          <button type="button" data-diagram-actual aria-label={copy.diagramActualSize} title={copy.diagramActualSize}>100%</button>
+        </div>
+        <button type="button" data-diagram-fullscreen data-enter-label={copy.diagramFullScreen} data-exit-label={copy.diagramExitFullScreen} aria-pressed="false">{copy.diagramFullScreen}</button>
+        <button type="button" data-diagram-close autofocus>{copy.diagramClose}</button>
+      </div>
+      <p class="diagram-message" role="status" hidden>{copy.diagramFullScreenUnavailable}</p>
+      <div class="diagram-viewport" role="region" aria-label={copy.diagram} tabindex="0">
+        <div class="diagram-canvas"></div>
+      </div>
+    </div>
+  </dialog>
+</template>
 <script is:inline src={sitePath(site, "/assets/site.js")}></script>
 <script>
   import { localizeDates } from "../lib/dates.mjs";
@@ -195,7 +217,9 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
   import { mermaidTheme } from "../lib/mermaid-theme.mjs";
   import { createThemeQueue } from "../lib/theme-queue.mjs";
   import { watchSystemTheme } from "../lib/system-theme.mjs";
+  import { createDiagramViewer } from "../lib/diagram-viewer.mjs";
   const blocks = document.querySelectorAll("pre.mermaid");
+  const diagramViewer = createDiagramViewer(document);
   const requestDraw = createThemeQueue(async (current) => {
     if (!blocks.length || !current()) return;
     const mermaid = (await import("mermaid")).default;
@@ -226,6 +250,7 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
         note.textContent = error instanceof Error ? error.message : "Mermaid error";
         block.insertAdjacentElement("afterend", note);
       }
+      diagramViewer.update(block);
     }
   });
   requestDraw();

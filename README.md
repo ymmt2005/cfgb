@@ -61,6 +61,11 @@ site:
 Social-sharing images and `site.image` require v0.3.0 or newer. The setting is
 optional and adds no font or image downloads during rendering.
 
+Rendered Mermaid diagrams offer **Expand diagram** for a view filling the window,
+with zoom, fit, actual size, and scrolling controls. Full screen is available
+where the browser permits it. Close the viewer or press Escape to return to the
+article. This enhancement requires a release containing it.
+
 The source supports Japanese (`ja`), English (`en`), Simplified Chinese
 (`zh-Hans`) and Korean (`ko`). Enable languages and set their display labels in
 `cfgb.yaml`; keep translated article variants in the same folder. The language

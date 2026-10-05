@@ -205,6 +205,18 @@ are not replaced with test doubles. CI runs this Chromium suite on the Node
 browser-test package has its own pinned npm
 lockfile and is not embedded or installed by `cfgb build`.
 
+Rendered Mermaid diagrams have a localized expand control. A native modal fills
+the viewport and provides zoom, fit, actual size, and native full-screen controls
+where permitted. SVGs open at no less than natural size for readable labels;
+fit is an explicit overview. The viewer moves the existing render target rather
+than duplicating SVG IDs; source and theme redraws stay attached to that element.
+Closing returns the target and keyboard focus to the article and exits any full
+screen owned by the viewer. Browser acceptance exercises large-diagram scrolling, zoom and resize,
+native full-screen entry/exit, theme redraws during viewing, focus containment and
+restoration, mobile layouts and localization, independent diagrams, and the
+expanded fallback under a real fullscreen permissions policy. Invalid diagrams
+and disabled JavaScript retain source without expansion controls.
+
 Run the browser suite after installing renderer dependencies:
 
 ```sh
