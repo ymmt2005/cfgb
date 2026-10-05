@@ -4,6 +4,9 @@ A Git-native publishing system for multilingual technical blogs on Cloudflare.
 CFGB is an independent open-source project and is not affiliated with Cloudflare,
 Inc.
 
+Cloudflare is optional. CFGB can build a complete static site for GitHub Pages
+or another static host without Cloudflare services or credentials.
+
 **Status: `cfgb build` renders content repositories with the embedded renderer and Pagefind search. Cloudflare deploy and preview upload are not implemented.**
 
 The [visual mockup](design/mockup/README.md) is a browsable HTML prototype of the example blog and a visual reference for the implemented renderer. Search results there are labeled mock data.
@@ -47,6 +50,40 @@ For automation, use `cfgb build --force --out dist` (or `-f`) to skip confirmati
 Output confirmation and `--force` require v0.3.0 or newer; earlier releases replace
 output without prompting. CFGB does not reject output paths overlapping
 repository inputs.
+
+Builds cache installed renderer dependencies under the operating system's user
+cache directory (`$XDG_CACHE_HOME/cfgb` or `~/.cache/cfgb` on Linux). Set
+`CFGB_CACHE_DIR` to select a persistent directory, or `CFGB_DEPENDENCY_CACHE=0`
+to install separately for each build. These controls are implemented in source
+and require a release newer than v0.4.0. Every build still has its own content
+snapshot, output and Astro/Vite caches. Missing entries are installed with the
+embedded frozen lockfile; dependency/runtime/install-configuration changes
+select a different entry. Cache-access or symlink failures produce a warning
+and use a normal installation in the build workspace.
+
+GitHub Actions can restore/save this directory with `actions/cache` after the
+CLI and Node/npm setup steps. For a workflow using the setup Action with step
+ID `cfgb`, add this before `cfgb build`:
+
+```yaml
+env:
+  CFGB_CACHE_DIR: ${{ runner.temp }}/cfgb-cache
+# ...checkout, cfgb-action (id: cfgb), and Node/npm setup...
+steps:
+  - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+    with:
+      path: ${{ env.CFGB_CACHE_DIR }}/dependencies
+      key: cfgb-dependencies-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.cfgb.outputs.cfgb-version }}-${{ steps.cfgb.outputs.node-version }}-npm-${{ steps.cfgb.outputs.npm-version }}
+  - run: cfgb build --force --out dist --static
+```
+
+This example uses the setup Action's selected npm runtime. Workflows selecting
+different runtime versions should put those actual versions in the cache key;
+pnpm workflows should use the pnpm version and manager name. CFGB independently
+checks compatibility inside the restored cache. Only installed dependencies are
+cached; content snapshots, credentials and generated site outputs are excluded.
+Remove the dependency cache directory to clear it. Incomplete entries are
+reported and bypassed; clearing them lets the next build repopulate them.
 
 The renderer generates article social-sharing PNGs and OpenGraph/Twitter
 metadata. Article `ogImage` selects a local image; otherwise CFGB generates a

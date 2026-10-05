@@ -21,6 +21,40 @@ through symlinks, but they must not write a shared `node_modules/.vite` cache.
 Actual renderer builds verify workspace-local Vite cache creation while running
 in parallel.
 
+`dependency_cache.go` shares completed installed dependencies between normal
+builds. By default it uses `os.UserCacheDir()/cfgb/dependencies`;
+`CFGB_CACHE_DIR` replaces the `cfgb` base and `CFGB_DEPENDENCY_CACHE=0` disables
+reuse. The compatibility digest covers the embedded package manifest, selected
+lockfile and pnpm build policy when applicable; checked Node/installer versions;
+Node's actual platform, architecture, module ABI and glibc observation;
+`NODE_ENV`; and the package manager's normalized effective configuration.
+Download-storage/reporting settings are excluded from that configuration.
+Configuration is hashed in memory, never recorded or printed.
+
+On a miss, installation uses a private `.install-*` directory under the cache.
+Only install input files and `node_modules` are involved. Successful frozen
+installation, completion marker and required tool entrypoints are checked before
+atomic publication. Concurrent misses can perform separate installations; the
+first published complete entry wins and the others discard their private
+directories. No persistent lock or partially installed shared tree is needed.
+The renderer workspace links to the completed `node_modules` and keeps source,
+content and all writable Astro/Vite state separate. Workspace cleanup removes
+the link, leaving the cached installation intact. CFGB does not modify or
+automatically evict completed cache entries; operators own cache clearing.
+
+Cache inspection/probe/publication/link failures warn and fall back to the normal
+workspace installation; package-manager failures remain errors without an
+automatic second install. Missing markers/tools are never reused. Optional
+cache failures and cleanup causes remain visible in diagnostics, and diagnostic
+stream failures fail the build. Symlink support is needed for reuse; platforms
+without it still build with the normal installation. The cache is trusted local
+toolchain state, like an operator-restored GitHub Actions cache, not a release
+verification mechanism. GitHub Actions restores/saves it in the renderer CI
+matrix and generated-link job, using runtime and install-source identities.
+Rendering starts the pinned local Astro and Pagefind entrypoints with Node,
+instead of package-manager `exec`, so pnpm cannot reinstall the shared tree
+before running a command and npm cannot resolve a missing command remotely.
+
 ## Hosting paths and static delivery
 
 The path in `site.baseUrl` is the hosting prefix; `--base-url` can override it for

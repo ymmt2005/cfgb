@@ -114,7 +114,11 @@ Content repositories require no package.json, Astro files, Wrangler files or
 custom executable build scripts. `build` creates a fresh workspace with
 `os.MkdirTemp("", "cfgb-build-*")`, extracts implementation files there, stages
 configured content, parses article front matter and
-`topics.yaml` with `goccy/go-yaml`, and installs pinned dependencies. The
+`topics.yaml` with `goccy/go-yaml`, and installs or reuses compatible pinned
+dependencies. `CFGB_CACHE_DIR` selects persistent dependency storage (default:
+the OS user cache directory plus `cfgb`); `CFGB_DEPENDENCY_CACHE=0` disables
+reuse. Cache failures warn and fall back to a normal frozen workspace install,
+while package-manager failures remain build failures. The
 manifest records `filepath.Base` of that directory as `toolchainSessionId`.
 `buildUUID` stays separate diagnostic metadata and does not name the workspace. A failed
 build removes the workspace it created. A successful build retains it until

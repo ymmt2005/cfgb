@@ -66,9 +66,12 @@ flowchart TD
   Build --> Assets["Workers Static Assets"]
 ```
 
-Git stores content; Astro renders; Cloudflare serves; Pagefind searches. AI
-assists authors only. Cloudflare is the default hosting/gateway integration;
-parsing, migration planning and validation do not require a Cloudflare account.
+Git stores content; Astro renders; a static host serves; Pagefind searches. AI
+assists authors only. Cloudflare hosting/gateway integration is optional.
+Building and using the complete static site, including search and generated
+images, does not require Cloudflare services or credentials. Persistent
+dependency reuse also works locally or with GitHub Actions cache independently
+of the hosting provider.
 
 ## Settled decisions
 
