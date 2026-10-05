@@ -29,8 +29,9 @@ export async function startSite({
   basePath = "",
   static: staticSite = false,
   enabledLanguages = Object.keys(languages),
+  presentation = false,
 } = {}) {
-  const work = buildSite(basePath, staticSite, enabledLanguages);
+  const work = buildSite(basePath, staticSite, enabledLanguages, presentation);
   let browser, server;
   try {
     const dist = path.join(work, "renderer", "dist");
@@ -139,7 +140,7 @@ export async function withPage(site, options, run) {
   }
 }
 
-function buildSite(basePath, staticSite, enabledLanguages) {
+function buildSite(basePath, staticSite, enabledLanguages, presentation) {
   const configured = Object.fromEntries(
     enabledLanguages.map((locale) => [locale, languages[locale]]),
   );
@@ -247,6 +248,42 @@ function buildSite(basePath, staticSite, enabledLanguages) {
           summary: "A deliberately malformed diagram.",
         },
       });
+    if (presentation)
+      posts.push({
+        id: "posts/2026/presentation/en",
+        file: path.join(content, "posts/2026/presentation/en.md"),
+        body: [
+          "## Markdown presentation",
+          "A **strong** word, an *emphasized* word, `inline code` and [an ordinary link](https://example.org/).",
+          ...["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"].map(
+            (kind) => `> [!${kind}]\n> An alert with **Markdown** content.`,
+          ),
+          "> An ordinary blockquote.",
+          "- First item\n- Second item\n\n1. First ordered item\n2. Second ordered item",
+          "- [x] Completed task\n- [ ] Pending task",
+          "| Message | Status |\n| --- | --- |\n| `" +
+            "fully.qualified.ProtocolMessage.".repeat(5) +
+            "` | Available |",
+          "<details><summary>More details</summary><p>A native disclosure.</p></details>",
+          '<img src="/media/2026/browser/responsive-1.svg" alt="Markdown presentation image" width="64" height="32">',
+          "https://example.org/cached",
+          "```mermaid\nflowchart LR\nDraft[Draft 日本語] -->|Review 中文| Review[Review 한국어] --> Publish[Publish]\n```",
+          "```mermaid\nsequenceDiagram\nparticipant Author\nparticipant Reviewer\nAuthor->>Reviewer: Review this article\nNote over Author,Reviewer: Keep the labels readable\n```",
+          "A note[^presentation].\n\n[^presentation]: A footnote with a backlink.",
+        ].join("\n\n"),
+        group: "2026/presentation",
+        year: "2026",
+        articleKey: "presentation",
+        locale: "en",
+        archive: { year: "2026", month: "01" },
+        data: {
+          title: "Markdown presentation",
+          slug: "presentation",
+          publishedAt: "2026-01-01T00:00:00Z",
+          topics: ["notes"],
+          summary: "Markdown appearance and scrolling.",
+        },
+      });
     for (const post of posts) {
       mkdirSync(path.dirname(post.file), { recursive: true });
       writeFileSync(post.file, post.body);
@@ -291,6 +328,16 @@ function buildSite(basePath, staticSite, enabledLanguages) {
       }),
     );
     mkdirSync(path.join(work, "linkcards"));
+    if (presentation)
+      writeFileSync(
+        path.join(work, "linkcards", "presentation.json"),
+        JSON.stringify({
+          url: "https://example.org/cached",
+          siteName: "Example",
+          title: "Cached link card",
+          description: "A local card fixture.",
+        }),
+      );
     const site = path.join(work, "site.json");
     writeFileSync(
       site,
@@ -298,7 +345,9 @@ function buildSite(basePath, staticSite, enabledLanguages) {
         title: "CFGB Example",
         baseUrl: `https://example.invalid${basePath}`,
         static: staticSite,
-        defaultLocale: "ja",
+        defaultLocale: enabledLanguages.includes("ja")
+          ? "ja"
+          : enabledLanguages[0],
 
         locales: configured,
         contentRoot: content,

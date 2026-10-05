@@ -849,6 +849,23 @@ th { color: var(--muted); font-weight: 600; }
 .footnotes li { margin: 0.35rem 0; }
 .footnotes p { display: inline; margin: 0; }
 .footnote-back { margin-left: 0.35rem; text-decoration: none; }
+.diagram-block {
+  margin: 1.2rem 0;
+  padding: 0.9rem;
+  overflow-x: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+}
+pre.mermaid {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+pre.mermaid:has(svg) { white-space: normal; }
+pre.mermaid svg { display: block; margin: 0 auto; }
 .mermaid-error { margin-top: 0.4rem; color: var(--muted); font-size: 0.85rem; }
 
 .page-narrow { max-width: var(--measure); }

@@ -133,6 +133,11 @@ and about use the same map over the configured locales. Root may use
 
 ## Markdown and images
 
+Generated GFM tables use the mockup's scrolling table wrapper. Generated footnote
+references and backlinks use its reference/backlink classes while retaining the
+Markdown processor's IDs and accessible labels. These presentation transforms
+retain authored raw HTML structure.
+
 Use GFM (tables, task lists, strikeout, autolinks) plus footnotes and GitHub alerts
 NOTE/TIP/IMPORTANT/WARNING/CAUTION. Footnotes use `[^id]` references and
 `[^id]: definition` lines, as provided by the pinned `remark-gfm` footnote
@@ -200,13 +205,19 @@ An escaping path is `E_LOCAL_PATH`, exit 1, even if the target does not exist.
 ## Code, diagrams, theme and TOC
 
 Expressive Code + Shiki handles syntax, `title="main.go"`, line/text marks, copy
-buttons and accessible filename frames. One light/dark representation follows
-page theme. Selectors are `[data-theme="light"]` and `[data-theme="dark"]`, so
+buttons, line numbers by default, and accessible filename frames. A fence may
+opt out with `showLineNumbers=false`; copied text excludes the gutter. Frame
+spacing and colors use the shared page palette tokens. One light/dark
+representation follows page theme. Selectors are `[data-theme="light"]` and `[data-theme="dark"]`, so
 system mode, which has no `data-theme` attribute, keeps the library's
 `prefers-color-scheme` rules. Mermaid fences are extracted before code highlighting. Lazy-load a
 local Mermaid bundle only when a page contains diagrams; use `securityLevel:
 strict`. Keep the original source in that render target as the no-JS fallback;
 hide it only after successful rendering by replacing the element with the diagram.
+Use Mermaid's classic look without drop shadows, with the page's resolved
+palette colors and prose font for diagram labels, nodes and edges. Place diagrams in the mockup's bordered frame; wide flowcharts and
+sequence diagrams scroll within it rather than shrinking their labels. Diagram
+layout follows the authored Mermaid source, not the hand-drawn mockup geometry.
 Do not emit a second copy of the source. Invalid Mermaid keeps source with a useful error, not blank content.
 Re-render from original source on theme change, including a system color-scheme
 change while the page remains in system mode; serialize renders to avoid races.

@@ -14,6 +14,7 @@ import {
   localePageAlternates,
   pagePath,
 } from "./src/lib/sitemap.mjs";
+import { rehypePresentation } from "./src/plugins/rehype-presentation.mjs";
 import { remarkCfgb } from "./src/plugins/remark-cfgb.mjs";
 import { imageWorkspace } from "./src/lib/image-paths.mjs";
 import { basePath, routePath, sitePath } from "./src/lib/site-path.mjs";
@@ -97,6 +98,7 @@ export default defineConfig({
   markdown: {
     processor: unified({
       gfm: true,
+      rehypePlugins: [rehypePresentation],
       remarkPlugins: [
         [
           remarkCfgb,
