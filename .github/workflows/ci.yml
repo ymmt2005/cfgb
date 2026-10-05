@@ -6,7 +6,7 @@ on:
   pull_request:
 
 env:
-  CFGB_EXAMPLE_REF: 7f9f3553f259e86e1417d24f625eb97bbaefa025
+  CFGB_EXAMPLE_REF: 5838ff1b20f11c86d4a0517e326604602c8a342c
 
 jobs:
   go:

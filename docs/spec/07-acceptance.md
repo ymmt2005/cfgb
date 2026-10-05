@@ -5,6 +5,14 @@ priority in [AGENTS.md](../../AGENTS.md). A document or fixture is not approval
 for a new input-rejection policy. The example corpus is acceptance data, not a
 CLI or renderer implementation. Standalone Schema checks are optional and
 separate from typed YAML loading and build acceptance.
+
+The executed `TestExampleCorpus` and `TestExampleStaticHost` builds compare
+complete sitemap and article fixtures and validate per-locale RSS and article
+metadata against source front matter. They also decode emitted OG images;
+artifact corruption cases verify that the assertions detect incorrect output.
+These checks run in the renderer toolchain CI matrix. Later-phase validation,
+search-corpus, delivery, AI and migration scenarios retain their separate gates.
+
 `tests/fixtures/validation/schema-cases.json` in the example repository holds
 the optional standalone scenarios; the CLI cases use decoded values. Do not
 run the standalone scenarios as negative CLI acceptance.
