@@ -45,8 +45,7 @@ The source supports Japanese (`ja`), English (`en`), Simplified Chinese
 `cfgb.yaml`; keep translated article variants in the same folder. The language
 switcher uses a label for a single language, a toggle for a language pair and a
 dropdown for larger language lists. It preserves article translations when
-available. Chinese and Korean support requires a release containing these changes;
-it is not present in v0.1.0.
+available. Chinese and Korean support requires v0.2.0 or newer.
 
 ## Implementation specifications
 
