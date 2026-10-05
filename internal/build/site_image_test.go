@@ -55,8 +55,8 @@ func TestSiteImageSnapshot(t *testing.T) {
 		t.Fatalf("renderer image = %q, want captured %q", site.Image, staged)
 	}
 	for _, out := range []string{image, repo} {
-		if _, err := outputDir(cfg, out); err == nil {
-			t.Fatalf("output may remove the branding image: %s", out)
+		if got, err := outputDir(cfg, out); err != nil || got != out {
+			t.Fatalf("selected output %s = %s, %v", out, got, err)
 		}
 	}
 }

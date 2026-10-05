@@ -39,6 +39,8 @@ cfgb build --out dist --base-url https://example.github.io/blog/ --static
 
 Publish `dist/site/` with the static host. GitHub Actions can install the CLI
 through [cfgb-action](https://github.com/ymmt2005/cfgb-action) before running build.
+The selected `--out` entry is replaced; choose a path whose contents may be
+removed. CFGB does not reject output paths overlapping repository inputs.
 
 The renderer generates article social-sharing PNGs and OpenGraph/Twitter
 metadata. Article `ogImage` selects a local image; otherwise CFGB generates a

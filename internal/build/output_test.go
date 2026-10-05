@@ -2,6 +2,7 @@ package build
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +14,7 @@ import (
 	"github.com/ymmt2005/cfgb/internal/frontmatter"
 )
 
-func TestOutputDirRejectsInputs(t *testing.T) {
+func TestOutputDirAllowsSelectedInputs(t *testing.T) {
 	cfg, repo := testRepo(t)
 	for _, rel := range []string{
 		".",
@@ -23,9 +24,12 @@ func TestOutputDirRejectsInputs(t *testing.T) {
 		filepath.Join("src", "data"),
 		".git",
 		filepath.Join(".git", "objects"),
+		"cfgb.yaml",
+		filepath.Join("src", "data", "topics.yaml"),
 	} {
-		if _, err := outputDir(cfg, filepath.Join(repo, rel)); err == nil {
-			t.Errorf("accepted %s", rel)
+		want := filepath.Join(repo, rel)
+		if got, err := outputDir(cfg, want); err != nil || got != want {
+			t.Errorf("selected %s = %s, %v", rel, got, err)
 		}
 	}
 	out := filepath.Join(repo, "dist")
@@ -44,6 +48,47 @@ func TestOutputDirRejectsInputs(t *testing.T) {
 	}
 	if _, err := outputDir(cfg, filepath.Join(repo, "linked-src")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBuildReplacesSelectedImage(t *testing.T) {
+	stubBuildProbes(t)
+	for _, symlink := range []bool{false, true} {
+		name := "direct input"
+		if symlink {
+			name = "contained input symlink target"
+		}
+		t.Run(name, func(t *testing.T) {
+			_, repo := testRepo(t)
+			image := filepath.Join(repo, "brand.svg")
+			if err := os.WriteFile(image, []byte("original branding"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			selected := "brand.svg"
+			if symlink {
+				selected = "contained.svg"
+				if err := os.Symlink("brand.svg", filepath.Join(repo, selected)); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			}
+			file := filepath.Join(repo, "cfgb.yaml")
+			raw, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw = []byte(strings.Replace(string(raw), "site:\n", "site:\n  image: "+selected+"\n", 1))
+			if err := os.WriteFile(file, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			err = Run(Options{Dir: repo, Out: image})
+			var exit *ExitError
+			if !errors.As(err, &exit) || exit.Code != 3 || !strings.Contains(err.Error(), "stage site.image") {
+				t.Fatalf("expected missing-input failure after output replacement: %v", err)
+			}
+			if _, err := os.Stat(image); !os.IsNotExist(err) {
+				t.Fatalf("selected output was preserved: %v", err)
+			}
+		})
 	}
 }
 

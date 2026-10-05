@@ -132,12 +132,13 @@ the content repository. Its installed Wrangler survives for the same
 build's upload command, outside the content repository and deployable artifact.
 
 `--out` may be inside or outside the repository; relative paths resolve from the
-selected configuration directory. The overlap check is lexical: refuse a
-location that contains, or sits inside, source content, `cfgb.yaml`, topic and
-link-card inputs, or `.git`. That includes an output directory that is an
-ancestor of one of those inputs. Do not accept or reject the path by resolving
-its symlink target, and do not delete that target. An existing directory, file,
-symlink, or dangling symlink at the selected path is removed as that entry.
+selected configuration directory. The caller is responsible for choosing an
+entry whose contents may be removed. Do not reject overlaps with source,
+configuration, branding, or Git inputs. Removing an input may cause a later
+build step to fail; that does not undo the caller's output selection. Do not
+resolve the selected entry to a symlink target and delete that target. An existing
+directory, file, symlink, or dangling symlink at the selected path is removed as
+that entry.
 `build` does this removal at the start and stops if it fails, then creates
 `<out>/.tmp` before rendering. It does not keep an earlier artifact. The
 complete `site/`, `worker/index.js`, and `build-manifest.json` are written

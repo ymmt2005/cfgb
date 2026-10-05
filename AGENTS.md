@@ -145,7 +145,10 @@ For changes crossing repositories, keep ownership explicit:
   selected `--out` entry, call `os.RemoveAll(out)` and stop on failure. Do not
   `EvalSymlinks(out)` and delete the target instead: an output symlink is the
   entry to replace. Build under `<out>/.tmp`; never remove an unowned sibling
-  `<out>.tmp`. Protect source/configuration/Git inputs from output overlap.
+  `<out>.tmp`. The user explicitly owns the choice of `--out`: replace the
+  selected entry even when it overlaps source/configuration/Git inputs. Do not
+  add overlap rejection or source-target protection; keeping those inputs out
+  of `--out` is the user's responsibility.
 - Copy directory trees without an arbitrary depth ceiling. Detect actual cycles
   by comparing filesystem identity (`os.SameFile`) against the active ancestor
   chain. Do not reject an independent branch merely because it reaches a

@@ -116,7 +116,7 @@ func newRootCommand(buildRun func(build.Options) error) *cobra.Command {
 			})
 		},
 	}
-	buildCmd.Flags().StringVar(&out, "out", "", "artifact directory relative to the configuration directory (default: dist)")
+	buildCmd.Flags().StringVar(&out, "out", "", "artifact directory to replace, relative to the configuration directory (default: dist)")
 	buildCmd.Flags().StringVar(&baseURL, "base-url", "", "override the public site URL, including its hosting path")
 	buildCmd.Flags().BoolVar(&static, "static", false, "emit static entry/alias pages and direct language links for hosts without a Worker")
 	root.AddCommand(buildCmd)

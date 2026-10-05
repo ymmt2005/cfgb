@@ -886,6 +886,8 @@ func readRoutes(path string) ([]string, error) {
 	return routes, nil
 }
 
+// outputDir resolves the caller's selection without imposing an input-overlap
+// policy. The caller owns the decision to replace that entry.
 func outputDir(cfg *config.File, out string) (string, error) {
 	if out == "" {
 		out = "dist"
@@ -893,31 +895,7 @@ func outputDir(cfg *config.File, out string) (string, error) {
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(filepath.Dir(cfg.Path()), out)
 	}
-	out = filepath.Clean(out)
-	repo := filepath.Clean(cfg.Root())
-	base := filepath.Dir(cfg.Path())
-	protected := []struct {
-		path string
-		dir  bool
-	}{
-		{resolveAbs(base, cfg.Content.Root), true},
-		{resolveAbs(base, cfg.Content.Linkcards), true},
-		{filepath.Join(repo, ".git"), true},
-		{resolveAbs(base, cfg.Content.Topics), false},
-		{cfg.Path(), false},
-	}
-	if cfg.Site.Image != "" {
-		protected = append(protected, struct {
-			path string
-			dir  bool
-		}{resolveAbs(base, cfg.Site.Image), false})
-	}
-	for _, item := range protected {
-		if overlaps(out, item.path, item.dir) {
-			return "", fmt.Errorf("--out must not contain or sit inside source content or Git and configuration inputs")
-		}
-	}
-	return out, nil
+	return filepath.Clean(out), nil
 }
 
 // resetOutput removes the selected output entry and creates <out>/.tmp.
@@ -928,30 +906,6 @@ func resetOutput(out string) error {
 		return err
 	}
 	return os.MkdirAll(filepath.Join(out, ".tmp"), 0o755)
-}
-
-func resolveAbs(base, value string) string {
-	if filepath.IsAbs(value) {
-		return filepath.Clean(value)
-	}
-	return filepath.Clean(filepath.Join(base, value))
-}
-
-func overlaps(out, target string, targetIsDir bool) bool {
-	out = filepath.Clean(out)
-	target = filepath.Clean(target)
-	if containsPath(out, target) {
-		return true
-	}
-	return targetIsDir && containsPath(target, out)
-}
-
-func containsPath(parent, child string) bool {
-	rel, err := filepath.Rel(parent, child)
-	if err != nil {
-		return false
-	}
-	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // deliver writes the complete artifact under the staging directory created by
