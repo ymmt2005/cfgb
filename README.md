@@ -44,7 +44,7 @@ removed. If it exists, CFGB warns with the resolved path and asks for `y`/`yes`
 before removing it. Enter, a negative response, or empty end-of-input cancels the
 build and leaves the entry unchanged. A missing target needs no confirmation.
 For automation, use `cfgb build --force --out dist` (or `-f`) to skip confirmation.
-This flag requires a release containing this change; earlier releases replace
+Output confirmation and `--force` require v0.3.0 or newer; earlier releases replace
 output without prompting. CFGB does not reject output paths overlapping
 repository inputs.
 
@@ -58,9 +58,8 @@ site:
   image: src/assets/site.svg
 ```
 
-This setting is available in the source implementation; use a release containing
-it before enabling it in a content repository. It is optional and adds no font
-or image downloads during rendering.
+Social-sharing images and `site.image` require v0.3.0 or newer. The setting is
+optional and adds no font or image downloads during rendering.
 
 The source supports Japanese (`ja`), English (`en`), Simplified Chinese
 (`zh-Hans`) and Korean (`ko`). Enable languages and set their display labels in
@@ -103,12 +102,16 @@ documented design work.
 ## Releasing
 
 `internal/version/version.go` is the source of truth for the CLI release version.
-Bump its `Version` string (for example, `v0.2.0`) in a PR. As in pbschema-lens,
+Bump its `Version` string and add reviewed Markdown notes at
+`docs/releases/<version>.md` (for example, `docs/releases/v0.3.0.md`) in a PR.
+GoReleaser uses that file as the release body; release-specific text belongs
+there rather than in the workflow or `.goreleaser.yaml`. As in pbschema-lens,
 the release workflow runs on `main` and compares that value with the parent
 commit, assuming squash merges. An unchanged or development version skips
 release setup and publishing.
 
-For a version bump, the workflow tests the code, pushes the matching tag, and
+For a version bump, the workflow checks that the notes file exists and is nonempty,
+tests the code, pushes the matching tag, and
 uses GoReleaser to build a draft. It checks the binary's reported version before
 publishing the immutable release and verifying its attestation. Rerun the same
 workflow run to retry a failed release; an existing published immutable release

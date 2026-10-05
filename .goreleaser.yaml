@@ -18,8 +18,6 @@ archives:
     name_template: "cfgb-{{ .Os }}-{{ .Arch }}"
 checksum:
   name_template: checksums.txt
-changelog:
-  disable: true
 release:
   github:
     owner: ymmt2005
@@ -30,13 +28,3 @@ release:
   extra_files:
     - glob: .release/toolchain-requirements.json
     - glob: LICENSE
-  header: |
-    CFGB — Git-based Blog on Cloudflare.
-
-    CFGB implements `cfgb build` with the embedded renderer and
-    Pagefind search. Content repositories need only Markdown, assets and blog
-    settings. Use `--base-url` and `--static` for GitHub Pages and other static hosts.
-
-    Building requires Node.js and npm or pnpm compatible with the attached
-    `toolchain-requirements.json`. CLI setup is available through `ymmt2005/cfgb-action`.
-    Authoring, migration and Cloudflare upload commands are not implemented yet.
