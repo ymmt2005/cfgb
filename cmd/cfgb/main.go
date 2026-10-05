@@ -99,7 +99,7 @@ func newRootCommand(buildRun func(build.Options) error) *cobra.Command {
 		},
 	})
 	var out, baseURL string
-	var static bool
+	var static, force bool
 	buildCmd := &cobra.Command{
 		Use:     "build",
 		Short:   "Build the site with the embedded renderer",
@@ -111,12 +111,13 @@ func newRootCommand(buildRun func(build.Options) error) *cobra.Command {
 				return &build.ExitError{Code: 3, Err: err}
 			}
 			return buildRun(build.Options{
-				Dir: dir, Config: configPath, Out: out, BaseURL: baseURL, Static: static,
-				Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
+				Dir: dir, Config: configPath, Out: out, BaseURL: baseURL, Static: static, Force: force,
+				Stdin: cmd.InOrStdin(), Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 			})
 		},
 	}
 	buildCmd.Flags().StringVar(&out, "out", "", "artifact directory to replace, relative to the configuration directory (default: dist)")
+	buildCmd.Flags().BoolVarP(&force, "force", "f", false, "replace existing output without confirmation")
 	buildCmd.Flags().StringVar(&baseURL, "base-url", "", "override the public site URL, including its hosting path")
 	buildCmd.Flags().BoolVar(&static, "static", false, "emit static entry/alias pages and direct language links for hosts without a Worker")
 	root.AddCommand(buildCmd)

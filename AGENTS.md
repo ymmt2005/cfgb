@@ -142,7 +142,10 @@ For changes crossing repositories, keep ownership explicit:
 - Validate configuration and output selection before removing output. For the
   output path, allow locations inside or outside the repository; relative paths
   remain relative to the selected configuration directory. For the
-  selected `--out` entry, call `os.RemoveAll(out)` and stop on failure. Do not
+  selected `--out` entry, warn and ask for confirmation before replacing an
+  existing file/directory/symlink (including dangling symlinks); `--force` / `-f`
+  skips confirmation for automation. Cancellation preserves the entry. After
+  confirmation or force, call `os.RemoveAll(out)` and stop on failure. Do not
   `EvalSymlinks(out)` and delete the target instead: an output symlink is the
   entry to replace. Build under `<out>/.tmp`; never remove an unowned sibling
   `<out>.tmp`. The user explicitly owns the choice of `--out`: replace the

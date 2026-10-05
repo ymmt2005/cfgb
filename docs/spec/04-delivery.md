@@ -20,7 +20,7 @@ implementation starts and when upgrading the pinned toolchain.
 
 | Workers Builds setting | Command | Responsibility |
 | --- | --- | --- |
-| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --out dist` | Validate, render with Astro, build Pagefind, run integration checks, write the artifact manifest |
+| Build command | Bootstrap block, then `"$HOME/.local/bin/cfgb" build --force --out dist` | Validate, render with Astro, build Pagefind, run integration checks, write the artifact manifest |
 | Deploy command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" deploy --from dist` | Check required files, runtime compatibility, and the publication gate; upload the supplied production Worker/assets |
 | Preview command | Recheck binary hash, then `"$HOME/.local/bin/cfgb" preview --from dist` | Check required files, runtime compatibility, and the private-preview gate; upload the supplied branch preview |
 

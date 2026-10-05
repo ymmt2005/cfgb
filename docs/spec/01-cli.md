@@ -30,7 +30,7 @@ use exact content bytes as specified there. Do not normalize artifact output byt
 | `translate ARTICLE --to en --slug SLUG` | Article key, not ambiguous title | Create missing variant in same group; copy topics/title as placeholders; empty body and summary; never overwrite or translate with AI |
 | `prepare [ARTICLE...] [--offline] [--refresh-links] [--dry-run]` | All variants if no selection | Report assets; fetch missing link cards unless offline; no LLM or commits |
 | `validate [--authoring\|--publish] [--now RFC3339]` | Regular validation by default | Read-only structural and semantic checks |
-| `build [--out DIR]` | Default `dist`; regular validation, embedded fixed toolchain | Generate the site artifact; no upload |
+| `build [--out DIR] [--force\|-f]` | Default `dist`; regular validation, embedded fixed toolchain | Confirm replacement of existing output unless forced; generate the site artifact; no upload |
 | `deploy --from DIR` | Supplied artifact and the current invocation's production target | Check publication conditions and deploy that artifact; no rebuild |
 | `preview --from DIR` | Supplied artifact and the current invocation's non-production branch | Create/update a private Worker Preview; no rebuild |
 | `summarize [ARTICLE...] [--changed-since REF] [--dry-run]` | Explicit selection or changed variants | Generate eligible summaries and sidecars; never automatically commit |
@@ -138,8 +138,16 @@ configuration, branding, or Git inputs. Removing an input may cause a later
 build step to fail; that does not undo the caller's output selection. Do not
 resolve the selected entry to a symlink target and delete that target. An existing
 directory, file, symlink, or dangling symlink at the selected path is removed as
-that entry.
-`build` does this removal at the start and stops if it fails, then creates
+that entry. After configuration and toolchain checks, `build` checks for an
+existing entry with `Lstat`. If present, it warns on stderr with the resolved
+output path and asks for confirmation on stdin. Only `y` or `yes`, case
+insensitively and ignoring surrounding whitespace, proceeds. A blank, negative,
+unrecognized response or empty end-of-input cancels with exit 1 before any output
+or workspace changes. Confirmation read/write or inspection failures use exit 3
+and preserve the output. A missing target does not prompt. `--force` / `-f`
+skips confirmation and is intended for automation. The default target `dist`
+follows the same behavior. Force does not skip configuration/toolchain checks.
+`build` then removes the selected entry, stops if removal fails, and creates
 `<out>/.tmp` before rendering. It does not keep an earlier artifact. The
 complete `site/`, `worker/index.js`, and `build-manifest.json` are written
 there, then moved into `<out>`. Success is reported only after that complete
@@ -216,8 +224,9 @@ violations use exit 1. Do not promote/upload a failed artifact.
 
 ## Errors and output
 
-Exit codes: `0` success (including warnings), `1` validation failure, `2` invalid
-usage/configuration, `3` IO/network/provider failure, `4` conflict/precondition
+Exit codes: `0` success (including warnings), `1` validation failure or cancelled
+output replacement, `2` invalid usage/configuration, `3` IO/network/provider
+failure, `4` conflict/precondition
 failure. Actual configuration filesystem errors (including a selected missing
 file, permission failure or failed close), working-directory failures and temporary
 workspace creation failures use exit 3. A missing configuration discovered by

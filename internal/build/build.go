@@ -2,6 +2,7 @@
 package build
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,13 +54,16 @@ func (e *ExitError) Unwrap() error { return e.Err }
 
 // Options selects the discovery directory, optional configuration file and
 // artifact path. A relative Config is relative to Dir; content and Out paths
-// are relative to the selected configuration's directory.
+// are relative to the selected configuration's directory. Force skips the
+// confirmation of existing output; otherwise Stdin supplies the response.
 type Options struct {
 	Dir     string
 	Config  string
 	Out     string
 	BaseURL string
 	Static  bool
+	Force   bool
+	Stdin   io.Reader
 	Stdout  io.Writer
 	Stderr  io.Writer
 }
@@ -142,6 +146,9 @@ func Run(opts Options) (err error) {
 	tc, err := checkToolchain(pins)
 	if err != nil {
 		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: %w", err)}
+	}
+	if err := confirmOutput(out, opts); err != nil {
+		return err
 	}
 	if err := resetOutput(out); err != nil {
 		return &ExitError{Code: 3, Err: err}
@@ -896,6 +903,37 @@ func outputDir(cfg *config.File, out string) (string, error) {
 		out = filepath.Join(filepath.Dir(cfg.Path()), out)
 	}
 	return filepath.Clean(out), nil
+}
+
+// confirmOutput asks before replacing an existing entry, including a dangling
+// symlink. No output or workspace cleanup has begun when this returns an error.
+func confirmOutput(out string, opts Options) error {
+	if opts.Force {
+		return nil
+	}
+	if _, err := os.Lstat(out); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return &ExitError{Code: 3, Err: fmt.Errorf("inspect output %q: %w", out, err)}
+	}
+	if _, err := fmt.Fprintf(opts.Stderr, "Warning: %q will be removed, including any contents.\nReplace it? [y/N] (use --force/-f to skip confirmation): ", out); err != nil {
+		return &ExitError{Code: 3, Err: fmt.Errorf("write output confirmation: %w", err)}
+	}
+	input := opts.Stdin
+	if input == nil {
+		input = strings.NewReader("")
+	}
+	answer, err := bufio.NewReader(input).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return &ExitError{Code: 3, Err: fmt.Errorf("read output confirmation: %w", err)}
+	}
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "y", "yes":
+		return nil
+	default:
+		return &ExitError{Code: 1, Err: fmt.Errorf("build cancelled; output %q left unchanged", out)}
+	}
 }
 
 // resetOutput removes the selected output entry and creates <out>/.tmp.

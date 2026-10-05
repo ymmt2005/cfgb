@@ -125,7 +125,7 @@ jobs:
         run: go build -o "$RUNNER_TEMP/cfgb" ./cmd/cfgb
       - name: Build example HTML
         working-directory: cfgb-example
-        run: '"$RUNNER_TEMP/cfgb" build --out dist'
+        run: '"$RUNNER_TEMP/cfgb" build --force --out dist'
       - name: Check every generated HTML file offline
         run: node scripts/check-links.mjs cfgb-example/dist/site https://example.invalid --config .github/lychee.toml
 

@@ -80,7 +80,7 @@ func TestBuildReplacesSelectedImage(t *testing.T) {
 			if err := os.WriteFile(file, raw, 0o644); err != nil {
 				t.Fatal(err)
 			}
-			err = Run(Options{Dir: repo, Out: image})
+			err = Run(Options{Dir: repo, Out: image, Force: true})
 			var exit *ExitError
 			if !errors.As(err, &exit) || exit.Code != 3 || !strings.Contains(err.Error(), "stage site.image") {
 				t.Fatalf("expected missing-input failure after output replacement: %v", err)

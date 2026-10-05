@@ -335,7 +335,7 @@ func buildExtendedExample(t *testing.T, source string) {
 		t.Fatal(err)
 	}
 	var log bytes.Buffer
-	if err := Run(Options{Dir: repo, Out: out, Stdout: &log, Stderr: &log}); err != nil {
+	if err := Run(Options{Dir: repo, Out: out, Force: true, Stdout: &log, Stderr: &log}); err != nil {
 		t.Fatalf("extended build: %v\n%s", err, log.String())
 	}
 	cleanupExampleWorkspace(t, out)
