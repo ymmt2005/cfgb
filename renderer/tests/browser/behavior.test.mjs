@@ -313,13 +313,145 @@ describe(
       });
     });
 
+    test("code frames keep compact lines and palette colors without overflowing the page", async () => {
+      for (const colorScheme of ["light", "dark"]) {
+        for (const width of [1280, 375]) {
+          await withPage(
+            site,
+            { colorScheme, viewport: { width, height: 900 } },
+            async (page) => {
+              await page.goto(`${site.origin}/en/posts/browser/`);
+              const frame = page.locator(".expressive-code").first();
+              assert.equal(
+                await frame.locator(".title").textContent(),
+                "example.js",
+              );
+              assert.deepEqual(
+                await frame.locator(".gutter .ln").allTextContents(),
+                ["1", "2"],
+              );
+              for (const palette of [
+                "classic",
+                "cyber",
+                "dope",
+                "forest",
+                "dusk",
+              ]) {
+                await page
+                  .locator("html")
+                  .evaluate(
+                    (el, palette) => (el.dataset.palette = palette),
+                    palette,
+                  );
+                const layout = await frame.evaluate((el) => {
+                  const pre = el.querySelector("pre");
+                  const style = getComputedStyle(pre);
+                  const color = (token) => {
+                    const probe = document.createElement("span");
+                    probe.style.backgroundColor = `var(${token})`;
+                    el.append(probe);
+                    const value = getComputedStyle(probe).backgroundColor;
+                    probe.remove();
+                    return value;
+                  };
+                  return {
+                    background: style.backgroundColor,
+                    expectedBackground: color("--code-bg"),
+                    highlight: getComputedStyle(
+                      el.querySelector(".ec-line.mark"),
+                    ).backgroundColor,
+                    expectedHighlight: color("--mark"),
+                    lineHeight: parseFloat(style.lineHeight),
+                    lines: [...el.querySelectorAll(".ec-line .code")].map(
+                      (line) => {
+                        const css = getComputedStyle(line);
+                        const rect = line.getBoundingClientRect();
+                        return {
+                          top: rect.top,
+                          height: rect.height,
+                          marginTop: css.marginTop,
+                          marginBottom: css.marginBottom,
+                          border: css.borderTopWidth,
+                          radius: css.borderRadius,
+                          background: css.backgroundColor,
+                          shadow: css.boxShadow,
+                        };
+                      },
+                    ),
+                    copyBorder: getComputedStyle(el.querySelector(".copy"))
+                      .borderTopWidth,
+                  };
+                });
+                assert.equal(
+                  layout.background,
+                  layout.expectedBackground,
+                  `${palette}/${colorScheme} background`,
+                );
+                assert.equal(
+                  layout.highlight,
+                  layout.expectedHighlight,
+                  `${palette}/${colorScheme} highlight`,
+                );
+                for (const [index, line] of layout.lines.entries()) {
+                  assert.equal(line.marginTop, "0px");
+                  assert.equal(line.marginBottom, "0px");
+                  assert.equal(line.border, "0px");
+                  assert.equal(line.radius, "0px");
+                  assert.equal(line.background, "rgba(0, 0, 0, 0)");
+                  assert.equal(line.shadow, "none");
+                  assert.ok(
+                    Math.abs(line.height - layout.lineHeight) < 1,
+                    "one line occupies one line height",
+                  );
+                  if (index)
+                    assert.ok(
+                      Math.abs(
+                        line.top -
+                          layout.lines[index - 1].top -
+                          layout.lineHeight,
+                      ) < 1,
+                      "no gaps between code lines",
+                    );
+                }
+                assert.equal(
+                  layout.copyBorder,
+                  "0px",
+                  "mockup button styles must not decorate the copy wrapper",
+                );
+              }
+              const long = page
+                .locator(".expressive-code")
+                .nth(1)
+                .locator("pre");
+              assert.ok(
+                await long.evaluate((el) => el.scrollWidth > el.clientWidth),
+                "long lines scroll within the code block",
+              );
+              await long.evaluate((el) => (el.scrollLeft = el.scrollWidth));
+              assert.ok(await long.evaluate((el) => el.scrollLeft > 0));
+              assert.ok(
+                await page.evaluate(
+                  () =>
+                    document.documentElement.scrollWidth <=
+                    document.documentElement.clientWidth + 1,
+                ),
+                "code must not widen the page",
+              );
+            },
+          );
+        }
+      }
+    });
+
     test("code copy writes exact multiline Unicode text to the real clipboard", async () => {
       await withPage(site, {}, async (page, context) => {
         await context.grantPermissions(["clipboard-read", "clipboard-write"], {
           origin: site.origin,
         });
         await page.goto(`${site.origin}/en/posts/browser/`);
-        const copy = page.getByRole("button", { name: "Copy to clipboard" });
+        const copy = page
+          .getByRole("button", { name: "Copy to clipboard" })
+          .first();
         await copy.click();
         await page.waitForFunction(
           (code) =>
@@ -330,10 +462,14 @@ describe(
           await page.evaluate(() => navigator.clipboard.readText()),
           code,
         );
-        await page.locator(".expressive-code .feedback").waitFor();
+        await page.locator(".expressive-code .feedback").first().waitFor();
         assert.ok(
-          (await page.locator(".expressive-code .feedback").textContent())
-            .length > 0,
+          (
+            await page
+              .locator(".expressive-code .feedback")
+              .first()
+              .textContent()
+          ).length > 0,
         );
       });
     });
