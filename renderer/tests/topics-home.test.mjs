@@ -118,6 +118,10 @@ test(
         );
       }
       const home = readFileSync(path.join(dist, "en", "index.html"), "utf8");
+      for (const icon of ["favicon.png", "apple-touch-icon.png"]) {
+        assert.equal(existsSync(path.join(dist, icon)), false, "omitted site.image emits no icons");
+      }
+      assert.equal(home.includes('rel="icon"'), false);
       assert.equal(home.includes('class="language-switch"'), false);
       assert.equal(home.includes('class="language-toggle"'), false);
       assert.ok(home.includes('class="language-single"'));

@@ -5,10 +5,33 @@ import { startSite, withPage } from "./fixture.mjs";
 describe("static hosting below a repository path", { timeout: 180_000 }, () => {
   let site;
   before(async () => {
-    site = await startSite({ basePath: "/cfgb-example", static: true });
+    site = await startSite({ basePath: "/cfgb-example", static: true, siteImage: true });
   });
   after(async () => {
     await site?.close();
+  });
+
+  test("social images and favicons load as PNGs below the hosting prefix", async () => {
+    await withPage(site, {}, async (page) => {
+      await page.goto(`${site.origin}/cfgb-example/en/posts/browser/`);
+      const image = await page.locator('meta[property="og:image"]').getAttribute("content");
+      assert.equal(await page.locator('meta[name="twitter:image"]').getAttribute("content"), image);
+      assert.ok(image.startsWith("https://example.invalid/cfgb-example/og/"));
+      const paths = [new URL(image).pathname];
+      for (const rel of ["icon", "apple-touch-icon"]) {
+        paths.push(await page.locator(`link[rel="${rel}"]`).getAttribute("href"));
+      }
+      const sizes = [[1200, 630], [32, 32], [180, 180]];
+      for (const [index, pathname] of paths.entries()) {
+        const dimensions = await page.evaluate(async (pathname) => {
+          const image = new Image();
+          image.src = pathname;
+          await image.decode();
+          return [image.naturalWidth, image.naturalHeight];
+        }, pathname);
+        assert.deepEqual(dimensions, sizes[index]);
+      }
+    });
   });
 
   test("entry, navigation, translations and aliases work without a Worker or JavaScript", async () => {

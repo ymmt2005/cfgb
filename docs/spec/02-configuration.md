@@ -17,6 +17,7 @@ constraint. Keep those domain checks in their relevant commands.
 | --- | --- |
 | `schemaVersion` | Required, integer 1 |
 | `site.title` | Required nonempty text |
+| `site.image` | Optional local branding image, resolved relative to `cfgb.yaml`; empty or omitted uses text-only OG cards and generates no favicons |
 | `site.baseUrl` | Public site URL; may include a hosting path such as `/cfgb-example/`. A trailing slash is optional. No query/fragment/userinfo |
 | `site.defaultLocale` | Required key in `locales` |
 | `site.timezone` | IANA timezone used only for monthly archive classification |
@@ -40,6 +41,22 @@ this release. Match catalog and configured identifiers case-sensitively, without
 normalizing or aliasing them. Extending the catalog requires translated UI and
 review of its presentation; a new language is not accepted merely because its
 identifier can be parsed.
+
+`site.image` supplies the shared branding mark for generated article OG cards
+and favicons. For example, `image: src/assets/site.svg` under `site` selects a
+local source image; the format is decoded by the installed Sharp pipeline.
+The CLI captures its bytes through the repository root alongside the content
+snapshot. Relative paths resolve from the selected configuration directory,
+including when using `--config`. Contained repository symlinks remain usable.
+The image is optional; an explicitly configured file that cannot be read or
+decoded fails the build rather than silently disappearing.
+
+Generated fallback OG cards include the article title, site title and, when
+configured, this branding mark. Article `ogImage` takes precedence over the
+fallback card. The site image also supplies `/favicon.png` and
+`/apple-touch-icon.png`, linked with the hosting prefix. These square icons
+contain the original image with transparent padding; they do not crop or
+distort it. The original branding file is not automatically published.
 
 AI disabled with `summary: {}` is a usable offline configuration. Do not insert
 `TBD` as if it were a real provider/model. Missing model configuration is an

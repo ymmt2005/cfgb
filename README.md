@@ -39,6 +39,22 @@ cfgb build --out dist --base-url https://example.github.io/blog/ --static
 
 Publish `dist/site/` with the static host. GitHub Actions can install the CLI
 through [cfgb-action](https://github.com/ymmt2005/cfgb-action) before running build.
+The selected `--out` entry is replaced; choose a path whose contents may be
+removed. CFGB does not reject output paths overlapping repository inputs.
+
+The renderer generates article social-sharing PNGs and OpenGraph/Twitter
+metadata. Article `ogImage` selects a local image; otherwise CFGB generates a
+title card. Optional `site.image` in `cfgb.yaml` adds a shared branding mark to
+fallback cards and generates PNG favicon and Apple touch icons:
+
+```yaml
+site:
+  image: src/assets/site.svg
+```
+
+This setting is available in the source implementation; use a release containing
+it before enabling it in a content repository. It is optional and adds no font
+or image downloads during rendering.
 
 The source supports Japanese (`ja`), English (`en`), Simplified Chinese
 (`zh-Hans`) and Korean (`ko`). Enable languages and set their display labels in
