@@ -229,6 +229,9 @@ For changes crossing repositories, keep ownership explicit:
 ## Prove behavior and keep checks reproducible
 
 - Reproduce review findings against the current head and actual execution path.
+  When addressing a PR review comment, add a reply in its original review thread
+  explaining the disposition, relevant changes/commit, and validation. Reply
+  even when the finding is declined based on the user's intended behavior.
   Assess Copilot comments independently, including "Previously missed" items;
   check adjacent consumers when fixing a shared contract. State concrete triggers
   and effects, without inventing a threat model for an ordinary static site.
