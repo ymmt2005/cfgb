@@ -34,7 +34,18 @@
         "searchHint": "このサイトの記事を検索します。",
         "notFound": "ページが見つかりません",
         "notFoundBody": "アドレスを確認するか、ホームまたは検索へ戻ってください。",
-        "feed": "RSS"
+        "feed": "RSS",
+        "diagram": "図",
+        "diagramExpand": "図を拡大",
+        "diagramZoom": "ズーム",
+        "diagramZoomIn": "拡大",
+        "diagramZoomOut": "縮小",
+        "diagramFit": "画面に合わせる",
+        "diagramActualSize": "実際のサイズ",
+        "diagramFullScreen": "全画面表示",
+        "diagramExitFullScreen": "全画面表示を終了",
+        "diagramClose": "図を閉じる",
+        "diagramFullScreenUnavailable": "全画面表示を利用できません。この画面で拡大やスクロールができます。"
       }
     },
     "en": {
@@ -69,7 +80,18 @@
         "searchHint": "Search articles on this site.",
         "notFound": "Page not found",
         "notFoundBody": "Check the address, or return home or to search.",
-        "feed": "RSS"
+        "feed": "RSS",
+        "diagram": "Diagram",
+        "diagramExpand": "Expand diagram",
+        "diagramZoom": "Zoom",
+        "diagramZoomIn": "Zoom in",
+        "diagramZoomOut": "Zoom out",
+        "diagramFit": "Fit to window",
+        "diagramActualSize": "Actual size",
+        "diagramFullScreen": "Full screen",
+        "diagramExitFullScreen": "Exit full screen",
+        "diagramClose": "Close diagram",
+        "diagramFullScreenUnavailable": "Full screen is unavailable. You can still zoom and scroll in this view."
       }
     },
     "zh-Hans": {
@@ -104,7 +126,18 @@
         "searchHint": "搜索本站文章。",
         "notFound": "页面未找到",
         "notFoundBody": "请检查地址，或返回首页或搜索页面。",
-        "feed": "RSS"
+        "feed": "RSS",
+        "diagram": "图表",
+        "diagramExpand": "展开图表",
+        "diagramZoom": "缩放",
+        "diagramZoomIn": "放大",
+        "diagramZoomOut": "缩小",
+        "diagramFit": "适应窗口",
+        "diagramActualSize": "实际大小",
+        "diagramFullScreen": "全屏",
+        "diagramExitFullScreen": "退出全屏",
+        "diagramClose": "关闭图表",
+        "diagramFullScreenUnavailable": "无法进入全屏。您仍可在此视图中缩放和滚动。"
       }
     },
     "ko": {
@@ -139,7 +172,18 @@
         "searchHint": "이 사이트의 글을 검색합니다.",
         "notFound": "페이지를 찾을 수 없습니다",
         "notFoundBody": "주소를 확인하거나 홈 또는 검색 페이지로 돌아가세요.",
-        "feed": "RSS"
+        "feed": "RSS",
+        "diagram": "다이어그램",
+        "diagramExpand": "다이어그램 확대",
+        "diagramZoom": "배율",
+        "diagramZoomIn": "확대",
+        "diagramZoomOut": "축소",
+        "diagramFit": "창에 맞추기",
+        "diagramActualSize": "실제 크기",
+        "diagramFullScreen": "전체 화면",
+        "diagramExitFullScreen": "전체 화면 종료",
+        "diagramClose": "다이어그램 닫기",
+        "diagramFullScreenUnavailable": "전체 화면을 사용할 수 없습니다. 이 보기에서 확대하고 스크롤할 수 있습니다."
       }
     }
   }

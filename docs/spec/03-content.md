@@ -230,6 +230,21 @@ Do not emit a second copy of the source. Invalid Mermaid keeps source with a use
 Re-render from original source on theme change, including a system color-scheme
 change while the page remains in system mode; serialize renders to avoid races.
 
+Successfully rendered diagrams offer a localized **Expand diagram** control.
+Open a native modal filling the viewport, with zoom, fit-to-window, and actual-size
+controls and a scrollable diagram area.
+Open at no less than the diagram's natural size so large labels stay readable;
+fit-to-window is an explicit overview that may shrink the diagram.
+Where the browser permits it, a separate full-screen control hides browser chrome
+through the Fullscreen API; otherwise
+the expanded modal remains usable. Keep a single live render target and SVG,
+preserving its IDs, original source, and theme redraws while expanded. Escape
+and the close control dismiss the viewer, restore the diagram to its article,
+and return keyboard focus to its expand control. Closing also exits full screen
+when the viewer owns it. Native modal focus containment, mobile layout, reduced
+motion, and labels in every supported language apply. Invalid diagrams and the
+no-JavaScript source fallback do not show unusable expansion controls.
+
 Theme states are system/light/dark. The color palette is specified only in
 `cfgb.yaml`, not by a visitor control and not by a content file. Store explicit choice locally, handle storage
 failure, listen for system changes only in system mode, and set the initial theme

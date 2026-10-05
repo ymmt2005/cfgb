@@ -18,6 +18,12 @@ import { chromium } from "playwright";
 const rendererRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const code = 'const greeting = "こんにちは";\nconsole.log(greeting);';
 export const diagram = "flowchart TD\nBrowser --> Search";
+export const largeDiagram =
+  "flowchart LR\n" +
+  Array.from(
+    { length: 12 },
+    (_, i) => `Step${i}[Read diagram step ${i + 1}] --> Step${i + 1}`,
+  ).join("\n");
 const languages = {
   ja: { label: "日本語" },
   en: { label: "English" },
@@ -31,6 +37,7 @@ export async function startSite({
   enabledLanguages = Object.keys(languages),
   presentation = false,
   siteImage = false,
+  permissionsPolicy,
 } = {}) {
   const work = buildSite(basePath, staticSite, enabledLanguages, presentation, siteImage);
   let browser, server;
@@ -68,6 +75,7 @@ export async function startSite({
         const body = readFileSync(file);
         response.writeHead(200, {
           ...headers,
+          ...(permissionsPolicy ? { "Permissions-Policy": permissionsPolicy } : {}),
           "Content-Type":
             types[path.extname(file)] || "application/octet-stream",
         });
@@ -247,6 +255,24 @@ function buildSite(basePath, staticSite, enabledLanguages, presentation, siteIma
           publishedAt: "2026-01-02T00:00:00Z",
           topics: ["notes"],
           summary: "A deliberately malformed diagram.",
+        },
+      });
+    if (enabledLanguages.includes("en"))
+      posts.push({
+        id: "posts/2026/large-diagram/en",
+        file: path.join(content, "posts/2026/large-diagram/en.md"),
+        body: `## Large diagram\n\n\`\`\`mermaid\n${largeDiagram}\n\`\`\``,
+        group: "2026/large-diagram",
+        year: "2026",
+        articleKey: "large-diagram",
+        locale: "en",
+        archive: { year: "2026", month: "01" },
+        data: {
+          title: "Large diagram",
+          slug: "large-diagram",
+          publishedAt: "2026-01-01T00:00:00Z",
+          topics: ["notes"],
+          summary: "A wide diagram for expanded reading.",
         },
       });
     if (presentation)
