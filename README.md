@@ -92,7 +92,8 @@ uses GoReleaser to build a draft. It checks the binary's reported version before
 publishing the immutable release and verifying its attestation. Rerun the same
 workflow run to retry a failed release; an existing published immutable release
 is verified without being rebuilt. Toolchain metadata reads the same Go version
-string. The workflow can also be started manually for its selected commit.
+string. Failed runs can be retried through GitHub Actions without a separate
+manual release trigger.
 
 ## License
 
