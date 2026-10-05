@@ -268,7 +268,8 @@ func checkCorpusSitemap(want corpusExpectations) error {
 	for location, item := range all {
 		links := make(map[string]string)
 		for _, link := range item.Links {
-			if link.Rel != "alternate" || links[link.Language] != "" {
+			_, duplicate := links[link.Language]
+			if link.Rel != "alternate" || duplicate {
 				return fmt.Errorf("invalid or duplicate sitemap alternate: %s %+v", location, link)
 			}
 			links[link.Language] = link.Href

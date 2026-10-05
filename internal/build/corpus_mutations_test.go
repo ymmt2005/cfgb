@@ -38,6 +38,16 @@ func proveCorpusChecks(t *testing.T, want corpusExpectations, out string) {
 				}
 			}
 		}), checkSitemap},
+		{"duplicate sitemap alternate after empty href", sitemap, "invalid or duplicate sitemap alternate", editSitemap(func(doc *corpusSitemap) {
+			for i := range doc.URLs {
+				if len(doc.URLs[i].Links) > 0 {
+					duplicate := doc.URLs[i].Links[0]
+					duplicate.Href = ""
+					doc.URLs[i].Links = append([]corpusSitemapLink{duplicate}, doc.URLs[i].Links...)
+					return
+				}
+			}
+		}), checkSitemap},
 		{"wrong sitemap lastmod", sitemap, "sitemap lastmod", editSitemap(func(doc *corpusSitemap) {
 			for i := range doc.URLs {
 				if doc.URLs[i].Lastmod != "" {
