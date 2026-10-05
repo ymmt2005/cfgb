@@ -178,6 +178,10 @@ summaries, publication instants and ordering. Article HTML is parsed with Parse5
 canonical/alternate links, OpenGraph, Twitter and JSON-LD are checked against
 the fixture URLs and source metadata. Sharp decodes the published PNGs and
 compares declared dimensions with the explicit source image or fallback card size.
+OpenGraph locale is compared with the retained renderer's language catalog;
+each image URL must match its article's source identity through that renderer's
+shared route function. Corruption cases include incorrect locale metadata and
+swapped fallback-image URLs with otherwise consistent metadata and dimensions.
 Deliberate mutations of the completed artifact prove that these checks reject
 missing/duplicate/unexpected entries, incorrect dates/alternates, malformed
 XML/JSON and inconsistent metadata. The metadata helper uses dependencies from

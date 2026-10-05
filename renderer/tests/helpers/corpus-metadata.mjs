@@ -6,11 +6,14 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const require = createRequire(path.join(process.argv[2], "package.json"));
-const [{ parse }, { default: sharp }] = await Promise.all([
+const renderer = process.argv[2];
+const require = createRequire(path.join(renderer, "package.json"));
+const [{ parse }, { default: sharp }, { socialImageRoute }] = await Promise.all([
   import(pathToFileURL(require.resolve("parse5")).href),
   import(pathToFileURL(require.resolve("sharp")).href),
+  import(pathToFileURL(path.join(renderer, "src/lib/social-images.mjs")).href),
 ]);
+const catalog = JSON.parse(readFileSync(path.join(renderer, "src/lib/locales.json"), "utf8"));
 const expected = JSON.parse(readFileSync(0, "utf8"));
 const absolute = (route) => expected.baseURL.replace(/\/$/, "") + route;
 const images = new Set();
@@ -34,6 +37,7 @@ for (const article of expected.articles) {
   assert.equal(meta("og:url"), canonical);
   assert.equal(meta("og:type"), "article");
   assert.equal(meta("og:site_name"), expected.title);
+  assert.equal(meta("og:locale"), catalog.locales[article.locale].ogLocale, `${canonical}: catalog OG locale`);
   for (const name of ["og:title", "twitter:title"]) assert.equal(meta(name), article.data.title, `${canonical}: ${name}`);
   for (const name of ["og:description", "twitter:description"]) assert.equal(meta(name), article.data.summary, `${canonical}: ${name}`);
   assert.equal(meta("twitter:card"), "summary_large_image");
@@ -52,6 +56,8 @@ for (const article of expected.articles) {
   assert.equal(new Date(meta("article:published_time")).toISOString(), published, canonical);
   assert.equal(new Date(meta("article:modified_time")).toISOString(), modified, canonical);
   const image = meta("og:image");
+  const identity = `posts/${article.articleKey}/${article.locale}`;
+  assert.equal(image, absolute(socialImageRoute({ id: identity })), `${canonical}: source identity OG image URL`);
   const url = new URL(image);
   assert.ok(image.startsWith(absolute("/og/")) && image.endsWith(".png"), `${canonical}: canonical PNG URL`);
   assert.equal(url.search + url.hash, "");

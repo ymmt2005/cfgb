@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -63,6 +64,7 @@ func proveCorpusChecks(t *testing.T, want corpusExpectations, out string) {
 		{"wrong RSS GUID", feed, "membership/order", editRSS(func(doc *corpusRSS) { doc.Channel.Items[0].GUID = "https://preview.invalid/wrong/" }), checkRSS},
 		{"wrong canonical", article, "AssertionError", replaceCorpusText(want.absolute(want.Articles[0].URL), "https://preview.invalid/wrong/"), checkMetadata},
 		{"wrong OG title", article, "AssertionError", replaceCorpusText(`property="og:title" content="`, `property="og:title" content="WRONG `), checkMetadata},
+		{"wrong OG locale", article, "catalog OG locale", replaceCorpusText(`property="og:locale" content="`, `property="og:locale" content="WRONG_`), checkMetadata},
 		{"missing sharing description", article, "expected one meta", replaceCorpusText(`property="og:description"`, `property="og:wrong-description"`), checkMetadata},
 		{"wrong image dimensions", article, "AssertionError", replaceCorpusText(`property="og:image:width" content="`, `property="og:image:width" content="0`), checkMetadata},
 		{"wrong JSON-LD headline", article, "AssertionError", replaceCorpusText(`"headline":"`, `"headline":"WRONG `), checkMetadata},
@@ -101,6 +103,51 @@ func proveCorpusChecks(t *testing.T, want corpusExpectations, out string) {
 			}
 		})
 	}
+	t.Run("reject swapped fallback image URLs", func(t *testing.T) {
+		var articles []corpusArticle
+		for _, article := range want.Articles {
+			if article.Data.OGImage == "" {
+				articles = append(articles, article)
+				if len(articles) == 2 {
+					break
+				}
+			}
+		}
+		if len(articles) != 2 {
+			t.Fatal("image ownership corruption needs two fallback articles")
+		}
+		pattern := regexp.MustCompile(`<meta property="og:image" content="([^"]+)"`)
+		var original [2][]byte
+		var images [2][]byte
+		for i, article := range articles {
+			file := want.file(article.URL + "index.html")
+			raw, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			match := pattern.FindSubmatch(raw)
+			if match == nil {
+				t.Fatalf("OG image missing from %s", article.URL)
+			}
+			original[i], images[i] = raw, match[1]
+			t.Cleanup(func() {
+				if err := os.WriteFile(file, raw, 0o644); err != nil {
+					t.Error(err)
+				}
+			})
+		}
+		for i, article := range articles {
+			// Keep OG, Twitter and JSON-LD consistent and preserve uniqueness;
+			// only the association with source identity is wrong.
+			changed := bytes.ReplaceAll(original[i], images[i], images[1-i])
+			if err := os.WriteFile(want.file(article.URL+"index.html"), changed, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := checkMetadata(); err == nil || !strings.Contains(err.Error(), "source identity OG image URL") {
+			t.Fatalf("swapped image URLs did not fail the ownership assertion: %v", err)
+		}
+	})
 	t.Run("reject unreferenced sitemap", func(t *testing.T) {
 		file := filepath.Join(want.SiteRoot, "sitemap-extra.xml")
 		if err := os.WriteFile(file, []byte(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>`), 0o644); err != nil {
