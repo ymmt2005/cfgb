@@ -24,6 +24,7 @@ type File struct {
 	SchemaVersion int `yaml:"schemaVersion"`
 	Site          struct {
 		Title         string `yaml:"title"`
+		Image         string `yaml:"image"`
 		BaseURL       string `yaml:"baseUrl"`
 		DefaultLocale string `yaml:"defaultLocale"`
 		Timezone      string `yaml:"timezone"`

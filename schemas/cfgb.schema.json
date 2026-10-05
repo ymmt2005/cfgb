@@ -15,6 +15,10 @@
           "type": "string",
           "minLength": 1
         },
+        "image": {
+          "type": "string",
+          "description": "Optional local branding image, resolved from the configuration directory. Used in fallback OG cards and generated favicons. Empty or omitted means text-only OG cards and no generated favicons."
+        },
         "baseUrl": {
           "type": "string",
           "format": "uri",

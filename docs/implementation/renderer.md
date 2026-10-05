@@ -194,9 +194,35 @@ suffixes and an artificial Windows path supplied to a Linux renderer are not
 positive conformance cases. Native paths continue to use Node's platform-aware
 `path` implementation.
 
-This PR remains the renderer/build foundation. Full semantic validation,
-deploy/preview upload, and complete social image metadata are documented in
-the remaining delivery/CLI specifications as unfinished. They are not claims made by the current renderer.
+## Social images and icons
+
+Article pages and static PNG endpoints share `social-images.mjs`. An explicit
+`ogImage` is read from the captured content tree through the existing local-asset
+resolver and converted to PNG by the pinned Sharp dependency, including SVG
+rasterization and EXIF orientation. Missing or undecodable explicit sources fail
+with article context rather than falling back to a generated card.
+
+Without an explicit image, Sharp renders a title/branding card using the bundled
+Noto Sans CJK JP font and optional `site.image`. Long text wraps and shrinks to
+fit; title/branding text is escaped before Pango markup rendering. The font and
+its SIL OFL license are embedded source assets, never published web fonts.
+Font provenance and its checksum are recorded in `renderer/src/lib/fonts/`.
+Building social images requires no font or image downloads.
+
+`site.image` is captured through `os.Root` before rendering; the renderer receives
+only its snapshot path. The same image produces square PNG favicon and Apple
+touch icons with transparent padding. Omission keeps text-only cards and emits
+no generated icons. The example's branding option is commented until consumers
+select a release supporting the new setting; its CLI/release pins stay independent.
+
+OpenGraph and Twitter cards share canonical image URLs, dimensions and alt text.
+Article publication/modification metadata and BlogPosting image metadata use the
+same normalized article data. Tests parse actual generated HTML, decode emitted
+PNGs, inspect SVG/raster pixels and fallback branding, and verify prefixed icon
+links, title/summary escaping, source errors and long multilingual text.
+
+Full semantic validation and deploy/preview upload remain unfinished in the
+delivery/CLI specifications.
 
 ## Generated-site link checks
 

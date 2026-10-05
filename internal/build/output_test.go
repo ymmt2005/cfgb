@@ -846,7 +846,7 @@ func TestRendererDoesNotReceiveTimezone(t *testing.T) {
 		t.Fatal(err)
 	}
 	file := filepath.Join(t.TempDir(), "site.json")
-	if err := writeSiteJSON(file, cfg, "content", "topics", "cards", "metadata", false); err != nil {
+	if err := writeSiteJSON(file, cfg, "content", "topics", "cards", "metadata", "", false); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(file)

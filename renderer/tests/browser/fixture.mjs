@@ -30,8 +30,9 @@ export async function startSite({
   static: staticSite = false,
   enabledLanguages = Object.keys(languages),
   presentation = false,
+  siteImage = false,
 } = {}) {
-  const work = buildSite(basePath, staticSite, enabledLanguages, presentation);
+  const work = buildSite(basePath, staticSite, enabledLanguages, presentation, siteImage);
   let browser, server;
   try {
     const dist = path.join(work, "renderer", "dist");
@@ -140,7 +141,7 @@ export async function withPage(site, options, run) {
   }
 }
 
-function buildSite(basePath, staticSite, enabledLanguages, presentation) {
+function buildSite(basePath, staticSite, enabledLanguages, presentation, siteImage) {
   const configured = Object.fromEntries(
     enabledLanguages.map((locale) => [locale, languages[locale]]),
   );
@@ -338,11 +339,14 @@ function buildSite(basePath, staticSite, enabledLanguages, presentation) {
           description: "A local card fixture.",
         }),
       );
+    const image = path.join(work, "site-image.svg");
+    if (siteImage) writeFileSync(image, '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="#8a3c18"/></svg>');
     const site = path.join(work, "site.json");
     writeFileSync(
       site,
       JSON.stringify({
         title: "CFGB Example",
+        ...(siteImage ? { image } : {}),
         baseUrl: `https://example.invalid${basePath}`,
         static: staticSite,
         defaultLocale: enabledLanguages.includes("ja")

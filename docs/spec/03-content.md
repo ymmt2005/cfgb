@@ -198,6 +198,14 @@ includes SVG as a precise diagram and PNG as an original lossless raster fixture
 OG fallback is a build-time PNG with title/branding and a bundled licensed font
 supporting Japanese; browser web fonts are still unnecessary. OG references must
 resolve to a crawler-compatible PNG/JPEG, rasterizing SVG source if necessary.
+The renderer emits article-specific PNGs under `/og/`, using `ogImage` when
+provided and otherwise a 1200×630 title card. The fallback includes optional
+`site.image` branding. Explicit images are decoded and converted to PNG, with
+their oriented dimensions preserved. Each article/locale has a separate image
+URL based on source identity. OpenGraph and Twitter metadata use the same
+absolute production image URL, including any hosting prefix, actual dimensions
+and article-title alternative text. BlogPosting JSON-LD includes that URL too.
+These image assets are excluded from sitemap entries and article search.
 For local assets, including `ogImage`, normalize the path and check article-group
 containment before testing file existence; then check resolved symlink containment.
 An escaping path is `E_LOCAL_PATH`, exit 1, even if the target does not exist.

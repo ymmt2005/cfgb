@@ -81,6 +81,7 @@ type toolchainCheck struct {
 
 type siteJSON struct {
 	Title         string `json:"title"`
+	Image         string `json:"image,omitempty"`
 	Static        bool   `json:"static"`
 	BaseURL       string `json:"baseUrl"`
 	DefaultLocale string `json:"defaultLocale"`
@@ -190,7 +191,11 @@ func Run(opts Options) (err error) {
 		return &ExitError{Code: 3, Err: err}
 	}
 	sitePath := filepath.Join(workspace, "site.json")
-	if err := writeSiteJSON(sitePath, cfg, contentRoot, topicsFile, linkcardsDir, metadataPath, opts.Static); err != nil {
+	siteImage, err := stageSiteImage(cfg, snapshot)
+	if err != nil {
+		return &ExitError{Code: 3, Err: fmt.Errorf("stage site.image: %w", err)}
+	}
+	if err := writeSiteJSON(sitePath, cfg, contentRoot, topicsFile, linkcardsDir, metadataPath, siteImage, opts.Static); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
 	routesPath := filepath.Join(workspace, "routes.json")
@@ -714,6 +719,35 @@ func repoRelative(repo, base, value string) (string, error) {
 	return filepath.ToSlash(rel), nil
 }
 
+// stageSiteImage captures optional branding through the same repository root
+// as content, following contained symlinks without reopening live inputs later.
+func stageSiteImage(cfg *config.File, snapshot string) (dest string, err error) {
+	if cfg.Site.Image == "" {
+		return "", nil
+	}
+	root, err := os.OpenRoot(cfg.Root())
+	if err != nil {
+		return "", err
+	}
+	defer func() { err = errors.Join(err, root.Close()) }()
+	name, err := repoRelative(cfg.Root(), filepath.Dir(cfg.Path()), cfg.Site.Image)
+	if err != nil {
+		return "", err
+	}
+	raw, err := root.ReadFile(name)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(snapshot, 0o755); err != nil {
+		return "", err
+	}
+	dest = filepath.Join(snapshot, "site-image")
+	if err := os.WriteFile(dest, raw, 0o644); err != nil {
+		return "", err
+	}
+	return dest, nil
+}
+
 // stageMedia publishes the same snapshot used by Markdown and metadata.
 func stageMedia(contentRoot, dest string) (err error) {
 	root, err := os.OpenRoot(contentRoot)
@@ -812,7 +846,7 @@ func readRootDir(root *os.Root, name string) (entries []fs.DirEntry, err error) 
 	return file.ReadDir(-1)
 }
 
-func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkcardsDir, metadataFile string, static bool) error {
+func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkcardsDir, metadataFile, siteImage string, static bool) error {
 	locales := map[string]struct {
 		Label string `json:"label"`
 	}{}
@@ -823,6 +857,7 @@ func writeSiteJSON(path string, cfg *config.File, contentRoot, topicsFile, linkc
 	}
 	raw, err := json.Marshal(siteJSON{
 		Title:         cfg.Site.Title,
+		Image:         siteImage,
 		Static:        static,
 		BaseURL:       cfg.Site.BaseURL,
 		DefaultLocale: cfg.Site.DefaultLocale,
@@ -870,6 +905,12 @@ func outputDir(cfg *config.File, out string) (string, error) {
 		{filepath.Join(repo, ".git"), true},
 		{resolveAbs(base, cfg.Content.Topics), false},
 		{cfg.Path(), false},
+	}
+	if cfg.Site.Image != "" {
+		protected = append(protected, struct {
+			path string
+			dir  bool
+		}{resolveAbs(base, cfg.Site.Image), false})
 	}
 	for _, item := range protected {
 		if overlaps(out, item.path, item.dir) {
