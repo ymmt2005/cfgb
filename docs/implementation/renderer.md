@@ -169,6 +169,24 @@ builds a real Pagefind index and checks canonical article membership and
 searchable title/summary text. The pinned example corpus goes through the actual
 Go CLI, embedded extraction, dependency installation, Astro, and Pagefind.
 
+Both the normal and prefixed static CLI builds consume the example's article
+and sitemap expectation fixtures. Acceptance parses the complete sitemap index
+and every referenced file, compares canonical URL sets and translation links,
+checks source-based modification dates, and verifies the robots sitemap URL.
+RSS is parsed for each configured locale and compared with source titles,
+summaries, publication instants and ordering. Article HTML is parsed with Parse5;
+canonical/alternate links, OpenGraph, Twitter and JSON-LD are checked against
+the fixture URLs and source metadata. Sharp decodes the published PNGs and
+compares declared dimensions with the explicit source image or fallback card size.
+OpenGraph locale is compared with the retained renderer's language catalog;
+each image URL must match its article's source identity through that renderer's
+shared route function. Corruption cases include incorrect locale metadata and
+swapped fallback-image URLs with otherwise consistent metadata and dimensions.
+Deliberate mutations of the completed artifact prove that these checks reject
+missing/duplicate/unexpected entries, incorrect dates/alternates, malformed
+XML/JSON and inconsistent metadata. The metadata helper uses dependencies from
+the build's retained toolchain, without requiring an installed source renderer.
+
 `renderer/tests/browser/` builds a small actual site and serves its generated
 HTML and scripts with the generated security headers, then builds the real
 Pagefind index. Playwright covers theme, storage and scroll-observer behavior,

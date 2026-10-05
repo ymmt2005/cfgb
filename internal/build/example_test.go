@@ -37,6 +37,11 @@ func TestExampleCorpus(t *testing.T) {
 	if err := Run(Options{Dir: root, Out: out}); err != nil {
 		t.Fatal(err)
 	}
+	cleanupExampleWorkspace(t, out)
+	want := checkExampleCorpus(t, root, out, "")
+	if !t.Failed() {
+		proveCorpusChecks(t, want, out)
+	}
 	for _, rel := range []string{
 		"site/ja/index.html",
 		"site/en/index.html",
@@ -91,28 +96,6 @@ func TestExampleCorpus(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(out, ".tmp")); !os.IsNotExist(err) {
 		t.Fatal("staging directory was left in the artifact")
-	}
-	sitemap, err := os.ReadFile(filepath.Join(out, "site", "sitemap-0.xml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, loc := range []string{
-		"/ja/posts/protobuf-schema-guide/</loc>",
-		"/en/posts/reading-protobuf-schemas/</loc>",
-		"/ja/topics/protobuf/</loc>",
-		"/en/</loc>",
-		"/ja/about/</loc>",
-		`hreflang="en"`,
-		`hreflang="ja"`,
-	} {
-		if !bytes.Contains(sitemap, []byte(loc)) {
-			t.Errorf("sitemap missing %s", loc)
-		}
-	}
-	for _, blocked := range []string{"/search/", "feed.xml", "robots.txt", "404.html"} {
-		if bytes.Contains(sitemap, []byte(blocked)) {
-			t.Errorf("sitemap contains %s", blocked)
-		}
 	}
 	headers, err := os.ReadFile(filepath.Join(out, "site", "_headers"))
 	if err != nil {
@@ -178,10 +161,6 @@ func TestExampleCorpus(t *testing.T) {
 	if err != nil || !bytes.Contains(archive, []byte(`href="/ja/posts/archive-timezone-boundary/"`)) {
 		t.Fatalf("boundary article missing from October archive: %v", err)
 	}
-	feed, err := os.ReadFile(filepath.Join(out, "site", "ja", "feed.xml"))
-	if err != nil || !bytes.Contains(feed, []byte("Wed, 30 Sep 2026 16:30:00 GMT")) {
-		t.Fatalf("publication instant changed in RSS: %v", err)
-	}
 	root404, err := os.ReadFile(filepath.Join(out, "site", "404.html"))
 	if err != nil {
 		t.Fatal(err)
@@ -203,7 +182,6 @@ func TestExampleCorpus(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	cleanupExampleWorkspace(t, out)
 	switch manager {
 	case "npm":
 		if manifest.Toolchain.PackageManager != "npm" || !npmAtLeast12(manifest.Toolchain.ObservedNpmVersion) || manifest.Toolchain.ObservedPnpmVersion != "" {
