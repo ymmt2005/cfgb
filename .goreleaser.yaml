@@ -37,6 +37,11 @@ release:
     Pagefind search. Content repositories need only Markdown, assets and blog
     settings. Use `--base-url` and `--static` for GitHub Pages and other static hosts.
 
+    v0.3.0 adds article OG images and OpenGraph/Twitter metadata. Optional
+    `site.image` brands generated cards and creates favicon and Apple touch PNGs.
+    Existing output now requires confirmation before replacement; use
+    `--force` (or `-f`) for automated builds.
+
     Building requires Node.js and npm or pnpm compatible with the attached
     `toolchain-requirements.json`. CLI setup is available through `ymmt2005/cfgb-action`.
     Authoring, migration and Cloudflare upload commands are not implemented yet.
