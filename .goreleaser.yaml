@@ -33,7 +33,7 @@ release:
   header: |
     CFGB — Git-based Blog on Cloudflare.
 
-    This initial release implements `cfgb build` with the embedded renderer and
+    CFGB implements `cfgb build` with the embedded renderer and
     Pagefind search. Content repositories need only Markdown, assets and blog
     settings. Use `--base-url` and `--static` for GitHub Pages and other static hosts.
 
