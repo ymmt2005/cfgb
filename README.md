@@ -102,12 +102,16 @@ documented design work.
 ## Releasing
 
 `internal/version/version.go` is the source of truth for the CLI release version.
-Bump its `Version` string (for example, `v0.2.0`) in a PR. As in pbschema-lens,
+Bump its `Version` string and add reviewed Markdown notes at
+`docs/releases/<version>.md` (for example, `docs/releases/v0.3.0.md`) in a PR.
+GoReleaser uses that file as the release body; release-specific text belongs
+there rather than in the workflow or `.goreleaser.yaml`. As in pbschema-lens,
 the release workflow runs on `main` and compares that value with the parent
 commit, assuming squash merges. An unchanged or development version skips
 release setup and publishing.
 
-For a version bump, the workflow tests the code, pushes the matching tag, and
+For a version bump, the workflow checks that the notes file exists and is nonempty,
+tests the code, pushes the matching tag, and
 uses GoReleaser to build a draft. It checks the binary's reported version before
 publishing the immutable release and verifying its attestation. Rerun the same
 workflow run to retry a failed release; an existing published immutable release

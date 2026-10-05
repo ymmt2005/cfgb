@@ -24,6 +24,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/release-detect.sh
+      - name: Check release notes before tagging
+        if: steps.detect.outputs.release == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.detect.outputs.tag }}
+        run: test -s "docs/releases/$RELEASE_TAG.md"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         if: steps.detect.outputs.release == 'true'
         with:
@@ -62,7 +67,7 @@ jobs:
         if: steps.detect.outputs.release == 'true'
         with:
           version: v2.18.2
-          args: release --clean
+          args: release --clean --release-notes docs/releases/${{ steps.detect.outputs.tag }}.md
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: Smoke-test the draft binary before publishing
