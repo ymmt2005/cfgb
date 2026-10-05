@@ -66,15 +66,15 @@ CLI and Node/npm setup steps. For a workflow using the setup Action with step
 ID `cfgb`, add this before `cfgb build`:
 
 ```yaml
-env:
-  CFGB_CACHE_DIR: ${{ runner.temp }}/cfgb-cache
 # ...checkout, cfgb-action (id: cfgb), and Node/npm setup...
 steps:
   - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
     with:
-      path: ${{ env.CFGB_CACHE_DIR }}/dependencies
+      path: ${{ runner.temp }}/cfgb-cache/dependencies
       key: cfgb-dependencies-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.cfgb.outputs.cfgb-version }}-${{ steps.cfgb.outputs.node-version }}-npm-${{ steps.cfgb.outputs.npm-version }}
   - run: cfgb build --force --out dist --static
+    env:
+      CFGB_CACHE_DIR: ${{ runner.temp }}/cfgb-cache
 ```
 
 This example uses the setup Action's selected npm runtime. Workflows selecting

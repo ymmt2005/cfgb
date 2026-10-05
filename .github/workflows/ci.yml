@@ -37,8 +37,6 @@ jobs:
   typescript:
     name: typescript (Node ${{ matrix.node }}, ${{ matrix.package-manager }})
     runs-on: ubuntu-latest
-    env:
-      CFGB_CACHE_DIR: ${{ runner.temp }}/cfgb-cache
     strategy:
       fail-fast: false
       matrix:
@@ -75,7 +73,7 @@ jobs:
           printf 'runtime=%s-%s-%s\n' "$cfgb_node_version" "${{ matrix.package-manager }}" "$cfgb_manager_version" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
-          path: ${{ env.CFGB_CACHE_DIR }}/dependencies
+          path: ${{ runner.temp }}/cfgb-cache/dependencies
           key: cfgb-dependencies-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.dependency-runtime.outputs.runtime }}-${{ hashFiles('renderer/package.json', 'renderer/package-lock.json', 'renderer/pnpm-lock.yaml', 'renderer/pnpm-workspace.yaml', '.github/workflows/ci.yml') }}
       - name: Renderer unit tests
         working-directory: renderer
@@ -95,6 +93,7 @@ jobs:
           node --test *.test.mjs
       - name: Test
         env:
+          CFGB_CACHE_DIR: ${{ runner.temp }}/cfgb-cache
           CFGB_EXAMPLE: ${{ github.workspace }}/cfgb-example
           CFGB_REQUIRE_EXAMPLE: "1"
           CFGB_PACKAGE_MANAGER: ${{ matrix.package-manager }}
@@ -110,7 +109,6 @@ jobs:
     env:
       AQUA_ENFORCE_CHECKSUM: "true"
       AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"
-      CFGB_CACHE_DIR: ${{ runner.temp }}/cfgb-cache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -129,7 +127,7 @@ jobs:
           printf 'runtime=%s-npm-%s\n' "$cfgb_node_version" "$cfgb_manager_version" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
-          path: ${{ env.CFGB_CACHE_DIR }}/dependencies
+          path: ${{ runner.temp }}/cfgb-cache/dependencies
           key: cfgb-dependencies-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.dependency-runtime.outputs.runtime }}-${{ hashFiles('renderer/package.json', 'renderer/package-lock.json', 'renderer/pnpm-lock.yaml', 'renderer/pnpm-workspace.yaml', '.github/workflows/ci.yml') }}
       - name: Install checksum-pinned lychee with aqua
         uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
@@ -148,6 +146,8 @@ jobs:
       - name: Build CFGB
         run: go build -o "$RUNNER_TEMP/cfgb" ./cmd/cfgb
       - name: Build example HTML
+        env:
+          CFGB_CACHE_DIR: ${{ runner.temp }}/cfgb-cache
         working-directory: cfgb-example
         run: '"$RUNNER_TEMP/cfgb" build --force --out dist'
       - name: Check every generated HTML file offline
