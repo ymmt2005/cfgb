@@ -1,6 +1,8 @@
 # GitHub and Cloudflare delivery
 
-This is the v1 implementation contract, not an implemented deployment workflow.
+This is the v1 delivery contract. Production `cfgb deploy` is implemented;
+private previews and authoring automation remain planned. Cloudflare is an
+optional host; `build --static` also supports hosts without Cloudflare services.
 Git is the source of truth; AI runs only during authoring. The content repository
 contains Markdown, data, assets and CFGB configuration. CFGB owns and embeds the
 Astro renderer, Worker, dependency lockfile and tool configuration. Builds extract
@@ -46,8 +48,9 @@ The selected package manager is checked at runtime. Node itself is not pinned by
 the lockfile. The workspace is a fresh `cfgb-build-*` directory. Its basename is
 `toolchainSessionId`. The installed Wrangler survives through the same build's
 upload command, which finds the directory by joining `os.TempDir()` with that
-basename, and the workspace is excluded from the deployable artifact. Upload
-removes the workspace when it finishes or fails.
+basename, and the workspace is excluded from the deployable artifact. Actual upload
+removes the workspace when it finishes or fails; preflight failures and dry runs
+retain it.
 Upload accepts the supplied artifact, including one from a dirty checkout and
 one whose site bytes were edited after the build. Generated output stays out of
 the dirty record. CFGB uploads those bytes without rebuilding or changing them.

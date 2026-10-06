@@ -31,7 +31,7 @@ use exact content bytes as specified there. Do not normalize artifact output byt
 | `prepare [ARTICLE...] [--offline] [--refresh-links] [--dry-run]` | All variants if no selection | Report assets; fetch missing link cards unless offline; no LLM or commits |
 | `validate [--authoring\|--publish] [--now RFC3339]` | Regular validation by default | Read-only structural and semantic checks |
 | `build [--out DIR] [--force\|-f]` | Default `dist`; regular validation, embedded fixed toolchain | Confirm replacement of existing output unless forced; generate the site artifact; no upload |
-| `deploy --from DIR` | Supplied artifact and the current invocation's production target | Check publication conditions and deploy that artifact; no rebuild |
+| `deploy --from DIR [--dry-run]` | Supplied artifact and the current invocation's production target | Check publication conditions and deploy that artifact; no rebuild |
 | `preview --from DIR` | Supplied artifact and the current invocation's non-production branch | Create/update a private Worker Preview; no rebuild |
 | `summarize [ARTICLE...] [--changed-since REF] [--dry-run]` | Explicit selection or changed variants | Generate eligible summaries and sidecars; never automatically commit |
 | `summarize ARTICLE --lang LOCALE --replace-manual` | One explicit variant | Deliberately replace a manual summary; flag never used in CI |
@@ -119,7 +119,7 @@ manifest records `filepath.Base` of that directory as `toolchainSessionId`.
 `buildUUID` stays separate diagnostic metadata and does not name the workspace. A failed
 build removes the workspace it created. A successful build retains it until
 upload completion, upload failure, or disposal of the build environment. Deploy
-and preview, which are not implemented here, resolve it as
+and the planned preview command resolve it as
 `filepath.Join(os.TempDir(), toolchainSessionId)` when they share that temp
 directory. Rendering, Pagefind and artifact checks then run offline. No AI, metadata refresh,
 remote image fetch or source mutation occurs. Node.js remains required in v1.
@@ -165,7 +165,7 @@ publication dates for previews but requires existing valid summaries.
 Artifact layout: `site/` (static assets), `worker/index.js` (bundled Worker) and
 `build-manifest.json`. The manifest records CFGB and renderer versions, the
 toolchain workspace basename, required and observed runtime versions, completed
-checks, and the publication snapshot. That snapshot lists each variant's article
+checks, the effective `baseUrl`, and the publication snapshot. That snapshot lists each variant's article
 key, locale, slug, summary, and timestamps, so production deploy can apply the
 current-time future-date rule. Source commit, source branch, the opaque build
 identifier (`buildUUID`), provenance provider, and a dirty-worktree flag are
@@ -195,6 +195,18 @@ tip. These checks supplement branch protection. CFGB treats CI artifact storage,
 transfer, and the deployment environment as operator-trusted. Verification of
 the CFGB executable remains the release and setup-Action contract.
 
+Production deployment is implemented. `--from` is required and relative to the
+invocation's working directory. `--dry-run` runs the pinned Wrangler's upload
+validation without a remote upload or API token, while retaining the toolchain.
+Actual upload success/failure consumes the toolchain; preflight failures preserve
+it. Missing same-environment sessions fail explicitly; upload-toolchain recreation
+for transferred artifacts and private previews remain unimplemented.
+The current configuration's `site.baseUrl` hostname selects the custom domain.
+The artifact's recorded `baseUrl` selects the asset mount path and Worker-first
+endpoints; older manifests without that field use the current configuration.
+For a prefix, staging copies assets beneath that path and keeps `_headers` and
+`_redirects` at the Static Assets root. Supplied artifact bytes remain unchanged.
+
 `CFGB_CF_WORKER_NAME` supplies the target Worker; `CLOUDFLARE_ACCOUNT_ID` and
 `CLOUDFLARE_API_TOKEN` configure the Wrangler adapter. Generate Wrangler config
 in a disposable upload workspace from the artifact and trusted target settings.
@@ -219,7 +231,8 @@ an unsupported runtime requirement such as `workerCompatibilityDate`,
 and `E_PREVIEW_ACCESS` for absent/unverifiable Access coverage. `E_TOOLCHAIN`
 (exit 2) identifies missing/incompatible Node, npm, optional pnpm, Wrangler or toolchain sessions.
 Publication content failures retain the same `E_*` codes as `validate --publish`. Missing build/upload prerequisites
-are configuration failures (exit 2); remote upload failures use exit 3. Gate
+are configuration failures (exit 2); remote upload failures and actual artifact
+filesystem I/O failures use exit 3. Missing required artifact files use exit 1. Gate
 violations use exit 1. Do not promote/upload a failed artifact.
 
 ## Errors and output

@@ -1,8 +1,9 @@
 # Build runtime, bootstrap and provenance
 
 Release binaries and the setup Action implement the installation part of this
-contract. Workers Builds bootstrap/upload and Cloudflare resources remain later
-work.
+contract. Production upload through the retained toolchain is implemented.
+Workers Builds bootstrap integration and private previews remain later work.
+Operators provision the Cloudflare account/zone and Access policies separately.
 This contract complements [CLI](01-cli.md), [delivery](04-delivery.md) and the
 [setup Action documentation](https://github.com/ymmt2005/cfgb-action#readme).
 
@@ -156,8 +157,11 @@ A failed build removes the workspace that invocation created and does not remove
 another build's workspace. A successful build retains the workspace for the
 subsequent deploy or preview command. Do not remove it when build returns
 successfully. After upload completion or failure, remove that workspace. Disposal
-of the build environment also ends its lifetime. Deploy and preview themselves
-are later work. The workspace contains extracted package and lockfile sources, `npm ci` dependencies
+of the build environment also ends its lifetime. Production deploy is implemented;
+private previews remain later work.
+Preflight failures and `deploy --dry-run` retain the build session; an actual
+upload attempt consumes it whether it succeeds or fails. The workspace contains
+extracted package and lockfile sources, `npm ci` dependencies
 by default (or the frozen pnpm install when selected), including the pinned
 Wrangler, and private session metadata. The renderer `package.json` `allowScripts`
 field permits install scripts for `esbuild` and `workerd`. The pnpm
@@ -180,18 +184,20 @@ leaves that lookup unchanged. Never use a global Wrangler or unpinned npx resolu
 Same-build uploads require that workspace. Missing or corrupt workspace state fails
 with `E_TOOLCHAIN`, exit 2; no silent different-version fallback. The
 recorded basename selects that invocation's workspace.
-For an artifact moved outside the original build environment, the CLI
-may recreate only the identical embedded upload toolchain using the same CFGB
+Upload-toolchain recreation is not implemented yet. For an artifact moved
+outside the original build environment, a future adapter may recreate only the
+identical embedded upload toolchain using the same CFGB
 release, after the required-file and runtime checks. It must not render, generate content,
 or alter artifact bytes. This recreation is dependency installation, not a site
 rebuild. Record a fresh local session for the recreated toolchain. The supplied
 artifact, including its diagnostic metadata, stays unchanged.
 
-Upload rechecks the actual Node version, the package manager used for the build,
-and Wrangler.
-Within the original session, observed Node must also match the build observation;
-a recreated upload session can use another Node version within the recorded
-supported range, while retaining a separate record of that upload runtime. The
+Upload rechecks the actual Node version against the recorded supported range
+and verifies the exact installed Wrangler. Build observations remain diagnostic;
+another compatible Node version can run the retained upload toolchain. Upload
+invokes Wrangler directly through Node and does not invoke or require npm/pnpm.
+A future recreated upload session would need the appropriate installer to recreate
+its frozen dependencies, while recording that session's runtime separately. The
 manifest's `toolchain` records `nodeRange`, `testedNodeVersion`, `packageManager`
 (the installer this build used), `npmVersion`, `pnpmVersion`, `wranglerVersion`,
 `workerCompatibilityDate`, `rendererVersion`, and observed `nodeVersion`,
