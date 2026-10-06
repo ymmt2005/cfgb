@@ -119,17 +119,12 @@ release. Node 26 and newer are accepted. These releases bundle npm 11, so the
 environment also installs npm >= 12. Other environments do the same.
 
 `CFGB_PACKAGE_MANAGER` selects the installer. An empty value or `npm` runs
-`npm ci`. `pnpm` requires pnpm >= 11.0.0, then runs
+`npm ci` and `npm exec`. `pnpm` requires pnpm >= 11.0.0, then runs
 `pnpm install --frozen-lockfile`. pnpm 10 and older are rejected. Any other value fails
 with `E_TOOLCHAIN`, exit 2. The variable is a build-environment setting. It is
 not a field in the content repository's `cfgb.yaml`. Workers Builds sets
 `PNPM_VERSION` only for that optional path. Unsupported or missing runtimes fail
 with `E_TOOLCHAIN`, exit 2, before rendering or upload.
-
-After installation or dependency reuse, rendering invokes the pinned local
-Astro and Pagefind JavaScript entrypoints with the checked Node runtime. It does
-not use package-manager `exec`, which can reinstall dependencies or fetch a
-missing tool. Both installer choices use the same local execution path.
 
 `build` creates a fresh toolchain workspace outside the content repository:
 
@@ -162,8 +157,7 @@ another build's workspace. A successful build retains the workspace for the
 subsequent deploy or preview command. Do not remove it when build returns
 successfully. After upload completion or failure, remove that workspace. Disposal
 of the build environment also ends its lifetime. Deploy and preview themselves
-are later work. The workspace contains extracted package and lockfile sources,
-installed dependencies (or a link to a compatible completed dependency cache)
+are later work. The workspace contains extracted package and lockfile sources, `npm ci` dependencies
 by default (or the frozen pnpm install when selected), including the pinned
 Wrangler, and private session metadata. The renderer `package.json` `allowScripts`
 field permits install scripts for `esbuild` and `workerd`. The pnpm
@@ -172,27 +166,6 @@ path permits the same two packages through `allowBuilds` in
 install script. Every other dependency install script stays blocked.
 Dependency installation is allowed network access;
 content rendering, indexing and integration checks subsequently run offline.
-
-Dependency storage is separate from the fresh per-build workspace. By default
-the cache lives at `os.UserCacheDir()/cfgb/dependencies`; `CFGB_CACHE_DIR` selects
-the base instead, and `CFGB_DEPENDENCY_CACHE=0` opts out. Cache entries use a
-versioned digest of the embedded package manifest and selected frozen lockfile,
-pnpm workspace build policy when selected, actual Node and installer versions,
-Node platform/architecture/ABI/libc observation, `NODE_ENV`, and effective
-installer configuration. Download/reporting settings are excluded; installer
-configuration is hashed in memory and is never stored or logged. Dependency
-changes select a new entry without requiring a CFGB release-version key.
-
-Install into a private cache staging directory and publish only complete trees
-atomically. Concurrent builds may install separately on a miss; publication
-preserves the completed winner. Renderer sources, content snapshots, outputs,
-and mutable Astro/Vite caches remain private to each invocation. Failed-build
-or upload cleanup removes its workspace without deleting shared dependencies.
-CFGB does not evict completed entries automatically. Cache access/probe/link
-failures warn and use a normal workspace installation; package-manager failures
-remain errors. Incomplete cache entries are bypassed and can be cleared by the
-operator. GitHub Actions may restore/save the dependency cache directory across
-jobs; restored entries still undergo CFGB's compatibility/completion checks.
 
 The workspace is not part of the deployable artifact and does not belong in Git,
 static assets, artifact transfer or visitor runtime. No credentials are stored in

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"io/fs"
 	"net/url"
 	"os"
@@ -224,62 +223,6 @@ func TestExampleCorpus(t *testing.T) {
 	t.Run("external output and filesystem article key", func(t *testing.T) {
 		buildExtendedExample(t, root)
 	})
-	t.Run("restored dependency cache", func(t *testing.T) {
-		checkRestoredDependencies(t, root, out)
-	})
-}
-
-// Copy the published dependency entry into a new cache root, just as an Actions
-// restore can do. A second real build must reuse it, render normally and keep
-// mutable caches local; the private install staging path has already been removed.
-func checkRestoredDependencies(t *testing.T, root, originalOut string) {
-	t.Helper()
-	if os.Getenv("CFGB_DEPENDENCY_CACHE") == "0" || runtime.GOOS == "windows" {
-		t.Skip("dependency reuse requires enabled caching and directory symlinks")
-	}
-	raw, err := os.ReadFile(filepath.Join(originalOut, "build-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var manifest struct {
-		Session string `json:"toolchainSessionId"`
-	}
-	if err := json.Unmarshal(raw, &manifest); err != nil {
-		t.Fatal(err)
-	}
-	modules, err := os.Readlink(filepath.Join(os.TempDir(), manifest.Session, "renderer", "node_modules"))
-	if err != nil {
-		t.Fatalf("normal build did not use the dependency cache: %v", err)
-	}
-	entry := filepath.Dir(modules)
-	key := filepath.Base(entry)
-	cache := t.TempDir()
-	restored := filepath.Join(cache, "dependencies", key)
-	// Copy dependency symlinks as symlinks, preserving npm and pnpm structure.
-	if err := os.MkdirAll(filepath.Dir(restored), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := command("", io.Discard, io.Discard, nil, "cp", "-a", entry, restored); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("CFGB_CACHE_DIR", cache)
-	restoredOut := filepath.Join(t.TempDir(), "artifact")
-	var messages bytes.Buffer
-	if err := Run(Options{Dir: root, Out: restoredOut, Stdout: &messages, Stderr: &messages}); err != nil {
-		t.Fatalf("restored dependency build failed: %v\n%s", err, messages.String())
-	}
-	cleanupExampleWorkspace(t, restoredOut)
-	if !strings.Contains(messages.String(), "using cached renderer dependencies") || strings.Contains(messages.String(), "installing renderer dependencies") {
-		t.Fatalf("restored dependencies were reinstalled:\n%s", messages.String())
-	}
-	checkExampleCorpus(t, root, restoredOut, "")
-	for _, base := range []string{entry, restored} {
-		for _, name := range []string{".astro", "dist", filepath.Join("node_modules", ".vite")} {
-			if _, err := os.Lstat(filepath.Join(base, name)); !os.IsNotExist(err) {
-				t.Fatalf("renderer wrote to shared dependencies at %s: %v", filepath.Join(base, name), err)
-			}
-		}
-	}
 }
 
 func buildExtendedExample(t *testing.T, source string) {

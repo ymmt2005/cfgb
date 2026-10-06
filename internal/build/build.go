@@ -206,6 +206,9 @@ func Run(opts Options) (err error) {
 		return &ExitError{Code: 3, Err: err}
 	}
 	routesPath := filepath.Join(workspace, "routes.json")
+	if _, err := fmt.Fprintf(opts.Stdout, "installing renderer dependencies with %s\n", tc.PackageManager); err != nil {
+		return &ExitError{Code: 3, Err: fmt.Errorf("write build progress: %w", err)}
+	}
 	if err := installRenderer(rendererDir, opts.Stdout, opts.Stderr, tc); err != nil {
 		return &ExitError{Code: 3, Err: err}
 	}
@@ -334,10 +337,7 @@ func checkToolchain(pins releasePins) (toolchainCheck, error) {
 	return tc, nil
 }
 
-func installRendererDirect(dir string, stdout, stderr io.Writer, tc toolchainCheck) error {
-	if _, err := fmt.Fprintf(stdout, "installing renderer dependencies with %s\n", tc.PackageManager); err != nil {
-		return fmt.Errorf("write build progress: %w", err)
-	}
+func installRenderer(dir string, stdout, stderr io.Writer, tc toolchainCheck) error {
 	switch tc.PackageManager {
 	case "npm":
 		if err := command(dir, stdout, stderr, nil, "npm", "ci"); err != nil {
@@ -354,17 +354,27 @@ func installRendererDirect(dir string, stdout, stderr io.Writer, tc toolchainChe
 }
 
 func renderSite(dir string, stdout, stderr io.Writer, extra []string, tc toolchainCheck) error {
-	if tc.PackageManager != "npm" && tc.PackageManager != "pnpm" {
+	env := extra
+	if tc.PackageManager == "pnpm" {
+		env = append([]string{"COREPACK_ENABLE_AUTO_PIN=0"}, extra...)
+	}
+	switch tc.PackageManager {
+	case "npm":
+		if err := command(dir, stdout, stderr, env, "npm", "exec", "--", "astro", "build"); err != nil {
+			return fmt.Errorf("render: %w", err)
+		}
+		if err := command(dir, stdout, stderr, env, "npm", "exec", "--", "pagefind", "--site", "dist"); err != nil {
+			return fmt.Errorf("pagefind: %w", err)
+		}
+	case "pnpm":
+		if err := command(dir, stdout, stderr, env, "pnpm", "exec", "astro", "build"); err != nil {
+			return fmt.Errorf("render: %w", err)
+		}
+		if err := command(dir, stdout, stderr, env, "pnpm", "exec", "pagefind", "--site", "dist"); err != nil {
+			return fmt.Errorf("pagefind: %w", err)
+		}
+	default:
 		return fmt.Errorf("unsupported package manager %s", tc.PackageManager)
-	}
-	// Run the pinned local entrypoints directly. Package-manager exec commands
-	// can verify/reinstall dependencies (pnpm 12) or fetch a missing tool (npm).
-	// Rendering must consume the completed installation without modifying it.
-	if err := command(dir, stdout, stderr, extra, "node", filepath.Join(dir, "node_modules", "astro", "bin", "astro.mjs"), "build"); err != nil {
-		return fmt.Errorf("render: %w", err)
-	}
-	if err := command(dir, stdout, stderr, extra, "node", filepath.Join(dir, "node_modules", "pagefind", "lib", "runner", "bin.cjs"), "--site", "dist"); err != nil {
-		return fmt.Errorf("pagefind: %w", err)
 	}
 	return nil
 }
