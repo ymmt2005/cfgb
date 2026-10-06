@@ -1,10 +1,15 @@
 # CFGB — Git-based Blog on Cloudflare
 
-A Git-native publishing system for multilingual technical blogs on Cloudflare.
+A Git-native publishing system for multilingual technical blogs.
 CFGB is an independent open-source project and is not affiliated with Cloudflare,
 Inc.
 
-**Status: `cfgb build` renders content repositories with the embedded renderer and Pagefind search. Cloudflare deploy and preview upload are not implemented.**
+**Status: `cfgb build` renders content repositories with the embedded renderer and Pagefind search. `cfgb deploy` uploads an existing artifact to Cloudflare. Private preview upload is not implemented.**
+
+Cloudflare is optional. Build and publish `dist/site/` on GitHub Pages or another
+static host with `--static`; rendering, search, social images, feeds and Mermaid
+work without a Cloudflare account. Cloudflare hosting adds the locale Worker and
+automated Worker/Static Assets upload.
 
 The [visual mockup](design/mockup/README.md) is a browsable HTML prototype of the example blog and a visual reference for the implemented renderer. Search results there are labeled mock data.
 
@@ -12,8 +17,8 @@ The Go tool will manage Markdown, validation, migration, optional authoring-time
 AI, and build/delivery. CFGB owns the renderer and Worker implementation and embeds
 their sources/configuration/lockfile in its executable. Article repositories hold
 content, assets and blog settings only. Node.js remains a build prerequisite.
-Astro will render internally, Workers Static Assets will serve, and Pagefind will
-search. Git branches/PRs hold drafts; reviewed content on `deploy.productionBranch`
+Astro renders internally and Pagefind supplies static search. Hosting can use
+Cloudflare Workers Static Assets with the generated locale Worker, or a static host. Git branches/PRs hold drafts; reviewed content on `deploy.productionBranch`
 (default `main`) is published.
 Visitors never invoke an LLM.
 
@@ -73,6 +78,48 @@ switcher uses a label for a single language, a toggle for a language pair and a
 dropdown for larger language lists. It preserves article translations when
 available. Chinese and Korean support requires v0.2.0 or newer.
 
+## Optional Cloudflare deployment
+
+Deployment is currently available from source; the v0.4.0 release does not include
+`cfgb deploy`. Set `site.baseUrl` to your public URL and provision its hostname's
+zone in Cloudflare. The deploy command configures that hostname as the Worker's
+custom domain, including Cloudflare's domain/DNS setup. Configure these environment
+variables in your local environment or trusted CI job:
+
+- `CFGB_CF_WORKER_NAME`: target Worker name.
+- `CLOUDFLARE_ACCOUNT_ID`: account owning the Worker and hostname's zone.
+- `CLOUDFLARE_API_TOKEN`: token permitted to deploy that Worker and custom domain.
+
+On the configured `deploy.productionBranch` (default `main`):
+
+```sh
+cfgb build --force --out dist
+cfgb deploy --from dist --dry-run
+cfgb deploy --from dist
+```
+
+`--from` is required and resolves relative to the current working directory.
+Deployment uploads the supplied Worker and site files without rebuilding or
+changing them, including any edits you made to the artifact. It checks the
+publication snapshot for summaries and future timestamps. The current checkout's
+branch controls the production gate; recorded commits, branches and dirty state
+are diagnostics.
+
+`--dry-run` uses the installed Wrangler to check the generated upload without
+publishing and does not require an API token. It retains the build toolchain for
+the real upload. Build and deploy must share the same temporary filesystem and use
+a compatible Node version; deployment uses the build's pinned Wrangler directly
+and does not invoke npm or pnpm.
+An actual upload consumes that temporary toolchain on success or failure. A
+missing session fails explicitly; recreating upload dependencies for transferred
+artifacts is not implemented yet.
+
+The Worker handles locale negotiation; Static Assets serves pages, media and
+Pagefind with the generated headers, aliases and localized 404s. Prefixed sites
+are staged at their artifact's hosting path without changing source bytes.
+Production `workers.dev` hosting is disabled. Private branch previews and their
+Cloudflare Access verification remain future work.
+
 ## Implementation specifications
 
 | Document | Scope |
@@ -101,7 +148,7 @@ to that repository unless explicitly described as CFGB tool paths.
 The personal reference site will use `https://ymmt2005.dev`. The reusable example
 uses a reserved origin so its metadata cannot impersonate the real site. No
 account resources, credentials or active deployment workflows are included.
-The executable currently implements `version` and `build`; later commands are
+The executable currently implements `version`, `build` and `deploy`; later commands are
 documented design work.
 
 ## Releasing

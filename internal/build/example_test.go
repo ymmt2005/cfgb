@@ -223,6 +223,9 @@ func TestExampleCorpus(t *testing.T) {
 	t.Run("external output and filesystem article key", func(t *testing.T) {
 		buildExtendedExample(t, root)
 	})
+	t.Run("Cloudflare deployment dry run", func(t *testing.T) {
+		checkExampleDeployDryRun(t, out)
+	})
 }
 
 func buildExtendedExample(t *testing.T, source string) {

@@ -40,4 +40,7 @@ func TestExampleStaticHost(t *testing.T) {
 			t.Errorf("origin-root link in %s", name)
 		}
 	}
+	t.Run("prefixed Cloudflare deployment dry run", func(t *testing.T) {
+		checkExampleDeployDryRun(t, out)
+	})
 }

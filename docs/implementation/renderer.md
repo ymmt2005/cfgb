@@ -277,7 +277,45 @@ same normalized article data. Tests parse actual generated HTML, decode emitted
 PNGs, inspect SVG/raster pixels and fallback branding, and verify prefixed icon
 links, title/summary escaping, source errors and long multilingual text.
 
-Full semantic validation and deploy/preview upload remain unfinished in the
+## Optional Cloudflare deployment
+
+`cfgb deploy --from DIR` consumes the existing Worker and static assets without
+rerendering. `--from` resolves from the invocation's working directory; global
+`--config` selects the current deployment configuration. The current Git branch
+must equal `deploy.productionBranch`; a detached Workers Builds checkout uses
+`WORKERS_CI_BRANCH`. Artifact source diagnostics do not select the target or
+require a matching commit/clean worktree.
+
+Deployment checks the manifest format, completed render/Pagefind checks,
+publication snapshot, actual Node runtime, and exact installed Wrangler. The
+snapshot requires summaries and rejects future publication/update timestamps.
+It uses `CFGB_CF_WORKER_NAME`, `CLOUDFLARE_ACCOUNT_ID` and
+`CLOUDFLARE_API_TOKEN`, generates a private temporary Wrangler config, and calls
+the retained session's Wrangler through Node with `deploy --no-bundle`.
+The current site's hostname becomes a custom domain. The config binds `ASSETS`,
+uses release-pinned compatibility, selective Worker-first locale routes,
+trailing-slash handling and nearest-directory 404s, disables production
+`workers.dev` and enables Preview/Version URLs as specified by the runtime
+contract. Private preview creation is not implemented.
+
+The build manifest now records its effective `baseUrl`. For a hosting prefix,
+deployment stages byte-preserving copies under that path while retaining
+`_headers` and `_redirects` at the Static Assets root. Root-hosted assets are
+passed directly from the artifact. Upload staging is always cleaned up. Actual
+upload consumes the toolchain on success/failure; failed preflight and
+`--dry-run` preserve it for retry. The original temporary filesystem and a compatible Node
+runtime are required; transferred-toolchain recreation remains planned.
+
+Corpus acceptance executes the real pinned Wrangler's dry run against normal
+and prefixed artifacts with operator-edited HTML, checks the selected files and
+verifies the entire supplied artifact stays unchanged. Unit tests cover
+production/publication gates, runtime/session checks, asset mount layout, and
+success/failure cleanup without a remote upload. The pinned local Worker/Static
+Assets runtime also exercises locale redirects, operator-edited HTML, Pagefind
+assets and missing-page/media 404 responses on both mount layouts. These tests do not establish
+that a live Cloudflare account/custom domain has been deployed.
+
+Full semantic validation and private-preview upload remain unfinished in the
 delivery/CLI specifications.
 
 ## Generated-site link checks
