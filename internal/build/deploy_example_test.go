@@ -76,6 +76,20 @@ func checkExampleDeployDryRun(t *testing.T, artifact string) {
 			if err := command(dir, out, errOut, extra, name, args...); err != nil {
 				return err
 			}
+			// Preview uses the same bytes and routing with a different temporary
+			// configuration. Validate that configuration with real Wrangler too;
+			// the preview command itself has no offline --dry-run flag.
+			previewRaw, err := previewConfig(raw)
+			if err != nil {
+				return err
+			}
+			previewPath := filepath.Join(filepath.Dir(configPath), "wrangler-preview.json")
+			if err := os.WriteFile(previewPath, previewRaw, 0o600); err != nil {
+				return err
+			}
+			if err := command(dir, out, errOut, extra, name, args[0], "deploy", "--config", previewPath, "--no-bundle", "--dry-run", "--outdir", filepath.Join(filepath.Dir(configPath), "preview-bundle")); err != nil {
+				return err
+			}
 			helperArgs := []string{helper, args[0], configPath, prefix}
 			if os.Getenv("CFGB_REQUIRE_SEARCH") == "1" {
 				// This CI job installs Playwright/Chromium and requires actual

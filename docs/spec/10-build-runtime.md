@@ -1,8 +1,8 @@
 # Build runtime, bootstrap and provenance
 
 Release binaries and the setup Action implement the installation part of this
-contract. Production upload through the retained toolchain is implemented.
-Workers Builds bootstrap integration and private previews remain later work.
+contract. Production and private-preview uploads through the retained toolchain
+are implemented. Workers Builds bootstrap integration remains later work.
 Operators provision the Cloudflare account/zone and Access policies separately.
 This contract complements [CLI](01-cli.md), [delivery](04-delivery.md) and the
 [setup Action documentation](https://github.com/ymmt2005/cfgb-action#readme).
@@ -157,9 +157,8 @@ A failed build removes the workspace that invocation created and does not remove
 another build's workspace. A successful build retains the workspace for the
 subsequent deploy or preview command. Do not remove it when build returns
 successfully. After upload completion or failure, remove that workspace. Disposal
-of the build environment also ends its lifetime. Production deploy is implemented;
-private previews remain later work.
-Preflight failures and `deploy --dry-run` retain the build session; an actual
+of the build environment also ends its lifetime.
+Preflight failures and upload `--dry-run` invocations retain the build session; an actual
 upload attempt consumes it whether it succeeds or fails. The workspace contains
 extracted package and lockfile sources, `npm ci` dependencies
 by default (or the frozen pnpm install when selected), including the pinned
@@ -224,10 +223,9 @@ artifact whose `workerCompatibilityDate` differs from the release pin fails
 
 Generate temporary Wrangler configuration with top-level `compatibility_date`
 equal to that pinned value, `workers_dev: false`, and an explicit `previews: {}`.
-Production deployment explicitly sets `preview_urls: false` while Access
-verification remains unimplemented. Do not rely on dashboard state or defaults.
+Production deployment explicitly sets `preview_urls: false`. Do not rely on dashboard state or defaults.
 The canonical custom domain remains the public production origin.
-A future upload may set `preview_urls: true` only after the mandatory Access
+A private preview upload may set `preview_urls: true` only after the mandatory Access
 preflight verifies protection. That setting also enables Version URLs; include
 them in the coverage checks together with Preview/deployment URLs. Production
 `workers.dev` remains disabled. Enabling URLs is separate from authorizing access.
@@ -254,7 +252,7 @@ Use the same pinned date for retained and recreated upload toolchains. Validate
 the generated configuration with the pinned Wrangler during release acceptance,
 and assert production explicitly disables Preview/Version URLs. Verify the
 canonical custom domain remains public and the ordinary production workers.dev
-route is disabled. When preview upload is implemented, also verify its enabled
+route is disabled. For preview uploads, also verify their enabled
 Preview/Version URLs deny anonymous access through the reviewed Access policy.
 Test a fresh Worker and an existing Worker whose URL settings were previously
 different.

@@ -119,7 +119,7 @@ manifest records `filepath.Base` of that directory as `toolchainSessionId`.
 `buildUUID` stays separate diagnostic metadata and does not name the workspace. A failed
 build removes the workspace it created. A successful build retains it until
 upload completion, upload failure, or disposal of the build environment. Deploy
-and the planned preview command resolve it as
+and the preview command resolve it as
 `filepath.Join(os.TempDir(), toolchainSessionId)` when they share that temp
 directory. Rendering, Pagefind and artifact checks then run offline. No AI, metadata refresh,
 remote image fetch or source mutation occurs. Node.js remains required in v1.
@@ -195,12 +195,14 @@ tip. These checks supplement branch protection. CFGB treats CI artifact storage,
 transfer, and the deployment environment as operator-trusted. Verification of
 the CFGB executable remains the release and setup-Action contract.
 
-Production deployment is implemented. `--from` is required and relative to the
+Production and private-preview uploads are implemented. `--from` is required and relative to the
 invocation's working directory. `--dry-run` runs the pinned Wrangler's upload
 validation without a remote upload or API token, while retaining the toolchain.
+Preview `--dry-run` additionally performs read-only Access/Worker inspection and
+requires API and readiness-service credentials; it never enables URLs or uploads.
 Actual upload success/failure consumes the toolchain; preflight failures preserve
 it. Missing same-environment sessions fail explicitly; upload-toolchain recreation
-for transferred artifacts and private previews remain unimplemented.
+for transferred artifacts remains unimplemented.
 The current configuration's `site.baseUrl` hostname selects the custom domain.
 The artifact's recorded `baseUrl` selects the asset mount path and Worker-first
 endpoints, including both slashless and slash-terminated prefixed roots; older
@@ -215,18 +217,31 @@ in a disposable upload workspace from the artifact and trusted target settings.
 Its top-level `compatibility_date` comes from release-pinned
 `workerCompatibilityDate`, recorded in the artifact; v1 always generates
 `workers_dev: false`, `previews: {}` and top-level assets. Production deployment
-sets `preview_urls: false` until Access verification is implemented. A future
-upload that enables Preview/Version URLs requires verified Access coverage; the
+sets `preview_urls: false`. Preview enables Preview/Version URLs only after
+verified Access coverage, using the Worker API before the artifact upload; the
 production custom domain stays public. See the runtime contract.
 Use the retained toolchain session's Wrangler; a temporary upload config does not
 reinstall or lose that toolchain. When `WORKERS_CI_COMMIT_SHA`,
 `WORKERS_CI_BRANCH`, or `WORKERS_CI_BUILD_UUID` is available, record it as
 diagnostic metadata, including a branch name on a detached checkout. A missing
 or differing value leaves the build and the upload successful. Read-only Access
-verification uses `CFGB_CF_ACCESS_API_TOKEN`.
+verification uses `CFGB_CF_ACCESS_API_TOKEN`. Post-upload checks use
+`CFGB_CF_ACCESS_CLIENT_ID` and `CFGB_CF_ACCESS_CLIENT_SECRET`, accepted by a
+reviewed Service Auth policy. Both API tokens and this service token are required
+for preview dry runs, which inspect the existing Worker and Access applications.
 Preserve the original branch when creating a Preview; the temporary workspace
 must not change its identity. Use CFGB's pinned Wrangler dependency, never an
 unpinned npx download. None of these credentials becomes a visitor-runtime secret.
+
+Private previews use `wrangler preview --name <current-branch> --json` with the
+retained pinned toolchain, `no_bundle: true`, and `--ignore-base-config`. They do
+not attach a production custom domain or import a dashboard Preview base config.
+A unique attempt tag identifies only the deployment to remove on failure. No
+ready URL is printed until all returned branch/deployment hosts deny anonymous
+requests and serve the supplied published asset bytes with service credentials.
+Verification errors exit 3 with `E_PREVIEW_ACCESS`; cleanup errors are reported
+alongside the original error. Earlier deployments are not deleted. Automatic PR
+comments and closed-PR cleanup are not implemented.
 
 Diagnostic codes: `E_ARTIFACT` for a missing required file, a corrupt artifact, or
 an unsupported runtime requirement such as `workerCompatibilityDate`,
