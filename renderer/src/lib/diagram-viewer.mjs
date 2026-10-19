@@ -1,5 +1,5 @@
 // Move the existing render target into a native modal, keeping one SVG and its
-// IDs/source. Theme redraws still write to the same target while it is expanded.
+// IDs/source. CSS themes follow the same target while it is expanded.
 export function createDiagramViewer(document) {
   const template = document.getElementById("cfgb-diagram-viewer");
   const window = document.defaultView;

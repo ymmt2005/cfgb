@@ -209,7 +209,7 @@ CFGB_EXAMPLE=/path/to/cfgb-example CFGB_REQUIRE_EXAMPLE=1 CFGB_REQUIRE_SEARCH=1 
 `renderer/tests/browser/` builds a small actual site and serves its generated
 HTML and scripts with the generated security headers, then builds the real
 Pagefind index. Playwright covers theme, storage and scroll-observer behavior,
-pre-interaction theme paint, real Mermaid SVG rendering and native system-theme
+pre-interaction theme paint, real Pele SVG rendering of Mermaid syntax and native system-theme
 changes, invalid-diagram recovery, native
 Unicode clipboard copy, Japanese/English WASM search and result/fragment
 navigation, empty-result recovery, skip-link keyboard navigation, native TOC
@@ -224,14 +224,21 @@ are not replaced with test doubles. CI runs this Chromium suite on the Node
 browser-test package has its own pinned npm
 lockfile and is not embedded or installed by `cfgb build`.
 
+Mermaid fences render through the pinned, locally bundled Pele library, loaded
+only on pages with diagrams. The synchronous render API keeps natural dimensions
+and authored direction; label measurement uses the page's prose font after fonts
+are ready. Pele's CSS properties map to the shared page palette, so system and
+explicit theme changes update the existing SVG without a render queue. Source
+stays available when JavaScript is disabled or rendering fails.
+
 Rendered Mermaid diagrams have a localized expand control. A native modal fills
 the viewport and provides zoom, fit, actual size, and native full-screen controls
 where permitted. SVGs open at no less than natural size for readable labels;
 fit is an explicit overview. The viewer moves the existing render target rather
-than duplicating SVG IDs; source and theme redraws stay attached to that element.
+than duplicating SVG IDs; source and CSS theme colors stay attached to that element.
 Closing returns the target and keyboard focus to the article and exits any full
 screen owned by the viewer. Browser acceptance exercises large-diagram scrolling, zoom and resize,
-native full-screen entry/exit, theme redraws during viewing, focus containment and
+native full-screen entry/exit, theme changes during viewing, focus containment and
 restoration, mobile layouts and localization, independent diagrams, and the
 expanded fallback under a real fullscreen permissions policy. Invalid diagrams
 and disabled JavaScript retain source without expansion controls.

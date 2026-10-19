@@ -60,15 +60,15 @@ describe("Markdown presentation from the mockup", { timeout: 180_000 }, () => {
     });
   });
 
-  test("Mermaid frames, fonts and labels follow the page palette in light and dark", async () => {
+  test("Pele frames, fonts and labels follow the page palette in light and dark", async () => {
     for (const colorScheme of ["light", "dark"]) {
       await withPage(
         site,
         { colorScheme, viewport: { width: 375, height: 812 } },
         async (page) => {
           await page.goto(`${site.origin}/en/posts/presentation/`);
-          await page.locator(".mermaid svg .nodeLabel").first().waitFor();
-          await page.locator(".mermaid svg .actor").first().waitFor();
+          await page.locator(".mermaid svg .pele-label").first().waitFor();
+          await page.locator(".mermaid svg .pele-actor").first().waitFor();
           const colors = await page.evaluate(() => {
             const probe = document.createElement("span");
             document.body.append(probe);
@@ -97,30 +97,31 @@ describe("Markdown presentation from the mockup", { timeout: 180_000 }, () => {
                   };
                 },
               ),
-              label: [...document.querySelectorAll(".mermaid .nodeLabel")].map(
+              label: [...document.querySelectorAll(
+                ".mermaid .pele-flowchart .pele-label",
+              )].map(
                 (el) => ({
                   color: getComputedStyle(el).color,
                   font: getComputedStyle(el).fontFamily,
                 }),
               ),
-              shadows: [
-                ...document.querySelectorAll(
-                  ".mermaid .node rect, .mermaid rect.actor",
-                ),
-              ].map((el) => getComputedStyle(el).filter),
-              nodes: [...document.querySelectorAll(".mermaid .node rect")].map(
+              nodes: [...document.querySelectorAll(
+                ".mermaid .pele-flowchart .pele-node rect",
+              )].map(
                 (el) => getComputedStyle(el).fill,
               ),
               sequenceFonts: [
                 ...document.querySelectorAll(
-                  ".mermaid text.actor > tspan, .mermaid .messageText, .mermaid .noteText",
+                  ".mermaid .pele-sequence text",
                 ),
               ].map((el) => getComputedStyle(el).fontFamily),
               actors: [
-                ...document.querySelectorAll(".mermaid text.actor > tspan"),
+                ...document.querySelectorAll(".mermaid .pele-actor .pele-label"),
               ].map((el) => getComputedStyle(el).fill),
               signals: [
-                ...document.querySelectorAll(".mermaid .messageText"),
+                ...document.querySelectorAll(
+                  ".mermaid .pele-sequence .pele-edge-label text",
+                ),
               ].map((el) => getComputedStyle(el).fill),
             };
           });
@@ -135,10 +136,6 @@ describe("Markdown presentation from the mockup", { timeout: 180_000 }, () => {
           }
           for (const font of colors.sequenceFonts)
             assert.equal(font, colors.font);
-          assert.ok(
-            colors.shadows.some((shadow) => shadow !== "none"),
-            "retain Mermaid's default drop shadows",
-          );
           assert.ok(colors.nodes.length > 0);
           for (const fill of colors.nodes)
             assert.equal(fill, colors.expected.soft);

@@ -214,52 +214,38 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
 <script>
   import { localizeDates } from "../lib/dates.mjs";
   localizeDates(document);
-  import { mermaidTheme } from "../lib/mermaid-theme.mjs";
-  import { createThemeQueue } from "../lib/theme-queue.mjs";
-  import { watchSystemTheme } from "../lib/system-theme.mjs";
   import { createDiagramViewer } from "../lib/diagram-viewer.mjs";
   const blocks = document.querySelectorAll("pre.mermaid");
-  const diagramViewer = createDiagramViewer(document);
-  const requestDraw = createThemeQueue(async (current) => {
-    if (!blocks.length || !current()) return;
-    const mermaid = (await import("mermaid")).default;
-    if (!current()) return;
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: "strict",
-      ...mermaidTheme(document),
-      // Keep wide diagrams readable and let their frame scroll on mobile.
-      flowchart: { useMaxWidth: false },
-      sequence: { useMaxWidth: false },
-    });
-    for (const block of blocks) {
-      if (!current()) return;
-      if (!block.dataset.source) block.dataset.source = block.textContent || "";
-      const source = block.dataset.source;
-      if (block.nextElementSibling?.classList.contains("mermaid-error")) block.nextElementSibling.remove();
-      const id = "m" + Math.random().toString(36).slice(2);
+  async function drawDiagrams() {
+    if (!blocks.length) return;
+    const { render } = await import("pele");
+    await document.fonts.ready;
+    const diagramViewer = createDiagramViewer(document);
+    for (const [index, block] of blocks.entries()) {
+      const source = block.textContent || "";
+      block.dataset.source = source;
       try {
-        const result = await mermaid.render(id, source);
-        if (!current()) return;
+        const style = getComputedStyle(block);
+        const result = render(source, {
+          idPrefix: `cfgb-diagram-${index}`,
+          fontFamily: style.getPropertyValue("--pele-font").trim(),
+          fontFamilyMono: style.getPropertyValue("--pele-font-mono").trim(),
+          fontSize: 18,
+          // Keep the authored layout and natural size; the viewer handles zoom.
+          responsive: false,
+        });
         block.innerHTML = result.svg;
       } catch (error) {
-        if (!current()) return;
         block.textContent = source;
         const note = document.createElement("p");
         note.className = "mermaid-error";
-        note.textContent = error instanceof Error ? error.message : "Mermaid error";
+        note.textContent = error instanceof Error ? error.message : "Diagram error";
         block.insertAdjacentElement("afterend", note);
       }
       diagramViewer.update(block);
     }
-  });
-  requestDraw();
-  document.addEventListener("cfgb-theme", () => { requestDraw(); });
-  watchSystemTheme(
-    window.matchMedia("(prefers-color-scheme: dark)"),
-    () => !document.documentElement.hasAttribute("data-theme"),
-    requestDraw,
-  );
+  }
+  drawDiagrams();
 </script>
 </body>
 </html>

@@ -143,7 +143,7 @@ describe("Expanded Mermaid diagrams", { timeout: 180_000 }, () => {
     });
   });
 
-  test("expanded diagrams redraw with the system theme and retain manual zoom", async () => {
+  test("expanded diagrams follow the system theme and retain manual zoom", async () => {
     await withPage(site, { colorScheme: "light" }, async (page) => {
       await page.goto(`${site.origin}/en/posts/browser/`);
       await page
@@ -159,12 +159,12 @@ describe("Expanded Mermaid diagrams", { timeout: 180_000 }, () => {
       const label = await viewer.locator("output").textContent();
       const width = (await viewer.locator("svg").boundingBox()).width;
       const light = await viewer
-        .locator("svg .node rect")
+        .locator("svg .pele-node rect")
         .first()
         .evaluate((el) => getComputedStyle(el).fill);
       await page.emulateMedia({ colorScheme: "dark" });
       await page.waitForFunction((light) => {
-        const node = document.querySelector(".diagram-viewer svg .node rect");
+        const node = document.querySelector(".diagram-viewer svg .pele-node rect");
         return node && getComputedStyle(node).fill !== light;
       }, light);
       assert.equal(await viewer.locator("output").textContent(), label);
@@ -176,7 +176,7 @@ describe("Expanded Mermaid diagrams", { timeout: 180_000 }, () => {
         .click();
       await viewer.waitFor({ state: "hidden" });
       const dark = await page
-        .locator(".diagram-block svg .node rect")
+        .locator(".diagram-block svg .pele-node rect")
         .first()
         .evaluate((el) => getComputedStyle(el).fill);
       assert.notEqual(dark, light);
@@ -254,23 +254,27 @@ describe("Expanded Mermaid diagrams", { timeout: 180_000 }, () => {
   test("multiple diagrams keep their SVG identities and can be opened independently", async () => {
     await withPage(site, {}, async (page) => {
       await page.goto(`${site.origin}/en/posts/presentation/`);
-      await page.locator(".mermaid svg .actor").first().waitFor();
+      await page.locator(".mermaid svg .pele-actor").first().waitFor();
       const expand = page.getByRole("button", {
         name: "Expand diagram",
         exact: true,
       });
       assert.equal(await expand.count(), 2);
       for (let index = 0; index < 2; index++) {
-        const id = await page
+        const original = await page
           .locator(".diagram-block pre.mermaid svg")
           .nth(index)
-          .getAttribute("id");
+          .elementHandle();
         await expand.nth(index).click();
         const viewer = page.getByRole("dialog", {
           name: "Diagram",
           exact: true,
         });
-        assert.equal(await viewer.locator("svg").getAttribute("id"), id);
+        assert(
+          await viewer.locator("svg").evaluate(
+            (svg, original) => svg === original, original,
+          ),
+        );
         assert.equal(await page.locator("pre.mermaid svg").count(), 2);
         const duplicates = await page.evaluate(() => {
           const ids = [...document.querySelectorAll("[id]")].map((el) => el.id);
@@ -281,13 +285,13 @@ describe("Expanded Mermaid diagrams", { timeout: 180_000 }, () => {
           .getByRole("button", { name: "Close diagram", exact: true })
           .click();
         await viewer.waitFor({ state: "hidden" });
-        assert.equal(
+        assert(
           await page
             .locator(".diagram-block pre.mermaid svg")
             .nth(index)
-            .getAttribute("id"),
-          id,
+            .evaluate((svg, original) => svg === original, original),
         );
+        await original.dispose();
       }
     });
   });
