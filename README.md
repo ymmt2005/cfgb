@@ -67,6 +67,7 @@ Social-sharing images and `site.image` require v0.3.0 or newer. The setting is
 optional and adds no font or image downloads during rendering.
 
 Mermaid fences render locally with [Pele](https://github.com/obsidianmd/pele).
+Pele rendering requires v0.5.0 or newer.
 Rendered diagrams offer **Expand diagram** for a view filling the window,
 with zoom, fit, actual size, and scrolling controls. Full screen is available
 where the browser permits it. Close the viewer or press Escape to return to the
@@ -81,9 +82,8 @@ available. Chinese and Korean support requires v0.2.0 or newer.
 
 ## Optional Cloudflare deployment
 
-Deployment is currently available from source; the v0.4.0 release does not include
-`cfgb deploy`. Set `site.baseUrl` to your public URL and provision its hostname's
-zone in Cloudflare. The deploy command configures that hostname as the Worker's
+`cfgb deploy` requires v0.5.0 or newer. Set `site.baseUrl` to your public URL and
+provision its hostname's zone in Cloudflare. The deploy command configures that hostname as the Worker's
 custom domain, including Cloudflare's domain/DNS setup. Configure these environment
 variables in your local environment or trusted CI job:
 
