@@ -315,8 +315,12 @@ verifies the entire supplied artifact stays unchanged. Unit tests cover
 production/publication gates, runtime/session checks, asset mount layout, and
 success/failure cleanup without a remote upload. The pinned local Worker/Static
 Assets runtime also exercises locale redirects, operator-edited HTML, Pagefind
-assets and navigation/non-navigation missing-page/media 404 responses on both
-mount layouts. Prefixed coverage includes a Worker build without a static root
+assets and non-navigation missing-page/media 404 responses on both mount layouts.
+The Node 24/npm job requires Playwright navigation against the real local
+Wrangler server, verifies the actual `Sec-Fetch-Mode: navigate` request header,
+and checks the response status and localized 404 body. Node fetch covers CORS
+requests only; manually setting its header does not produce navigation.
+Prefixed coverage includes a Worker build without a static root
 index, slashless GET/HEAD entry, and an explicit test-only Worker-first routing
 override to exercise asset delegation through the real runtime. These tests do not establish
 that a live Cloudflare account/custom domain has been deployed.

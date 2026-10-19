@@ -76,11 +76,17 @@ func checkExampleDeployDryRun(t *testing.T, artifact string) {
 			if err := command(dir, out, errOut, extra, name, args...); err != nil {
 				return err
 			}
-			if err := command(dir, out, errOut, extra, "node", helper, args[0], configPath, prefix); err != nil {
+			helperArgs := []string{helper, args[0], configPath, prefix}
+			if os.Getenv("CFGB_REQUIRE_SEARCH") == "1" {
+				// This CI job installs Playwright/Chromium and requires actual
+				// browser navigation as well as the search corpus.
+				helperArgs = append(helperArgs, "--browser-navigation")
+			}
+			if err := command(dir, out, errOut, extra, "node", helperArgs...); err != nil {
 				return err
 			}
 			if prefix != "" {
-				return command(dir, out, errOut, extra, "node", helper, args[0], configPath, prefix, "--worker-first")
+				return command(dir, out, errOut, extra, "node", append(helperArgs, "--worker-first")...)
 			}
 			return nil
 		}

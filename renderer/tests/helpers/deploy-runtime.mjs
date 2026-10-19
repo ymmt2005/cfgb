@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 
 const [wrangler, config, prefix = ""] = process.argv.slice(2);
 const forceWorker = process.argv.includes("--worker-first");
+const browserNavigation = process.argv.includes("--browser-navigation");
 let runtimeConfig = config;
 if (forceWorker) {
   // Exercise delegation even when Static Assets would handle a request without
@@ -69,16 +70,39 @@ try {
   const search = await request("/pagefind/pagefind.js");
   assert.equal(search.status, 200);
   assert.match(await search.text(), /pagefind/i);
-  for (const path of ["/en/nonexistent-page/", "/en/nonexistent-image.png"]) {
-    for (const mode of ["navigate", "cors"]) {
-      const missing = await request(path, { headers: { "Sec-Fetch-Mode": mode } });
-      assert.equal(missing.status, 404, `${mode} ${path}: missing assets must retain 404`);
-      const conf = JSON.parse(await readFile(config, "utf8"));
-      const expected = await readFile(join(conf.assets.directory, prefix.replace(/^\//, ""), "en", "404.html"), "utf8");
-      assert.equal(await missing.text(), expected, `${mode} ${path}: nearest localized 404 page`);
+  const missingPaths = ["/en/nonexistent-page/", "/en/nonexistent-image.png"];
+  const conf = JSON.parse(await readFile(config, "utf8"));
+  const expected404 = await readFile(join(conf.assets.directory, prefix.replace(/^\//, ""), "en", "404.html"), "utf8");
+  // Node fetch derives Sec-Fetch-Mode from its mode, overwriting supplied
+  // headers. Keep it for non-navigation requests only.
+  for (const path of missingPaths) {
+    const missing = await request(path, { mode: "cors" });
+    assert.equal(missing.status, 404, `cors ${path}: missing assets must retain 404`);
+    assert.equal(await missing.text(), expected404, `cors ${path}: nearest localized 404 page`);
+  }
+  if (browserNavigation) {
+    const { chromium } = await import("../browser/node_modules/playwright/index.mjs");
+    const { withPage } = await import("../browser/fixture.mjs");
+    const browser = await chromium.launch({ executablePath: process.env.CFGB_TEST_CHROMIUM_EXECUTABLE || undefined });
+    try {
+      await withPage({ browser }, { locale: "en-US" }, async (page) => {
+        const requestFailures = [];
+        page.on("requestfailed", (request) => requestFailures.push(`${request.url()}: ${request.failure()?.errorText}`));
+        for (const path of missingPaths) {
+          const response = await page.goto(origin + prefix + path);
+          assert(response, `navigation response for ${path}`);
+          assert(response.request().isNavigationRequest(), `actual navigation for ${path}`);
+          assert.equal(await response.request().headerValue("sec-fetch-mode"), "navigate");
+          assert.equal(response.status(), 404, `navigate ${path}: missing assets must retain 404`);
+          assert.equal(await response.text(), expected404, `navigate ${path}: nearest localized 404 page`);
+        }
+        assert.deepEqual(requestFailures, [], "navigation resource failures");
+      });
+    } finally {
+      await browser.close();
     }
   }
-  console.log(`Local Worker/Static Assets checks passed at ${prefix || "/"}; forced Worker: ${forceWorker}`);
+  console.log(`Local Worker/Static Assets checks passed at ${prefix || "/"}; forced Worker: ${forceWorker}; browser navigation: ${browserNavigation ? "passed" : "not requested"}`);
 } finally {
   const stopping = child.exitCode === null && child.signalCode === null;
   if (stopping) {
