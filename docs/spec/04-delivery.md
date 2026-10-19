@@ -1,6 +1,8 @@
 # GitHub and Cloudflare delivery
 
-This is the v1 implementation contract, not an implemented deployment workflow.
+This is the v1 delivery contract. Production `cfgb deploy` is implemented;
+private previews and authoring automation remain planned. Cloudflare is an
+optional host; `build --static` also supports hosts without Cloudflare services.
 Git is the source of truth; AI runs only during authoring. The content repository
 contains Markdown, data, assets and CFGB configuration. CFGB owns and embeds the
 Astro renderer, Worker, dependency lockfile and tool configuration. Builds extract
@@ -46,8 +48,9 @@ The selected package manager is checked at runtime. Node itself is not pinned by
 the lockfile. The workspace is a fresh `cfgb-build-*` directory. Its basename is
 `toolchainSessionId`. The installed Wrangler survives through the same build's
 upload command, which finds the directory by joining `os.TempDir()` with that
-basename, and the workspace is excluded from the deployable artifact. Upload
-removes the workspace when it finishes or fails.
+basename, and the workspace is excluded from the deployable artifact. Actual upload
+removes the workspace when it finishes or fails; preflight failures and dry runs
+retain it.
 Upload accepts the supplied artifact, including one from a dirty checkout and
 one whose site bytes were edited after the build. Generated output stays out of
 the dirty record. CFGB uploads those bytes without rebuilding or changing them.
@@ -73,8 +76,10 @@ account-specific deployment configuration. CFGB generates temporary Wrangler
 configuration for the reviewed deployment target; authors do not run Astro,
 Pagefind or Wrangler directly.
 The generated config uses release-pinned `workerCompatibilityDate` as its
-top-level `compatibility_date` and always includes `workers_dev: false`,
-`preview_urls: true` and `previews: {}` in v1, for both upload commands.
+top-level `compatibility_date` and always includes `workers_dev: false` and
+`previews: {}`. Production deployment sets `preview_urls: false` until the Access
+preflight exists. Future uploads may enable Preview/Version URLs only after the
+mandatory Access verification below.
 Assets remain top-level. See the runtime contract for the required fields;
 the date is never derived from the build/deploy clock, and an empty Preview
 object does not replace the Access checks below.
@@ -82,8 +87,9 @@ object does not replace the Access checks below.
 The configured production origin is canonical. For an apex deployment, redirect
 `www` at the host/zone layer while preserving path/query, and disable
 the alternate production workers.dev origin through the explicit config setting.
-Preview URLs remain enabled independently and are protected by Access; Version
-URLs enabled by the same `preview_urls` setting are included in that coverage.
+Preview/Version URLs remain disabled in the current production uploader. When
+the future private-preview integration enables `preview_urls`, Access protection
+must cover both Preview and Version URLs independently of the production domain.
 Do not redirect previews to production. Deployed source-commit metadata is
 diagnostic. Retain platform rollback to the last good Worker version. Runtime has no AI or Hatena credentials.
 
@@ -170,7 +176,8 @@ first draft upload. This covers its Preview/deployment URLs across workers.dev
 and custom Preview hosts, including future URLs; a Preview URL need not already
 exist for the preflight to verify the Worker-level policy. Keep production public.
 
-Before upload, resolve the target Worker in the trusted account and verify the
+Before an upload that enables Preview/Version URLs or creates a private preview,
+resolve the target Worker in the trusted account and verify the
 Access application's destination and effective reviewed policies, including the
 absence of a public bypass. `CFGB_CF_ACCESS_API_TOKEN` supplies read-only Access
 application/policy inspection; it is separate from the upload token and never a
@@ -200,7 +207,10 @@ CFGB's embedded Worker handles only locale negotiation. Generated Wrangler
 configuration uses selective `run_worker_first` for `/` and `/__locale`, binds
 `ASSETS`, sets `html_handling = "auto-trailing-slash"` and
 `not_found_handling = "404-page"`. All other requests use Static Assets routing;
-if a miss reaches Worker code it delegates to `ASSETS.fetch(request)`.
+if a request reaches Worker code it delegates to `ASSETS.fetch(request)`
+unchanged. Prefixed deployments mount files at their public URL paths, so
+delegation must preserve the hosting prefix. Both the slashless and
+slash-terminated prefixed roots use Worker-first locale negotiation.
 
 - `/` is a runtime route, with no generated root `index.html`. It returns a **302**
   redirect to `/<locale>/`: valid locale cookie first, then supported

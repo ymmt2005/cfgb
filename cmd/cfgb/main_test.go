@@ -24,7 +24,7 @@ func (w failingWriter) Write([]byte) (int, error) { return 0, w.err }
 func TestCLIOutputErrorsFailIncludingFrameworkHelp(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	broken := errors.New("output unavailable")
-	for _, args := range [][]string{{"version"}, {"--version"}, {"build", "--version"}, {"--help"}, {"build", "--help"}, {"help", "build"}} {
+	for _, args := range [][]string{{"version"}, {"--version"}, {"build", "--version"}, {"deploy", "--version"}, {"--help"}, {"build", "--help"}, {"deploy", "--help"}, {"help", "build"}} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			var stderr bytes.Buffer
 			if code := run(args, failingWriter{broken}, &stderr); code != 3 || !strings.Contains(stderr.String(), broken.Error()) {
@@ -125,7 +125,11 @@ func TestCLIHelpVersionAndUsage(t *testing.T) {
 		{[]string{"build", "extra"}, 2, "unknown command"},
 		{[]string{"version", "extra"}, 2, "unknown command"},
 		{[]string{"build", "--unknown"}, 2, "unknown flag"},
-		{[]string{"deploy"}, 2, "unknown command"},
+		{[]string{"deploy"}, 2, "--from DIR is required"},
+		{[]string{"deploy", "--help"}, 0, "--dry-run"},
+		{[]string{"deploy", "--version"}, 0, "cfgb " + version.Version},
+		{[]string{"deploy", "--from"}, 2, "flag needs an argument"},
+		{[]string{"deploy", "--from="}, 2, "--from DIR is required"},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			var out, err bytes.Buffer
@@ -156,8 +160,12 @@ func TestCLIUsesSelectedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, stderr bytes.Buffer
-	if code := run([]string{"build", "--config", file}, &out, &stderr); code != 2 || !strings.Contains(stderr.String(), "schemaVersion") {
-		t.Fatalf("exit=%d stdout=%q stderr=%q", code, &out, &stderr)
+	for _, args := range [][]string{{"build", "--config", file}, {"deploy", "--config", file, "--from", "dist", "--dry-run"}} {
+		if code := run(args, &out, &stderr); code != 2 || !strings.Contains(stderr.String(), "schemaVersion") {
+			t.Fatalf("exit=%d stdout=%q stderr=%q", code, &out, &stderr)
+		}
+		out.Reset()
+		stderr.Reset()
 	}
 }
 
@@ -175,7 +183,7 @@ func TestCLIInvocationDoesNotRetainFlags(t *testing.T) {
 
 func TestUnknownCommand(t *testing.T) {
 	var out, err bytes.Buffer
-	if code := run([]string{"deploy"}, &out, &err); code != 2 {
+	if code := run([]string{"preview"}, &out, &err); code != 2 {
 		t.Fatalf("exit %d, want 2", code)
 	}
 }

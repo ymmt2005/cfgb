@@ -73,7 +73,7 @@ func newRootCommand(buildRun func(build.Options) error) *cobra.Command {
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("cfgb: a command is required (implemented: version, build)")
+			return fmt.Errorf("cfgb: a command is required (implemented: version, build, deploy)")
 		},
 	}
 	root.CompletionOptions.DisableDefaultCmd = true
@@ -121,5 +121,27 @@ func newRootCommand(buildRun func(build.Options) error) *cobra.Command {
 	buildCmd.Flags().StringVar(&baseURL, "base-url", "", "override the public site URL, including its hosting path")
 	buildCmd.Flags().BoolVar(&static, "static", false, "emit static entry/alias pages and direct language links for hosts without a Worker")
 	root.AddCommand(buildCmd)
+	var from string
+	var dryRun bool
+	deployCmd := &cobra.Command{
+		Use: "deploy --from DIR", Short: "Deploy an existing artifact to Cloudflare",
+		Version: version.Version, Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if from == "" {
+				return fmt.Errorf("cfgb deploy: --from DIR is required")
+			}
+			dir, err := os.Getwd()
+			if err != nil {
+				return &build.ExitError{Code: 3, Err: err}
+			}
+			return build.Deploy(build.DeployOptions{
+				Dir: dir, Config: configPath, From: from, DryRun: dryRun,
+				Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
+			})
+		},
+	}
+	deployCmd.Flags().StringVar(&from, "from", "", "existing build artifact, relative to the working directory")
+	deployCmd.Flags().BoolVar(&dryRun, "dry-run", false, "check the upload with Wrangler without publishing")
+	root.AddCommand(deployCmd)
 	return root
 }

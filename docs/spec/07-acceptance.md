@@ -55,7 +55,7 @@ run the standalone scenarios as negative CLI acceptance.
 | Configured production branch | Default `main`, custom `master`, wrong-branch deploy/preview rejection; the current invocation's branch | CLI + Cloudflare Builds |
 | Configured-blog import and syntax inventory | Synthetic Atom exports from configured blogs | Importer |
 | Deterministic migration pairing without AI | Candidate repeatability, absent AI credentials, zero model calls and explicit decisions | Importer |
-| Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, `workers_dev: false`, `preview_urls: true`, `previews: {}` and top-level assets | CFGB release + upload adapter |
+| Release-pinned Worker runtime | Build-delivery cases; pinned `compatibility_date`, `workers_dev: false`, `previews: {}` and top-level assets; production disables Preview/Version URLs until Access verification exists, and future preview upload enables them only after that gate | CFGB release + upload adapter |
 | Complete map before link rewriting | Migration expected map and forward link | Importer |
 | Pairing approval and asset deduplication | Migration pairing/category/asset decisions | Importer |
 | Rerun and conflicts | Hatena cases and separate expected conflict reports; unchanged last-applied hash pair | Importer |

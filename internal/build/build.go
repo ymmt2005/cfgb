@@ -1,4 +1,4 @@
-// Package build runs the embedded renderer and writes a CFGB artifact.
+// Package build renders content and uploads existing CFGB artifacts.
 package build
 
 import (
@@ -1049,6 +1049,7 @@ func manifestJSON(cfg *config.File, pins releasePins, tc toolchainCheck, workspa
 	}
 	manifest := map[string]any{
 		"schemaVersion":      1,
+		"baseUrl":            cfg.Site.BaseURL,
 		"cfgbVersion":        version.Version,
 		"rendererVersion":    pins.RendererVersion,
 		"toolchainSessionId": filepath.Base(workspace),

@@ -139,10 +139,11 @@ All article topics must be registered. AI may suggest existing topics, never
 create new ones. `site.defaultLocale` must exist; variant locales must be enabled.
 
 `deploy.productionBranch` is optional, including its parent section; the parser
-applies `main` when omitted. Validate its value as a literal Git short branch
-name, not a full ref, symbolic `HEAD`, revision expression or branch pattern.
-Invalid values are configuration failures (`E_DEPLOY_TARGET`, exit 2). Do not
-expand Git shorthand or accept per-command/environment branch overrides.
+applies `main` when omitted. Treat its value as the literal Git short branch
+name reported by the current checkout. Do not expand full refs, symbolic names,
+revision expressions, Git shorthand or branch patterns, or accept per-command
+branch overrides. Production deployment compares that literal value with the
+current branch; a missing or differing branch fails the production gate.
 Deploy requires the current invocation's branch to equal the configured value;
 Preview rejects that value. A valid branch that fails either command rule is
 `E_DEPLOY_TARGET`, exit 1. The branch recorded in an artifact is diagnostic.
