@@ -219,16 +219,18 @@ spacing and colors use the shared page palette tokens. One light/dark
 representation follows page theme. Selectors are `[data-theme="light"]` and `[data-theme="dark"]`, so
 system mode, which has no `data-theme` attribute, keeps the library's
 `prefers-color-scheme` rules. Mermaid fences are extracted before code highlighting. Lazy-load a
-local Mermaid bundle only when a page contains diagrams; use `securityLevel:
-strict`. Keep the original source in that render target as the no-JS fallback;
-hide it only after successful rendering by replacing the element with the diagram.
-Keep Mermaid's default look and drop shadows. Use the page's resolved palette
-colors and prose font for diagram labels, nodes and edges. Place diagrams in the mockup's bordered frame; wide flowcharts and
-sequence diagrams scroll within it rather than shrinking their labels. Diagram
-layout follows the authored Mermaid source, not the hand-drawn mockup geometry.
-Do not emit a second copy of the source. Invalid Mermaid keeps source with a useful error, not blank content.
-Re-render from original source on theme change, including a system color-scheme
-change while the page remains in system mode; serialize renders to avoid races.
+local [Pele](https://github.com/obsidianmd/pele) bundle only when a page contains
+diagrams. Mermaid remains the fence language; Pele provides the SVG rendering,
+layout and default appearance. Keep the original source in that render target as
+the no-JS fallback; hide it only after successful rendering by replacing the
+source with the diagram. Use the page palette and prose font for diagram labels,
+nodes and edges through Pele's CSS custom properties. Place diagrams in the
+mockup's bordered frame; wide flowcharts and sequence diagrams scroll within it
+rather than shrinking their labels. Render at natural dimensions without
+container-driven layout changes, preserving the authored direction.
+Do not emit a second copy of the source. Invalid or unsupported diagrams keep
+source with a useful error, not blank content. System and explicit theme changes
+update the SVG through CSS without re-rendering or replacing it.
 
 Successfully rendered diagrams offer a localized **Expand diagram** control.
 Open a native modal filling the viewport, with zoom, fit-to-window, and actual-size
@@ -238,7 +240,7 @@ fit-to-window is an explicit overview that may shrink the diagram.
 Where the browser permits it, a separate full-screen control hides browser chrome
 through the Fullscreen API; otherwise
 the expanded modal remains usable. Keep a single live render target and SVG,
-preserving its IDs, original source, and theme redraws while expanded. Escape
+preserving its IDs, original source, and live theme colors while expanded. Escape
 and the close control dismiss the viewer, restore the diagram to its article,
 and return keyboard focus to its expand control. Closing also exits full screen
 when the viewer owns it. Native modal focus containment, mobile layout, reduced

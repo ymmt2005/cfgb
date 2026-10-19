@@ -221,10 +221,10 @@ describe(
       });
     });
 
-    test("real Mermaid rendering follows system changes and explicit themes", async () => {
+    test("Pele rendering follows system changes and explicit themes without replacing the SVG", async () => {
       await withPage(site, { colorScheme: "light" }, async (page) => {
         await page.goto(`${site.origin}/en/posts/browser/`);
-        const node = page.locator("pre.mermaid svg .node rect").first();
+        const node = page.locator("pre.mermaid svg .pele-node rect").first();
         await node.waitFor();
         const light = await node.evaluate((el) => getComputedStyle(el).fill);
         assert.equal(
@@ -233,7 +233,7 @@ describe(
         );
         await page.emulateMedia({ colorScheme: "dark" });
         await page.waitForFunction((light) => {
-          const node = document.querySelector("pre.mermaid svg .node rect");
+          const node = document.querySelector("pre.mermaid svg .pele-node rect");
           return node && getComputedStyle(node).fill !== light;
         }, light);
         assert.equal(
@@ -244,7 +244,7 @@ describe(
         );
         await chooseTheme(page, "light");
         await page.waitForFunction((light) => {
-          const node = document.querySelector("pre.mermaid svg .node rect");
+          const node = document.querySelector("pre.mermaid svg .pele-node rect");
           return node && getComputedStyle(node).fill === light;
         }, light);
         const explicit = await page.locator("pre.mermaid").innerHTML();
@@ -263,23 +263,11 @@ describe(
             .evaluate((el) => getComputedStyle(el).colorScheme),
           "light",
         );
-        // Rapid real selections exercise the queue without replacing Mermaid.
-        const previousId = await page
-          .locator("pre.mermaid svg")
-          .getAttribute("id");
+        // CSS changes update the same SVG, including rapid theme selections.
         await chooseTheme(page, "dark");
         await chooseTheme(page, "light");
-        await page.waitForFunction(
-          ({ light, previousId }) => {
-            const node = document.querySelector("pre.mermaid svg .node rect");
-            return (
-              node &&
-              node.closest("svg").id !== previousId &&
-              getComputedStyle(node).fill === light
-            );
-          },
-          { light, previousId },
-        );
+        assert.equal(await node.evaluate((el) => getComputedStyle(el).fill), light);
+        assert.equal(await page.locator("pre.mermaid").innerHTML(), explicit);
         assert.equal(
           await page.locator("pre.mermaid").getAttribute("data-source"),
           diagram,
@@ -288,7 +276,7 @@ describe(
       });
     });
 
-    test("invalid Mermaid keeps its source and a single error after redraw", async () => {
+    test("invalid Mermaid keeps its source and a single error across theme changes", async () => {
       await withPage(site, {}, async (page) => {
         await page.goto(`${site.origin}/en/posts/diagram-error/`);
         const note = page.locator("pre.mermaid + .mermaid-error");
@@ -298,10 +286,7 @@ describe(
           "this is not a diagram",
         );
         for (const theme of ["dark", "light"]) {
-          const previous = await note.elementHandle();
           await chooseTheme(page, theme);
-          await previous.waitForElementState("hidden");
-          await previous.dispose();
           await note.waitFor();
           assert.equal(await page.locator(".mermaid-error").count(), 1);
           assert.equal(

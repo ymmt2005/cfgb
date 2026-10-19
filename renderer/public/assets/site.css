@@ -858,6 +858,16 @@ th { color: var(--muted); font-weight: 600; }
   border-radius: 0.4rem;
 }
 pre.mermaid {
+  --pele-bg: var(--bg-raised);
+  --pele-fg: var(--ink);
+  --pele-muted: var(--muted);
+  --pele-line: var(--muted);
+  --pele-surface: var(--soft);
+  --pele-surface-alt: var(--code-bg);
+  --pele-border: var(--line);
+  --pele-accent: var(--accent);
+  --pele-font: var(--serif);
+  --pele-font-mono: var(--mono);
   margin: 0;
   font-family: var(--mono);
   font-size: 0.85rem;

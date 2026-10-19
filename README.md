@@ -66,7 +66,8 @@ site:
 Social-sharing images and `site.image` require v0.3.0 or newer. The setting is
 optional and adds no font or image downloads during rendering.
 
-Rendered Mermaid diagrams offer **Expand diagram** for a view filling the window,
+Mermaid fences render locally with [Pele](https://github.com/obsidianmd/pele).
+Rendered diagrams offer **Expand diagram** for a view filling the window,
 with zoom, fit, actual size, and scrolling controls. Full screen is available
 where the browser permits it. Close the viewer or press Escape to return to the
 article. These controls require v0.4.0 or newer.

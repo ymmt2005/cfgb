@@ -249,7 +249,7 @@ For changes crossing repositories, keep ownership explicit:
   versions/checksums. External-link checking must remain an explicit option.
 - Use Playwright for native browser behavior: actual resource loading/decoding,
   responsive images, navigation, focus/keyboard interactions, storage/theme,
-  CSP, Pagefind WASM and Mermaid redraws. Keep the real browser APIs and wait for
+  CSP, Pagefind WASM and Pele diagram rendering/theme changes. Keep the real browser APIs and wait for
   observable state; fail on unexpected runtime/resource/CSP errors.
 - Isolate both Astro and Vite caches in each build workspace. Sharing installed
   dependencies in tests must not share mutable `node_modules/.vite` state.
