@@ -194,7 +194,12 @@ the pinned corpus's `tests/search/queries.yaml` and passes source metadata to
 materializes every result, checks expected top-k inclusion or an empty result
 set, and compares the complete article-only index and result metadata with
 source. The rendered input, topic/year checkboxes and real result navigation are
-also exercised. Checks fail on runtime/resource errors, CSP violations, remote
+also exercised. UI waits require the completed result list and materialized
+results, including empty searches; a loading message containing the query is not
+completion. Failure diagnostics include the query, message, available filters and
+result URLs, together with browser runtime/resource errors even when an action
+throws. A native-browser regression holds a real index response to exercise this
+boundary. Checks fail on runtime/resource errors, CSP violations, remote
 requests, incorrect locale selection or lost hosting prefixes. This is mandatory
 in the Node 24/npm CI job, which installs the pinned browser dependencies;
 other toolchain jobs retain the non-browser corpus checks.
