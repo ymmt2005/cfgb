@@ -113,8 +113,9 @@ func TestDeployUploadsEditedArtifactAndCleansSessions(t *testing.T) {
 					t.Fatal(err)
 				}
 				var conf struct {
-					Main   string `json:"main"`
-					Assets struct {
+					Main        string `json:"main"`
+					PreviewURLs *bool  `json:"preview_urls"`
+					Assets      struct {
 						Directory string `json:"directory"`
 					} `json:"assets"`
 				}
@@ -123,6 +124,9 @@ func TestDeployUploadsEditedArtifactAndCleansSessions(t *testing.T) {
 				}
 				if conf.Main != filepath.Join(artifact, "worker", "index.js") || conf.Assets.Directory != filepath.Join(artifact, "site") {
 					t.Fatalf("configuration did not select supplied artifact: %s", raw)
+				}
+				if conf.PreviewURLs == nil || *conf.PreviewURLs {
+					t.Fatalf("upload must explicitly disable unprotected Preview/Version URLs: %s", raw)
 				}
 				return nil
 			}
@@ -288,7 +292,7 @@ func TestDeployPrefixMountAndRuntimeConfig(t *testing.T) {
 	var conf struct {
 		CompatibilityDate string         `json:"compatibility_date"`
 		WorkersDev        bool           `json:"workers_dev"`
-		PreviewURLs       bool           `json:"preview_urls"`
+		PreviewURLs       *bool          `json:"preview_urls"`
 		Previews          map[string]any `json:"previews"`
 		Assets            struct {
 			Directory   string   `json:"directory"`
@@ -301,7 +305,7 @@ func TestDeployPrefixMountAndRuntimeConfig(t *testing.T) {
 	if err := json.Unmarshal(raw, &conf); err != nil {
 		t.Fatal(err)
 	}
-	if conf.CompatibilityDate != worker.CompatibilityDate || conf.WorkersDev || !conf.PreviewURLs || conf.Previews == nil || !slices.Equal(conf.Assets.WorkerFirst, []string{"/blog/", "/blog/__locale"}) || conf.Assets.HTML != "auto-trailing-slash" || conf.Assets.NotFound != "404-page" || conf.Assets.Binding != "ASSETS" {
+	if conf.CompatibilityDate != worker.CompatibilityDate || conf.WorkersDev || conf.PreviewURLs == nil || *conf.PreviewURLs || conf.Previews == nil || !slices.Equal(conf.Assets.WorkerFirst, []string{"/blog/", "/blog/__locale", "/blog"}) || conf.Assets.HTML != "auto-trailing-slash" || conf.Assets.NotFound != "404-page" || conf.Assets.Binding != "ASSETS" {
 		t.Fatalf("runtime config: %s", raw)
 	}
 	for path, want := range map[string]string{"blog/en/index.html": "edited site bytes", "_headers": "_headers", "_redirects": "_redirects", "404.html": "404.html", "blog/404.html": "404.html"} {

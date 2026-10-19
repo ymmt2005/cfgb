@@ -226,6 +226,17 @@ func TestExampleCorpus(t *testing.T) {
 	t.Run("Cloudflare deployment dry run", func(t *testing.T) {
 		checkExampleDeployDryRun(t, out)
 	})
+	t.Run("prefixed Worker deployment without a static index", func(t *testing.T) {
+		prefixed := filepath.Join(t.TempDir(), "artifact")
+		if err := Run(Options{Dir: root, Out: prefixed, BaseURL: "https://example.invalid/blog/"}); err != nil {
+			t.Fatal(err)
+		}
+		cleanupExampleWorkspace(t, prefixed)
+		if _, err := os.Stat(filepath.Join(prefixed, "site", "index.html")); !os.IsNotExist(err) {
+			t.Fatalf("Worker build must not depend on a static root index: %v", err)
+		}
+		checkExampleDeployDryRun(t, prefixed)
+	})
 }
 
 func buildExtendedExample(t *testing.T, source string) {

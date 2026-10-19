@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 const [wrangler, config, prefix = ""] = process.argv.slice(2);
-const child = spawn(process.execPath, [wrangler, "dev", "--local", "--ip", "127.0.0.1", "--port", "0", "--config", config, "--no-bundle"], {
+const forceWorker = process.argv.includes("--worker-first");
+let runtimeConfig = config;
+if (forceWorker) {
+  // Exercise delegation even when Static Assets would handle a request without
+  // invoking the Worker. This routing override belongs only to this test.
+  const conf = JSON.parse(await readFile(config, "utf8"));
+  conf.assets.run_worker_first = true;
+  runtimeConfig = join(dirname(config), "wrangler-worker-first.json");
+  await writeFile(runtimeConfig, JSON.stringify(conf), { mode: 0o600 });
+}
+const child = spawn(process.execPath, [wrangler, "dev", "--local", "--ip", "127.0.0.1", "--port", "0", "--config", runtimeConfig, "--no-bundle"], {
   stdio: ["ignore", "pipe", "pipe"],
   env: { ...process.env, WRANGLER_SEND_METRICS: "false", CLOUDFLARE_CF_FETCH_ENABLED: "false", CI: "true", NO_COLOR: "1" },
 });
@@ -35,13 +45,15 @@ try {
   const request = (path, options = {}) => fetch(origin + prefix + path, {
     redirect: "manual", signal: AbortSignal.timeout(10000), ...options,
   });
-  for (const method of ["GET", "HEAD"]) {
-    const response = await request("/", { method, headers: { "Accept-Language": "en" } });
-    assert.equal(response.status, 302, `${method} root: ${logs}`);
-    assert.equal(response.headers.get("location"), prefix + "/en/");
-    assert.equal(response.headers.get("cache-control"), "private, no-store");
-    assert.match(response.headers.get("vary"), /Accept-Language/);
-    if (method === "HEAD") assert.equal(await response.text(), "");
+  for (const path of prefix ? ["/", ""] : ["/"]) {
+    for (const method of ["GET", "HEAD"]) {
+      const response = await request(path, { method, headers: { "Accept-Language": "en" } });
+      assert.equal(response.status, 302, `${method} root ${prefix + path}: ${logs}`);
+      assert.equal(response.headers.get("location"), prefix + "/en/");
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      assert.match(response.headers.get("vary"), /Accept-Language/);
+      if (method === "HEAD") assert.equal(await response.text(), "");
+    }
   }
   const locale = await request("/__locale?lang=ja&next=" + encodeURIComponent(prefix + "/ja/"));
   assert.equal(locale.status, 303);
@@ -58,15 +70,15 @@ try {
   assert.equal(search.status, 200);
   assert.match(await search.text(), /pagefind/i);
   for (const path of ["/en/nonexistent-page/", "/en/nonexistent-image.png"]) {
-    const missing = await request(path, { headers: { "Sec-Fetch-Mode": "navigate" } });
-    assert.equal(missing.status, 404, `${path}: missing assets must retain 404`);
-    if (path.endsWith("/")) {
+    for (const mode of ["navigate", "cors"]) {
+      const missing = await request(path, { headers: { "Sec-Fetch-Mode": mode } });
+      assert.equal(missing.status, 404, `${mode} ${path}: missing assets must retain 404`);
       const conf = JSON.parse(await readFile(config, "utf8"));
       const expected = await readFile(join(conf.assets.directory, prefix.replace(/^\//, ""), "en", "404.html"), "utf8");
-      assert.equal(await missing.text(), expected, "nearest localized 404 page");
+      assert.equal(await missing.text(), expected, `${mode} ${path}: nearest localized 404 page`);
     }
   }
-  console.log(`Local Worker/Static Assets checks passed at ${prefix || "/"}`);
+  console.log(`Local Worker/Static Assets checks passed at ${prefix || "/"}; forced Worker: ${forceWorker}`);
 } finally {
   const stopping = child.exitCode === null && child.signalCode === null;
   if (stopping) {

@@ -158,13 +158,9 @@ function rootResponse(request) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === prefix + "/") return rootResponse(request);
+    if (url.pathname === prefix + "/" || (prefix && url.pathname === prefix)) return rootResponse(request);
     if (url.pathname === prefix + "/__locale") return localeResponse(request);
     if (env && env.ASSETS && env.ASSETS.fetch) {
-      if (prefix && url.pathname.startsWith(prefix + "/")) {
-        url.pathname = url.pathname.slice(prefix.length);
-        return env.ASSETS.fetch(new Request(url, request));
-      }
       return env.ASSETS.fetch(request);
     }
     return response("not found\n", { status: 404 });

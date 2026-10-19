@@ -203,7 +203,9 @@ it. Missing same-environment sessions fail explicitly; upload-toolchain recreati
 for transferred artifacts and private previews remain unimplemented.
 The current configuration's `site.baseUrl` hostname selects the custom domain.
 The artifact's recorded `baseUrl` selects the asset mount path and Worker-first
-endpoints; older manifests without that field use the current configuration.
+endpoints, including both slashless and slash-terminated prefixed roots; older
+manifests without that field use the current configuration. The Worker delegates
+asset requests unchanged, preserving the mount prefix.
 For a prefix, staging copies assets beneath that path and keeps `_headers` and
 `_redirects` at the Static Assets root. Supplied artifact bytes remain unchanged.
 
@@ -212,9 +214,10 @@ For a prefix, staging copies assets beneath that path and keeps `_headers` and
 in a disposable upload workspace from the artifact and trusted target settings.
 Its top-level `compatibility_date` comes from release-pinned
 `workerCompatibilityDate`, recorded in the artifact; v1 always generates
-`workers_dev: false`, `preview_urls: true`, `previews: {}` and top-level assets.
-Preview/Version URLs require Access coverage; the production custom domain stays
-public. See the runtime contract.
+`workers_dev: false`, `previews: {}` and top-level assets. Production deployment
+sets `preview_urls: false` until Access verification is implemented. A future
+upload that enables Preview/Version URLs requires verified Access coverage; the
+production custom domain stays public. See the runtime contract.
 Use the retained toolchain session's Wrangler; a temporary upload config does not
 reinstall or lose that toolchain. When `WORKERS_CI_COMMIT_SHA`,
 `WORKERS_CI_BRANCH`, or `WORKERS_CI_BUILD_UUID` is available, record it as

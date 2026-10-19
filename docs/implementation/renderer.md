@@ -295,13 +295,16 @@ the retained session's Wrangler through Node with `deploy --no-bundle`.
 The current site's hostname becomes a custom domain. The config binds `ASSETS`,
 uses release-pinned compatibility, selective Worker-first locale routes,
 trailing-slash handling and nearest-directory 404s, disables production
-`workers.dev` and enables Preview/Version URLs as specified by the runtime
-contract. Private preview creation is not implemented.
+`workers.dev` and Preview/Version URLs. Enabling Preview/Version URLs requires
+the future Access preflight; private preview creation is not implemented.
 
 The build manifest now records its effective `baseUrl`. For a hosting prefix,
 deployment stages byte-preserving copies under that path while retaining
 `_headers` and `_redirects` at the Static Assets root. Root-hosted assets are
-passed directly from the artifact. Upload staging is always cleaned up. Actual
+passed directly from the artifact. Both slashless and slash-terminated prefixed
+roots invoke locale negotiation. Worker delegation preserves the original
+request URL, including the prefix, so it matches the mounted files. Upload
+staging is always cleaned up. Actual
 upload consumes the toolchain on success/failure; failed preflight and
 `--dry-run` preserve it for retry. The original temporary filesystem and a compatible Node
 runtime are required; transferred-toolchain recreation remains planned.
@@ -312,7 +315,10 @@ verifies the entire supplied artifact stays unchanged. Unit tests cover
 production/publication gates, runtime/session checks, asset mount layout, and
 success/failure cleanup without a remote upload. The pinned local Worker/Static
 Assets runtime also exercises locale redirects, operator-edited HTML, Pagefind
-assets and missing-page/media 404 responses on both mount layouts. These tests do not establish
+assets and navigation/non-navigation missing-page/media 404 responses on both
+mount layouts. Prefixed coverage includes a Worker build without a static root
+index, slashless GET/HEAD entry, and an explicit test-only Worker-first routing
+override to exercise asset delegation through the real runtime. These tests do not establish
 that a live Cloudflare account/custom domain has been deployed.
 
 Full semantic validation and private-preview upload remain unfinished in the

@@ -76,7 +76,13 @@ func checkExampleDeployDryRun(t *testing.T, artifact string) {
 			if err := command(dir, out, errOut, extra, name, args...); err != nil {
 				return err
 			}
-			return command(dir, out, errOut, extra, "node", helper, args[0], configPath, prefix)
+			if err := command(dir, out, errOut, extra, "node", helper, args[0], configPath, prefix); err != nil {
+				return err
+			}
+			if prefix != "" {
+				return command(dir, out, errOut, extra, "node", helper, args[0], configPath, prefix, "--worker-first")
+			}
+			return nil
 		}
 		return command(dir, out, errOut, extra, name, args...)
 	}

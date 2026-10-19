@@ -117,8 +117,9 @@ artifacts is not implemented yet.
 The Worker handles locale negotiation; Static Assets serves pages, media and
 Pagefind with the generated headers, aliases and localized 404s. Prefixed sites
 are staged at their artifact's hosting path without changing source bytes.
-Production `workers.dev` hosting is disabled. Private branch previews and their
-Cloudflare Access verification remain future work.
+Production `workers.dev` hosting and Preview/Version URLs are disabled. Enabling
+Preview/Version URLs requires the future Cloudflare Access verification. Private
+branch preview creation remains future work.
 
 ## Implementation specifications
 

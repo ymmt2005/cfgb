@@ -222,15 +222,15 @@ not an exact version of at least 4.135.0, fails `E_TOOLCHAIN`, exit 2. An
 artifact whose `workerCompatibilityDate` differs from the release pin fails
 `E_ARTIFACT`, exit 1.
 
-Generate temporary Wrangler configuration for both upload commands with top-level
-`compatibility_date` equal to that pinned value, `workers_dev: false`,
-`preview_urls: true` and an explicit `previews: {}`. Emit these values for both
-production and preview configuration; do not rely on dashboard state or defaults.
-The production workers.dev route is disabled while workers.dev Preview URLs
-remain enabled. The canonical custom domain remains the public production origin.
-Cloudflare also enables Version URLs through `preview_urls`; include them in
-the Access protection/coverage checks together with Preview/deployment URLs.
-Enabling URLs is separate from authorizing access to them.
+Generate temporary Wrangler configuration with top-level `compatibility_date`
+equal to that pinned value, `workers_dev: false`, and an explicit `previews: {}`.
+Production deployment explicitly sets `preview_urls: false` while Access
+verification remains unimplemented. Do not rely on dashboard state or defaults.
+The canonical custom domain remains the public production origin.
+A future upload may set `preview_urls: true` only after the mandatory Access
+preflight verifies protection. That setting also enables Version URLs; include
+them in the coverage checks together with Preview/deployment URLs. Production
+`workers.dev` remains disabled. Enabling URLs is separate from authorizing access.
 Keep `assets` at the top level, including the `ASSETS` binding and selective
 Worker-first routing from the delivery specification. V1 has no Preview-specific
 vars, secrets or storage bindings; the empty Preview object is sufficient for
@@ -245,18 +245,19 @@ and not a claim that this date is already tested for a released CFGB Worker):
 {
   "compatibility_date": "2026-10-03",
   "workers_dev": false,
-  "preview_urls": true,
+  "preview_urls": false,
   "previews": {}
 }
 ```
 
 Use the same pinned date for retained and recreated upload toolchains. Validate
 the generated configuration with the pinned Wrangler during release acceptance,
-and assert both production and preview configurations include these fields.
-Verify the canonical custom domain remains public, the ordinary production
-workers.dev route is disabled, and Preview/Version URLs remain enabled with
-anonymous access denied by the reviewed Access policy. Test a fresh Worker and
-an existing Worker whose URL settings were previously different.
+and assert production explicitly disables Preview/Version URLs. Verify the
+canonical custom domain remains public and the ordinary production workers.dev
+route is disabled. When preview upload is implemented, also verify its enabled
+Preview/Version URLs deny anonymous access through the reviewed Access policy.
+Test a fresh Worker and an existing Worker whose URL settings were previously
+different.
 No Wrangler configuration or runtime-date override belongs in a content repository.
 
 ## Artifact checks

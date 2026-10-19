@@ -267,16 +267,20 @@ func wranglerConfig(cfg *config.File, manifest deployManifest, artifact, upload,
 			return nil, &ExitError{Code: 3, Err: fmt.Errorf("stage prefixed assets: %w", err)}
 		}
 	}
+	workerFirst := []string{prefix + "/", prefix + "/__locale"}
+	if prefix != "" {
+		workerFirst = append(workerFirst, prefix)
+	}
 	return json.MarshalIndent(map[string]any{
 		"name": name, "account_id": account,
 		"main":               filepath.Join(artifact, "worker", "index.js"),
 		"compatibility_date": worker.CompatibilityDate,
-		"workers_dev":        false, "preview_urls": true, "previews": map[string]any{},
+		"workers_dev":        false, "preview_urls": false, "previews": map[string]any{},
 		"routes": []map[string]any{{"pattern": origin.Hostname(), "custom_domain": true}},
 		"assets": map[string]any{
 			"directory": assets, "binding": "ASSETS",
 			"html_handling": "auto-trailing-slash", "not_found_handling": "404-page",
-			"run_worker_first": []string{prefix + "/", prefix + "/__locale"},
+			"run_worker_first": workerFirst,
 		},
 	}, "", "  ")
 }
