@@ -209,6 +209,17 @@ describe("Expanded Mermaid diagrams", { timeout: 180_000 }, () => {
           await button.tap();
           const viewer = page.getByRole("dialog", { name: title, exact: true });
           await viewer.waitFor();
+          assert.equal(
+            await viewer
+              .locator(".diagram-toolbar")
+              .getByText(title, { exact: true })
+              .count(),
+            0,
+            "the toolbar has controls without a redundant diagram label",
+          );
+          assert(
+            await viewer.getByRole("region", { name: title, exact: true }).isVisible(),
+          );
           const bounds = await viewer.boundingBox();
           assert.equal(bounds.width, 375);
           assert.equal(bounds.height, 812);

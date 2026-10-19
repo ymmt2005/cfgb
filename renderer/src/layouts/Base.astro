@@ -192,7 +192,6 @@ const json = jsonLd ? JSON.stringify(jsonLd).replaceAll("<", "\\u003c") : "";
   <dialog class="diagram-viewer" aria-label={copy.diagram} data-pagefind-ignore>
     <div class="diagram-viewer-shell">
       <div class="diagram-toolbar">
-        <strong>{copy.diagram}</strong>
         <div class="diagram-zoom-controls">
           <button type="button" data-diagram-zoom-out aria-label={copy.diagramZoomOut} title={copy.diagramZoomOut}>−</button>
           <output aria-label={copy.diagramZoom} aria-live="polite">100%</output>

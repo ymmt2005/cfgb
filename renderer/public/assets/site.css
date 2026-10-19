@@ -925,8 +925,7 @@ html:has(.diagram-viewer[open]) { overflow: hidden; }
   border-bottom: 1px solid var(--line);
   font-family: var(--sans);
 }
-.diagram-toolbar strong { margin-right: auto; }
-.diagram-zoom-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.diagram-zoom-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-left: auto; }
 .diagram-toolbar output { min-width: 3.5em; text-align: center; font-size: 0.85rem; }
 .diagram-viewport {
   position: relative;

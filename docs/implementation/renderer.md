@@ -233,7 +233,9 @@ stays available when JavaScript is disabled or rendering fails.
 
 Rendered Mermaid diagrams have a localized expand control. A native modal fills
 the viewport and provides zoom, fit, actual size, and native full-screen controls
-where permitted. SVGs open at no less than natural size for readable labels;
+where permitted. The toolbar shows controls without a generic diagram heading;
+the dialog and scrollable area retain localized accessible names.
+SVGs open at no less than natural size for readable labels;
 fit is an explicit overview. The viewer moves the existing render target rather
 than duplicating SVG IDs; source and CSS theme colors stay attached to that element.
 Closing returns the target and keyboard focus to the article and exits any full
