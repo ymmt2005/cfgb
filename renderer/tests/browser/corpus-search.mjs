@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { serveBuiltSite } from "./site-server.mjs";
 import { withPage } from "./fixture.mjs";
+import { waitForSearch } from "./search-ui.mjs";
 
 // Called by the Go corpus tests with their actual completed artifact and
 // source-derived metadata. Pagefind and its language WASM run in Chromium.
@@ -61,7 +62,7 @@ async function waitForResults(page, query, paths, topK, expected) {
   await page.waitForFunction(({ query, paths, topK, expected, resultLinks, basePath }) => {
     const message = document.querySelector(".pagefind-ui__message")?.textContent || "";
     const links = [...document.querySelectorAll(resultLinks)];
-    if (!message.includes(query)) return false;
+    if (!message.includes(query) || !document.querySelector(".pagefind-ui__results")) return false;
     if (paths.length === 0) return links.length === 0;
     if (links.length < Math.min(paths.length, topK) || links.length > paths.length) return false;
     const actual = links.map((link) => new URL(link.href).pathname);
@@ -109,14 +110,20 @@ try {
 
           await page.goto(searchURL);
           await page.getByRole("textbox").fill(item.query);
-          await page.waitForFunction((query) => document.querySelector(".pagefind-ui__message")?.textContent.includes(query), item.query);
+          await waitForSearch(page, item.query);
           for (const [name, value] of Object.entries(item.filters || {})) await setFilter(page, name, value);
           await waitForResults(page, item.query, paths, item.topK, item.expected);
           assert(await page.locator(`.pagefind-ui__filter-checkbox[name="locale"][value="${locale}"]`).isChecked());
           if (!navigationExample && item.expected.length && !item.filters) navigationExample = item;
           console.log(`${locale} ${JSON.stringify(item.query)} ${JSON.stringify(item.filters || {})}: top-k, metadata, locale and UI passed`);
         } catch (error) {
-          failures.push(new Error(`${locale} query ${JSON.stringify(item.query)} filters ${JSON.stringify(item.filters || {})}: ${error.message}`, { cause: error }));
+          const state = await page.evaluate(() => ({
+            query: document.querySelector(".pagefind-ui__search-input")?.value,
+            message: document.querySelector(".pagefind-ui__message")?.textContent,
+            filters: [...document.querySelectorAll(".pagefind-ui__filter-checkbox")].map(el => ({ name: el.name, value: el.value, checked: el.checked })),
+            results: [...document.querySelectorAll(".pagefind-ui__result-title > a")].map(el => el.getAttribute("href")),
+          })).catch(snapshotError => ({ snapshotError: snapshotError.message }));
+          failures.push(new Error(`${locale} query ${JSON.stringify(item.query)} filters ${JSON.stringify(item.filters || {})}: ${error.message}; UI state: ${JSON.stringify(state)}`, { cause: error }));
         }
       }
 

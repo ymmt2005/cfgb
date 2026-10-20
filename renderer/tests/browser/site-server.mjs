@@ -4,7 +4,7 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 // Serve the actual generated headers and resources, including Pagefind's WASM.
-export async function serveBuiltSite(dist, { basePath = "", permissionsPolicy } = {}) {
+export async function serveBuiltSite(dist, { basePath = "", permissionsPolicy, beforeResponse } = {}) {
   const root = path.resolve(dist);
   const headers = Object.fromEntries(
     readFileSync(path.join(root, "_headers"), "utf8")
@@ -20,7 +20,7 @@ export async function serveBuiltSite(dist, { basePath = "", permissionsPolicy } 
     ".svg": "image/svg+xml", ".png": "image/png", ".wasm": "application/wasm",
     ".json": "application/json", ".woff2": "font/woff2",
   };
-  const server = createServer((request, response) => {
+  const server = createServer(async (request, response) => {
     try {
       const pathname = decodeURIComponent(new URL(request.url, "http://localhost").pathname);
       if (!pathname.startsWith(`${basePath}/`)) throw new Error("outside hosting prefix");
@@ -29,6 +29,7 @@ export async function serveBuiltSite(dist, { basePath = "", permissionsPolicy } 
       const file = path.resolve(root, `.${relative}`);
       if (!file.startsWith(`${root}${path.sep}`)) throw new Error("outside fixture");
       const body = readFileSync(file);
+      await beforeResponse?.(pathname);
       response.writeHead(200, {
         ...headers,
         ...(permissionsPolicy ? { "Permissions-Policy": permissionsPolicy } : {}),

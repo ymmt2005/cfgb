@@ -36,12 +36,14 @@ export async function startSite({
   presentation = false,
   siteImage = false,
   permissionsPolicy,
+  beforeResponse,
 } = {}) {
   const work = buildSite(basePath, staticSite, enabledLanguages, presentation, siteImage);
   try {
     const site = await serveBuiltSite(path.join(work, "renderer", "dist"), {
       basePath,
       permissionsPolicy,
+      beforeResponse,
     });
     return {
       ...site,
@@ -86,7 +88,13 @@ export async function withPage(site, options, run) {
     });
   });
   try {
-    await run(page, context);
+    try {
+      await run(page, context);
+    } catch (error) {
+      const details = [...failures, ...cspViolations].map(message => new Error(message));
+      if (details.length) throw new AggregateError([error, ...details], "browser action and runtime/resource/CSP failures");
+      throw error;
+    }
     assert.deepEqual(failures, [], "browser runtime/resource errors");
     if (options.javaScriptEnabled !== false)
       assert.deepEqual(
