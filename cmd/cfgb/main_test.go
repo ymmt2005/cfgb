@@ -183,7 +183,7 @@ func TestCLIInvocationDoesNotRetainFlags(t *testing.T) {
 
 func TestUnknownCommand(t *testing.T) {
 	var out, err bytes.Buffer
-	if code := run([]string{"preview"}, &out, &err); code != 2 {
+	if code := run([]string{"unknown-command"}, &out, &err); code != 2 {
 		t.Fatalf("exit %d, want 2", code)
 	}
 }
@@ -219,5 +219,18 @@ func TestBuildDeletedWorkingDirectoryIsIOFailure(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"build"}, &stdout, &stderr); code != 3 || stdout.Len() != 0 || stderr.Len() == 0 {
 		t.Fatalf("deleted cwd: exit=%d stdout=%q stderr=%q", code, &stdout, &stderr)
+	}
+}
+
+func TestPreviewCommandArguments(t *testing.T) {
+	for _, args := range [][]string{{"preview"}, {"preview", "--from", ""}, {"preview", "--from", "dist", "extra"}} {
+		var out, stderr bytes.Buffer
+		if code := run(args, &out, &stderr); code != 2 || out.Len() != 0 {
+			t.Fatalf("%v: exit=%d stdout=%q stderr=%q", args, code, &out, &stderr)
+		}
+	}
+	var out, stderr bytes.Buffer
+	if code := run([]string{"preview", "--help"}, &out, &stderr); code != 0 || !strings.Contains(out.String(), "--dry-run") || !strings.Contains(out.String(), "--from") {
+		t.Fatalf("preview help: exit=%d %s %s", code, &out, &stderr)
 	}
 }

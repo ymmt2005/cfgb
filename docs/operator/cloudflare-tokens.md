@@ -2,7 +2,7 @@
 
 Documentation-confirmed recipe as of 2026-10-03. No token has been presented to this repository, and none of these profiles has been live-tested against a Worker. Token verification (`/client/v4/user/tokens/verify`) only proves that a token is active. It does not prove deploy or Access access.
 
-The visual mockup and ordinary local tests need none of these credentials.
+Ordinary local builds and automated local tests need none of these credentials. Preview dry runs inspect real Worker/Access metadata and need the upload, inspection and readiness credentials, but do not change remote state.
 
 Create a **user API token** at [My Profile > API Tokens](https://dash.cloudflare.com/profile/api-tokens) with **Create Custom Token**. Workers Builds does not accept account-owned tokens yet. The token Workers Builds generates automatically includes KV and R2 edit plus access to every zone; do not adopt that template. Review the custom token before saving it.
 
@@ -17,7 +17,8 @@ Nothing is required to review the mockup or to run local tests. The first live c
 | `CLOUDFLARE_API_TOKEN` | Account → Workers Scripts → Edit. Also Account → Account Settings → Read while that is still required by the pinned Wrangler. Add Account → Workers Admin only to create a Worker that does not exist yet. Add Zone → Workers Routes → Write only when attaching or changing a route or custom domain. | Cursor environment, or the Worker’s **Settings → Builds → API token** (supplied to the build as `CLOUDFLARE_API_TOKEN`) | First development deploy, then Workers Builds |
 | `CLOUDFLARE_ACCOUNT_ID` | Not a token. Account ID. | Same consumers, as a variable | With the deploy token |
 | `CFGB_CF_WORKER_NAME` | Not a token. Existing Worker name. | Same consumers, as a variable | With the deploy token |
-| `CFGB_CF_ACCESS_API_TOKEN` | Account → Access: Apps and Policies → Read. Add Access: Groups → Read only if a policy refers to a group that must be inspected. | Workers Builds build-time secret, or the Cursor environment for a preview check | Before the first private preview upload |
+| `CFGB_CF_ACCESS_API_TOKEN` | Account → Access: Apps and Policies → Read. Add Access: Groups → Read if Service Auth uses a group that must be inspected. Add Access: Service Tokens → Read when an explicit token-ID policy must be matched to the readiness client ID. | Workers Builds build-time secret, or the Cursor environment for a preview check | Before the first private preview upload |
+| `CFGB_CF_ACCESS_CLIENT_ID`, `CFGB_CF_ACCESS_CLIENT_SECRET` | Access service-token credentials accepted by a reviewed Service Auth policy. Not API-token permissions. | Preview build-time secrets, including dry runs | Private-preview readiness checks |
 | `CFGB_CF_AIG_TOKEN` | Account → AI Gateway → Run. No Gateway management permission. The Run grant is account-wide. | Authoring or evaluation job only. Not the deploy build. | When summary generation is enabled |
 | `CFGB_CF_ACCOUNT_ID`, `CFGB_CF_GATEWAY_ID` | Not tokens. | Same authoring job | With the Gateway token |
 
@@ -28,7 +29,8 @@ Conditional notes:
 - Deploying a new version of an existing Worker needs Workers Scripts Edit. Creating the Worker needs Workers Admin. After a custom domain or route exists, later deploys that do not change it can stay on Edit.
 - Custom Domains do not currently honor per-Worker roles. A per-Worker token is not a promise that every domain call will succeed.
 - Current Workers documentation says granular Wrangler permissions authenticate with an account-owned token, while Workers Builds still requires a user token and still accepts the legacy Workers Scripts label. Confirm the pinned Wrangler (`4.147.0`) against the user token before treating this profile as minimal.
-- An Access API token does not open the preview site. Browser or harness checks need a separate Access service token (`CF-Access-Client-Id` and `CF-Access-Client-Secret`) accepted by a reviewed Service Auth policy. Those headers are harness credentials, not CFGB CLI configuration.
+- An Access API token does not open the preview site. Browser or harness checks need a separate Access service token (`CF-Access-Client-Id` and `CF-Access-Client-Secret`) accepted by a reviewed Service Auth policy. CFGB reads these from `CFGB_CF_ACCESS_CLIENT_ID` and `CFGB_CF_ACCESS_CLIENT_SECRET` for its readiness checks. They are never runtime Worker secrets.
+- The readiness preflight checks token-policy compatibility, including exclusions. Service-token metadata inspection is conditional: a compatible Any Valid Service Token policy needs no token-ID lookup. Client-secret validity and network/device conditions still require real post-upload requests.
 - Do not grant KV, R2, D1, or Pages edit. v1 does not use them.
 
 ## Create a token

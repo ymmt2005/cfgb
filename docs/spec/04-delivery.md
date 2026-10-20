@@ -1,8 +1,8 @@
 # GitHub and Cloudflare delivery
 
-This is the v1 delivery contract. Production `cfgb deploy` is implemented;
-private previews and authoring automation remain planned. Cloudflare is an
-optional host; `build --static` also supports hosts without Cloudflare services.
+This is the v1 delivery contract. Production `cfgb deploy` and private
+`cfgb preview` uploads are implemented; automatic PR-preview orchestration and
+authoring automation remain planned. Cloudflare is an optional host; `build --static` also supports hosts without Cloudflare services.
 Git is the source of truth; AI runs only during authoring. The content repository
 contains Markdown, data, assets and CFGB configuration. CFGB owns and embeds the
 Astro renderer, Worker, dependency lockfile and tool configuration. Builds extract
@@ -77,9 +77,9 @@ configuration for the reviewed deployment target; authors do not run Astro,
 Pagefind or Wrangler directly.
 The generated config uses release-pinned `workerCompatibilityDate` as its
 top-level `compatibility_date` and always includes `workers_dev: false` and
-`previews: {}`. Production deployment sets `preview_urls: false` until the Access
-preflight exists. Future uploads may enable Preview/Version URLs only after the
-mandatory Access verification below.
+`previews: {}`. Production deployment sets `preview_urls: false`. Private
+preview enables Preview/Version URLs only after the mandatory Access verification
+below.
 Assets remain top-level. See the runtime contract for the required fields;
 the date is never derived from the build/deploy clock, and an empty Preview
 object does not replace the Access checks below.
@@ -88,7 +88,7 @@ The configured production origin is canonical. For an apex deployment, redirect
 `www` at the host/zone layer while preserving path/query, and disable
 the alternate production workers.dev origin through the explicit config setting.
 Preview/Version URLs remain disabled in the current production uploader. When
-the future private-preview integration enables `preview_urls`, Access protection
+the private-preview command enables `preview_urls`, Access protection
 must cover both Preview and Version URLs independently of the production domain.
 Do not redirect previews to production. Deployed source-commit metadata is
 diagnostic. Retain platform rollback to the last good Worker version. Runtime has no AI or Hatena credentials.
@@ -186,6 +186,32 @@ to inspect it fails with `E_PREVIEW_ACCESS` before upload. An Access policy on t
 production hostname alone is insufficient. CFGB verifies but does not provision
 or modify Access policies.
 
+The implemented command reads all application/policy pages and checks any
+hostname/path applications that can override Worker-level coverage, including
+future preview names. Public path overrides, bypass policies and unverifiable
+policies fail closed. Service Auth must require verifiable token or certificate
+credentials, directly or through inspected groups; a network-only or Everyone
+rule cannot prove authentication. Human Allow policies retain Access sign-in.
+Worker-scoped coverage must also have a Service Auth path compatible with the
+readiness service token; human-only, deny-only, certificate-only and definitively
+mismatched/excluded-token coverage fail before URL changes or upload. Explicit
+token-ID policies use a read-only service-token metadata lookup to map the
+configured client ID to the policy token ID. A definite Include alternative or
+a separate compatible policy can satisfy the requirement without that lookup.
+Include alternatives do not waive Require or Exclude checks. Group Include/Require/Exclude rules
+are inspected too. Client-secret validity, network/device conditions and actual
+hostname overrides remain post-upload request checks. A private policy on an
+unrelated future hostname does not require a readiness-token grant.
+The read-only inspector never provisions or changes Access resources.
+
+`CFGB_CF_ACCESS_CLIENT_ID` and `CFGB_CF_ACCESS_CLIENT_SECRET` provide a dedicated
+Access service token for readiness checks. They are build-time secrets, not
+Worker bindings. `preview --dry-run` performs the same metadata inspection and
+local Wrangler validation with no URL-setting change or upload. A real preview
+then enables the Worker's Preview URL setting through the Worker API while
+keeping production `workers.dev` disabled. Production deploy still disables
+Preview/Version URLs, so a later preview repeats the gate before enabling them.
+
 Hostname-specific policies remain advanced configurations, requiring proof that
 all prospective Preview/deployment/alternate hosts and all paths are protected
 before upload. If future URL coverage cannot be established, refuse preview and
@@ -194,8 +220,18 @@ use Worker-level protection. Do not print an unprotected URL as a ready preview.
 After upload, check that anonymous requests are denied and authorized requests
 succeed for HTML, images, feeds and Pagefind assets on every exposed hostname.
 Report readiness only after these checks pass. If post-upload verification fails,
-attempt to disable/remove the new preview where supported, return failure and
+attempt to delete the deployment tagged for this upload attempt, return failure and
 report cleanup failure separately. The pre-upload gate remains mandatory.
+Earlier branch deployments are retained; automatic closed-PR cleanup is not yet
+implemented. Verification uses HTTPS without following redirects or forwarding
+service credentials to a different origin. It checks generated published files
+(excluding Static Assets control files and special 404 pages), including HTML,
+images, feeds and Pagefind, against the supplied bytes. The Worker entry path
+(including its slashless prefixed form) must return a locale-home 302; generated
+same-site aliases must return their recorded 301 destination. These redirects
+are verified without following them and still require anonymous denial. Static
+fallback entry/alias documents are not mistaken for byte-serving routes.
+Ready URLs include the artifact's escaped mount path and trailing slash.
 Production is public; preview visibility never changes canonical URLs or makes
 content committed to public Git private. Clean up previews for closed PRs;
 noindex and URL obscurity are not access control. Credentials and private drafts must not

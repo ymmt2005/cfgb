@@ -3,10 +3,12 @@ package build
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"io/fs"
 	"maps"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -76,7 +78,40 @@ func checkExampleDeployDryRun(t *testing.T, artifact string) {
 			if err := command(dir, out, errOut, extra, name, args...); err != nil {
 				return err
 			}
+			// Preview uses the same bytes and routing with a different temporary
+			// configuration. Validate that configuration with real Wrangler too;
+			// the preview command itself has no offline --dry-run flag.
+			previewRaw, err := previewConfig(raw)
+			if err != nil {
+				return err
+			}
+			previewPath := filepath.Join(filepath.Dir(configPath), "wrangler-preview.json")
+			if err := os.WriteFile(previewPath, previewRaw, 0o600); err != nil {
+				return err
+			}
+			if err := command(dir, out, errOut, extra, name, args[0], "deploy", "--config", previewPath, "--no-bundle", "--dry-run", "--outdir", filepath.Join(filepath.Dir(configPath), "preview-bundle")); err != nil {
+				return err
+			}
 			helperArgs := []string{helper, args[0], configPath, prefix}
+			// Exercise the readiness expectations against the actual Worker and
+			// Static Assets router, including static fallback entry/alias files.
+			probes, err := previewProbes(artifact, manifest.BaseURL)
+			if err != nil {
+				return err
+			}
+			var plan []map[string]any
+			for _, probe := range probes {
+				plan = append(plan, map[string]any{"path": (&url.URL{Path: probe.path}).String(), "status": probe.status, "locations": probe.locations, "hash": hex.EncodeToString(probe.hash[:])})
+			}
+			planRaw, err := json.Marshal(plan)
+			if err != nil {
+				return err
+			}
+			planPath := filepath.Join(filepath.Dir(configPath), "preview-probes.json")
+			if err := os.WriteFile(planPath, planRaw, 0o600); err != nil {
+				return err
+			}
+			helperArgs = append(helperArgs, "--preview-probes", planPath)
 			if os.Getenv("CFGB_REQUIRE_SEARCH") == "1" {
 				// This CI job installs Playwright/Chromium and requires actual
 				// browser navigation as well as the search corpus.

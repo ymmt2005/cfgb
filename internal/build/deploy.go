@@ -47,7 +47,15 @@ func Deploy(opts DeployOptions) error {
 	return deploy(opts, command)
 }
 
-func deploy(opts DeployOptions, run toolCommand) (err error) {
+func deploy(opts DeployOptions, run toolCommand) error {
+	return uploadArtifact(opts, run, nil)
+}
+
+func uploadArtifact(opts DeployOptions, run toolCommand, preview *previewClient) (err error) {
+	operation := "deploy"
+	if preview != nil {
+		operation = "preview"
+	}
 	if opts.Stdout == nil {
 		opts.Stdout = io.Discard
 	}
@@ -55,7 +63,7 @@ func deploy(opts DeployOptions, run toolCommand) (err error) {
 		opts.Stderr = io.Discard
 	}
 	if opts.From == "" {
-		return &ExitError{Code: 2, Err: fmt.Errorf("deploy requires --from DIR")}
+		return &ExitError{Code: 2, Err: fmt.Errorf("%s requires --from DIR", operation)}
 	}
 	var cfg *config.File
 	if opts.Config != "" {
@@ -75,7 +83,8 @@ func deploy(opts DeployOptions, run toolCommand) (err error) {
 		}
 		return &ExitError{Code: code, Err: err}
 	}
-	if err := productionBranch(cfg); err != nil {
+	branch, err := uploadBranch(cfg, preview != nil)
+	if err != nil {
 		return err
 	}
 	artifact := opts.From
@@ -90,7 +99,10 @@ func deploy(opts DeployOptions, run toolCommand) (err error) {
 	if err != nil {
 		return err
 	}
-	if err := publicationGate(manifest.Publications, time.Now()); err != nil {
+	if manifest.BaseURL == "" {
+		manifest.BaseURL = cfg.Site.BaseURL
+	}
+	if err := publicationGate(manifest.Publications, time.Now(), preview == nil); err != nil {
 		return err
 	}
 	workerName := os.Getenv("CFGB_CF_WORKER_NAME")
@@ -127,6 +139,13 @@ func deploy(opts DeployOptions, run toolCommand) (err error) {
 	if strings.TrimSpace(versionOut.String()) != pins.WranglerVersion {
 		return &ExitError{Code: 2, Err: fmt.Errorf("E_TOOLCHAIN: installed Wrangler must be %s, found %q", pins.WranglerVersion, strings.TrimSpace(versionOut.String()))}
 	}
+	var target *previewTarget
+	if preview != nil {
+		target, err = preview.preflight(cfg, account, workerName, branch)
+		if err != nil {
+			return err
+		}
+	}
 	upload, err := os.MkdirTemp("", "cfgb-upload-*")
 	if err != nil {
 		return &ExitError{Code: 3, Err: fmt.Errorf("create upload workspace: %w", err)}
@@ -141,6 +160,12 @@ func deploy(opts DeployOptions, run toolCommand) (err error) {
 		return err
 	}
 	configPath := filepath.Join(upload, "wrangler.json")
+	if preview != nil {
+		rawConfig, err = previewConfig(rawConfig)
+		if err != nil {
+			return err
+		}
+	}
 	if err := os.WriteFile(configPath, rawConfig, 0o600); err != nil {
 		return &ExitError{Code: 3, Err: fmt.Errorf("write upload configuration: %w", err)}
 	}
@@ -148,6 +173,11 @@ func deploy(opts DeployOptions, run toolCommand) (err error) {
 	if opts.DryRun {
 		args = append(args, "--dry-run", "--outdir", filepath.Join(upload, "bundle"))
 	} else {
+		if preview != nil {
+			if err := preview.enable(target); err != nil {
+				return err
+			}
+		}
 		// Only a started upload consumes its build session. Preflight failures
 		// and dry runs preserve it for correction and the actual deployment.
 		defer func() {
@@ -156,24 +186,33 @@ func deploy(opts DeployOptions, run toolCommand) (err error) {
 			}
 		}()
 	}
+	if preview != nil && !opts.DryRun {
+		return preview.publish(target, artifact, manifest, renderer, wrangler, configPath, opts, run, extra)
+	}
 	if err := run(renderer, opts.Stdout, opts.Stderr, extra, "node", args...); err != nil {
-		return &ExitError{Code: 3, Err: fmt.Errorf("cloudflare deploy: %w", err)}
+		return &ExitError{Code: 3, Err: fmt.Errorf("cloudflare %s: %w", operation, err)}
 	}
 	return nil
 }
 
-func productionBranch(cfg *config.File) error {
+func uploadBranch(cfg *config.File, preview bool) (string, error) {
 	branch, err := output("git", "-C", cfg.Root(), "branch", "--show-current")
 	if err != nil {
-		return &ExitError{Code: 3, Err: fmt.Errorf("read deployment branch: %w", err)}
+		return "", &ExitError{Code: 3, Err: fmt.Errorf("read deployment branch: %w", err)}
 	}
 	if branch == "" {
 		branch = os.Getenv("WORKERS_CI_BRANCH")
 	}
-	if branch == "" || branch != cfg.Deploy.ProductionBranch {
-		return &ExitError{Code: 1, Err: fmt.Errorf("E_DEPLOY_TARGET: deploy requires branch %q, current branch is %q", cfg.Deploy.ProductionBranch, branch)}
+	if preview {
+		if branch == "" || branch == cfg.Deploy.ProductionBranch {
+			return "", &ExitError{Code: 1, Err: fmt.Errorf("E_DEPLOY_TARGET: preview requires a non-production branch, current branch is %q", branch)}
+		}
+		return branch, nil
 	}
-	return nil
+	if branch == "" || branch != cfg.Deploy.ProductionBranch {
+		return "", &ExitError{Code: 1, Err: fmt.Errorf("E_DEPLOY_TARGET: deploy requires branch %q, current branch is %q", cfg.Deploy.ProductionBranch, branch)}
+	}
+	return branch, nil
 }
 
 func readDeployManifest(artifact string) (manifest deployManifest, err error) {
@@ -208,13 +247,13 @@ func readDeployManifest(artifact string) (manifest deployManifest, err error) {
 	return manifest, nil
 }
 
-func publicationGate(publications []publicationRecord, now time.Time) error {
+func publicationGate(publications []publicationRecord, now time.Time, production bool) error {
 	for _, article := range publications {
 		context := article.ArticleKey + "/" + article.Locale
 		if strings.TrimSpace(article.Summary) == "" {
 			return &ExitError{Code: 1, Err: fmt.Errorf("E_SUMMARY_REQUIRED: %s: publication requires a summary", context)}
 		}
-		if article.PublishedAt.After(now) || (article.UpdatedAt != nil && article.UpdatedAt.After(now)) {
+		if production && (article.PublishedAt.After(now) || (article.UpdatedAt != nil && article.UpdatedAt.After(now))) {
 			return &ExitError{Code: 1, Err: fmt.Errorf("E_FUTURE_DATE: %s: publication timestamp is in the future", context)}
 		}
 	}

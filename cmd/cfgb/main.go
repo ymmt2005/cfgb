@@ -73,7 +73,7 @@ func newRootCommand(buildRun func(build.Options) error) *cobra.Command {
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("cfgb: a command is required (implemented: version, build, deploy)")
+			return fmt.Errorf("cfgb: a command is required (implemented: version, build, deploy, preview)")
 		},
 	}
 	root.CompletionOptions.DisableDefaultCmd = true
@@ -143,5 +143,24 @@ func newRootCommand(buildRun func(build.Options) error) *cobra.Command {
 	deployCmd.Flags().StringVar(&from, "from", "", "existing build artifact, relative to the working directory")
 	deployCmd.Flags().BoolVar(&dryRun, "dry-run", false, "check the upload with Wrangler without publishing")
 	root.AddCommand(deployCmd)
+	var previewFrom string
+	var previewDryRun bool
+	previewCmd := &cobra.Command{
+		Use: "preview --from DIR", Short: "Upload a private Cloudflare branch preview",
+		Version: version.Version, Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if previewFrom == "" {
+				return fmt.Errorf("cfgb preview: --from DIR is required")
+			}
+			dir, err := os.Getwd()
+			if err != nil {
+				return &build.ExitError{Code: 3, Err: err}
+			}
+			return build.Preview(build.PreviewOptions{Dir: dir, Config: configPath, From: previewFrom, DryRun: previewDryRun, Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr()})
+		},
+	}
+	previewCmd.Flags().StringVar(&previewFrom, "from", "", "existing build artifact, relative to the working directory")
+	previewCmd.Flags().BoolVar(&previewDryRun, "dry-run", false, "inspect Access and validate locally without changing Cloudflare")
+	root.AddCommand(previewCmd)
 	return root
 }

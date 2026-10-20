@@ -168,9 +168,8 @@ For changes crossing repositories, keep ownership explicit:
   artifact immutability or Git-tip identity requirements.
 - Keep Workers Builds build/deploy/preview commands separate. Production uses
   the configured production branch (default `main`), without requiring its tip
-  SHA to match an artifact. Production `workers.dev` stays disabled. Until Access
-  verification is implemented, production deploy keeps Preview/Version URLs
-  disabled. Enabling them requires verified Cloudflare Access protection. Locale
+  SHA to match an artifact. Production `workers.dev` stays disabled. Production deploy keeps Preview/Version URLs disabled. The private-preview
+  command enables them only after verified Cloudflare Access protection. Locale
   negotiation belongs to the Worker; localized static 404 handling belongs to Static Assets.
   Consult the delivery/runtime specs before implementing these later-phase paths.
 

@@ -4,12 +4,12 @@ A Git-native publishing system for multilingual technical blogs.
 CFGB is an independent open-source project and is not affiliated with Cloudflare,
 Inc.
 
-**Status: `cfgb build` renders content repositories with the embedded renderer and Pagefind search. `cfgb deploy` uploads an existing artifact to Cloudflare. Private preview upload is not implemented.**
+**Status: `cfgb build` renders content repositories with the embedded renderer and Pagefind search. `cfgb deploy` uploads an existing artifact to Cloudflare. `cfgb preview` uploads private branch previews after Cloudflare Access checks.**
 
 Cloudflare is optional. Build and publish `dist/site/` on GitHub Pages or another
 static host with `--static`; rendering, search, social images, feeds and Mermaid
 work without a Cloudflare account. Cloudflare hosting adds the locale Worker and
-automated Worker/Static Assets upload.
+automated Worker/Static Assets upload and Access-protected branch previews.
 
 The [visual mockup](design/mockup/README.md) is a browsable HTML prototype of the example blog and a visual reference for the implemented renderer. Search results there are labeled mock data.
 
@@ -119,8 +119,51 @@ The Worker handles locale negotiation; Static Assets serves pages, media and
 Pagefind with the generated headers, aliases and localized 404s. Prefixed sites
 are staged at their artifact's hosting path without changing source bytes.
 Production `workers.dev` hosting and Preview/Version URLs are disabled. Enabling
-Preview/Version URLs requires the future Cloudflare Access verification. Private
-branch preview creation remains future work.
+Preview/Version URLs is handled separately by the private preview command below.
+
+## Optional private Cloudflare previews
+
+Provision the target Worker and a reviewed self-hosted Access application with a
+`preview_worker` destination pointing to its immutable Worker ID. Include a
+Service Auth policy accepting a dedicated readiness service token, alongside
+any human sign-in policies. CFGB verifies Access; it does not create or edit it.
+See [the token recipe](docs/operator/cloudflare-tokens.md) for permissions.
+
+In addition to the deployment variables above, supply build-time secrets:
+
+- `CFGB_CF_ACCESS_API_TOKEN`: read Access applications and effective policies;
+  also read groups when Service Auth policies use them, and service-token metadata
+  when an explicit token-ID policy needs to be matched to the readiness client ID.
+- `CFGB_CF_ACCESS_CLIENT_ID` and `CFGB_CF_ACCESS_CLIENT_SECRET`: the Access service
+  token used to verify authenticated responses, separate from either API token.
+
+On a non-production branch, build and preview in the same environment:
+
+```sh
+cfgb build --out dist
+cfgb preview --from dist --dry-run
+cfgb preview --from dist
+```
+
+`--from` and global `--config` work as for deploy. Preview allows future-dated
+articles and still requires summaries. It preserves the current Git branch as
+the Preview name, including on detached Workers Builds checkouts through
+`WORKERS_CI_BRANCH`. A dry run reads Cloudflare metadata and runs local Wrangler
+validation; it needs inspection credentials but makes no remote changes.
+
+After the Access gate passes, the command enables the Worker's Preview URLs,
+keeps production `workers.dev` off, and uploads the existing artifact. It reports
+branch/deployment entry URLs, including the escaped artifact mount path, only after anonymous denial and authenticated artifact
+checks pass on every returned host. Worker locale redirects and generated alias
+redirects are checked for their expected status and same-site destination without
+following them; served assets retain byte checks. Failed checks attempt to delete only this
+attempt's deployment. Production deploys continue to disable Preview/Version
+URLs; the next verified preview enables them again. Both commands consume the
+retained toolchain only once an actual upload begins. No Cloudflare credentials
+are needed for ordinary builds or static hosting.
+
+This does not install an automatic PR-preview workflow or closed-PR cleanup.
+Live account provisioning and policy review remain operator responsibilities.
 
 ## Implementation specifications
 
@@ -150,7 +193,7 @@ to that repository unless explicitly described as CFGB tool paths.
 The personal reference site will use `https://ymmt2005.dev`. The reusable example
 uses a reserved origin so its metadata cannot impersonate the real site. No
 account resources, credentials or active deployment workflows are included.
-The executable currently implements `version`, `build` and `deploy`; later commands are
+The executable currently implements `version`, `build`, `deploy` and `preview`; later commands are
 documented design work.
 
 ## Releasing
