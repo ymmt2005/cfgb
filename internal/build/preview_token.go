@@ -1,6 +1,7 @@
 package build
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -45,12 +46,22 @@ type readinessMatcher struct {
 
 func (m *readinessMatcher) policy(policy accessPolicy, active map[string]bool) (tokenMatch, error) {
 	include := tokenNo
+	var includeErr error
 	for _, rule := range policy.Include {
 		match, err := m.rule(rule, active)
 		if err != nil {
-			return tokenUnknown, err
+			includeErr = errors.Join(includeErr, err)
+			continue
 		}
 		include = tokenOr(include, match)
+		if include == tokenYes {
+			break
+		}
+	}
+	// Include is OR: a definite match makes failed alternative lookups
+	// unnecessary. Require and Exclude still apply to that matching token.
+	if include != tokenYes && includeErr != nil {
+		return tokenUnknown, includeErr
 	}
 	for _, rule := range policy.Require {
 		match, err := m.rule(rule, active)

@@ -196,8 +196,9 @@ Worker-scoped coverage must also have a Service Auth path compatible with the
 readiness service token; human-only, deny-only, certificate-only and definitively
 mismatched/excluded-token coverage fail before URL changes or upload. Explicit
 token-ID policies use a read-only service-token metadata lookup to map the
-configured client ID to the policy token ID. A separate compatible policy can
-satisfy the requirement without that lookup. Group Include/Require/Exclude rules
+configured client ID to the policy token ID. A definite Include alternative or
+a separate compatible policy can satisfy the requirement without that lookup.
+Include alternatives do not waive Require or Exclude checks. Group Include/Require/Exclude rules
 are inspected too. Client-secret validity, network/device conditions and actual
 hostname overrides remain post-upload request checks. A private policy on an
 unrelated future hostname does not require a readiness-token grant.

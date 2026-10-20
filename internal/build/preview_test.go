@@ -739,3 +739,69 @@ func TestPreviewUnrelatedPrivateHostnamePolicy(t *testing.T) {
 		t.Fatalf("unrelated private hostname blocked current preview: %v", err)
 	}
 }
+
+func TestPreviewReadinessIncludeAlternatives(t *testing.T) {
+	for _, dry := range []bool{false, true} {
+		for _, explicitFirst := range []bool{false, true} {
+			for _, condition := range []string{"admitted", "required certificate", "excluded token", "required lookup", "excluded lookup", "no matching alternative"} {
+				t.Run(fmt.Sprintf("dry=%t/explicit-first=%t/%s", dry, explicitFirst, condition), func(t *testing.T) {
+					opts, manifest, workspace, h := previewFixture(t)
+					opts.DryRun = dry
+					h.failPath = "/accounts/test-account/access/service_tokens"
+					var explicit accessRule
+					if err := json.Unmarshal([]byte(`{"service_token":{"token_id":"named-token"}}`), &explicit); err != nil {
+						t.Fatal(err)
+					}
+					anyToken := accessRule{AnyValidServiceToken: &struct{}{}}
+					include := []accessRule{anyToken, explicit}
+					if explicitFirst {
+						slices.Reverse(include)
+					}
+					policy := accessPolicy{Decision: "non_identity", Include: include}
+					switch condition {
+					case "required certificate":
+						policy.Require = []accessRule{{Certificate: &struct{}{}}}
+					case "excluded token":
+						policy.Exclude = []accessRule{anyToken}
+					case "required lookup":
+						policy.Require = []accessRule{explicit}
+					case "excluded lookup":
+						policy.Exclude = []accessRule{explicit}
+					case "no matching alternative":
+						policy.Include = []accessRule{explicit}
+					}
+					h.policies = []accessPolicy{policy}
+					err := uploadArtifact(opts, h.run(t, manifest), h.client)
+					if condition == "admitted" {
+						if err != nil {
+							t.Fatalf("Include alternative required unnecessary permission: %v", err)
+						}
+						return
+					}
+					if err == nil || !strings.Contains(err.Error(), "E_PREVIEW_ACCESS") {
+						t.Fatalf("Require/Exclude/lookup gate: %v", err)
+					}
+					if strings.Contains(condition, "lookup") || condition == "no matching alternative" {
+						var apiErr *cfAPIError
+						if !errors.As(err, &apiErr) || apiErr.Status != http.StatusForbidden {
+							t.Fatalf("lost required lookup error: %v", err)
+						}
+					}
+					if _, err := os.Stat(workspace); err != nil {
+						t.Fatalf("preflight consumed toolchain: %v", err)
+					}
+					h.mu.Lock()
+					defer h.mu.Unlock()
+					if h.uploads != 0 {
+						t.Fatal("uploaded despite Require/Exclude failure")
+					}
+					for _, request := range h.requests {
+						if !strings.HasPrefix(request, "GET ") {
+							t.Fatalf("mutation before gate: %s", request)
+						}
+					}
+				})
+			}
+		}
+	}
+}
