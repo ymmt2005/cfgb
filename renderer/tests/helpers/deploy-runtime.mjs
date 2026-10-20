@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -46,6 +47,20 @@ try {
   const request = (path, options = {}) => fetch(origin + prefix + path, {
     redirect: "manual", signal: AbortSignal.timeout(10000), ...options,
   });
+  if (process.argv.includes("--preview-probes")) {
+    const plan = JSON.parse(await readFile(process.argv[process.argv.indexOf("--preview-probes") + 1], "utf8"));
+    for (const probe of plan) {
+      const address = new URL(probe.path, origin);
+      const response = await fetch(address, { redirect: "manual", signal: AbortSignal.timeout(10000) });
+      assert.equal(response.status, probe.status, `preview readiness ${address}: ${logs}`);
+      if (probe.locations?.length) {
+        const actual = new URL(response.headers.get("location"), address).href;
+        assert(probe.locations.some(location => new URL(location, address).href === actual), `preview redirect ${address}: ${actual}`);
+      } else {
+        assert.equal(createHash("sha256").update(Buffer.from(await response.arrayBuffer())).digest("hex"), probe.hash, `preview asset ${address}`);
+      }
+    }
+  }
   for (const path of prefix ? ["/", ""] : ["/"]) {
     for (const method of ["GET", "HEAD"]) {
       const response = await request(path, { method, headers: { "Accept-Language": "en" } });

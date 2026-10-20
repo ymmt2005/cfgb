@@ -20,10 +20,16 @@ import (
 )
 
 type previewHarness struct {
-	mu                                                sync.Mutex
-	client                                            *previewClient
-	apps                                              []accessApp
-	policies                                          []accessPolicy
+	mu            sync.Mutex
+	client        *previewClient
+	apps          []accessApp
+	policies      []accessPolicy
+	policiesByApp map[string][]accessPolicy
+	redirects     map[string]struct {
+		status   int
+		location string
+	}
+	serviceTokens                                     []map[string]any
 	group                                             accessPolicy
 	requests                                          []string
 	files                                             map[string]string
@@ -44,6 +50,10 @@ func previewFixture(t *testing.T) (DeployOptions, deployManifest, string, *previ
 	manifest.Publications[0].PublishedAt = time.Now().Add(24 * time.Hour)
 	writeDeployManifest(t, filepath.Join(opts.Dir, opts.From), manifest)
 	h := &previewHarness{
+		redirects: map[string]struct {
+			status   int
+			location string
+		}{"/blog space/": {302, "/blog%20space/en/"}, "/blog space": {302, "/blog%20space/en/"}},
 		apps:     []accessApp{{ID: "app", Type: "self_hosted", Destinations: []accessDestination{{Type: "preview_worker", WorkerID: "worker-id"}}}},
 		policies: []accessPolicy{{Decision: "allow"}, {Decision: "non_identity", Include: []accessRule{{AnyValidServiceToken: &struct{}{}}}}},
 		files:    map[string]string{"/blog space/en/": "edited site bytes", "/blog space/image.svg": "<svg/>", "/blog space/en/feed.xml": "<feed/>", "/blog space/pagefind/pagefind.js": "real index script bytes"},
@@ -88,6 +98,11 @@ func previewFixture(t *testing.T) (DeployOptions, deployManifest, string, *previ
 			}
 			if !authorized && r.URL.Path != h.leakPath {
 				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			if redirect, ok := h.redirects[r.URL.Path]; ok {
+				w.Header().Set("Location", redirect.location)
+				w.WriteHeader(redirect.status)
 				return
 			}
 			data, ok := h.files[r.URL.Path]
@@ -141,7 +156,13 @@ func previewFixture(t *testing.T) (DeployOptions, deployManifest, string, *previ
 				result, page = h.apps, 2
 			}
 		case strings.HasSuffix(r.URL.Path, "/policies"):
-			result = h.policies
+			if policies, ok := h.policiesByApp[r.URL.Path]; ok {
+				result = policies
+			} else {
+				result = h.policies
+			}
+		case strings.HasSuffix(r.URL.Path, "/access/service_tokens"):
+			result = h.serviceTokens
 		case strings.Contains(r.URL.Path, "/access/groups/"):
 			result = h.group
 		case strings.HasSuffix(r.URL.Path, "/deployments/failed-deployment") && r.Method == "DELETE":
@@ -249,7 +270,7 @@ func TestPreviewPrivateUploadAndDryRun(t *testing.T) {
 			if err := uploadArtifact(opts, h.run(t, m), h.client); err != nil {
 				t.Fatal(err)
 			}
-			if dry && stdout.Len() != 0 || !dry && !strings.Contains(stdout.String(), "Private preview ready: https://deployment.example.com") {
+			if dry && stdout.Len() != 0 || !dry && !strings.Contains(stdout.String(), "Private preview ready: https://deployment.example.com/blog%20space/\n") {
 				t.Fatalf("readiness output: %s", stdout.String())
 			}
 			_, err = os.Stat(workspace)
@@ -556,5 +577,165 @@ func TestCloudflareTotalCountPagination(t *testing.T) {
 	items, err := cfList[string](c, "/collection", "token")
 	if err != nil || !slices.Equal(items, []string{"first", "second", "last"}) {
 		t.Fatalf("paginated results: %v %v", items, err)
+	}
+}
+
+func TestPreviewStaticArtifactRedirects(t *testing.T) {
+	for _, kind := range []string{"expected redirects", "wrong alias target", "external root", "anonymous root leak", "anonymous alias leak"} {
+		t.Run(kind, func(t *testing.T) {
+			opts, m, _, h := previewFixture(t)
+			h.redirects = map[string]struct {
+				status   int
+				location string
+			}{
+				"/blog space/":        {302, "/blog%20space/en/"},
+				"/blog space":         {302, "/blog%20space/en/"},
+				"/blog space/en/old/": {301, "/blog%20space/en/"},
+			}
+			for name, body := range map[string]string{"index.html": "static root redirect document", "en/old/index.html": "static alias redirect document", "_redirects": "/blog%20space/en/old/ /blog%20space/en/ 301\n"} {
+				path := filepath.Join(opts.Dir, opts.From, "site", filepath.FromSlash(name))
+				if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			wantError := kind != "expected redirects"
+			switch kind {
+			case "wrong alias target":
+				h.redirects["/blog space/en/old/"] = struct {
+					status   int
+					location string
+				}{301, "/blog%20space/en/missing/"}
+			case "external root":
+				h.redirects["/blog space/"] = struct {
+					status   int
+					location string
+				}{302, "https://public.invalid/blog%20space/en/"}
+			case "anonymous root leak":
+				h.leakPath = "/blog space/"
+			case "anonymous alias leak":
+				h.leakPath = "/blog space/en/old/"
+			}
+			err := uploadArtifact(opts, h.run(t, m), h.client)
+			if (err != nil) != wantError {
+				t.Fatalf("static artifact readiness: %v", err)
+			}
+		})
+	}
+}
+
+func TestPreviewReadinessPolicyBeforeMutation(t *testing.T) {
+	for _, dry := range []bool{false, true} {
+		for _, kind := range []string{"human only", "deny only", "certificate only", "other token", "excluded token"} {
+			t.Run(fmt.Sprintf("%s/dry=%t", kind, dry), func(t *testing.T) {
+				opts, m, workspace, h := previewFixture(t)
+				opts.DryRun = dry
+				switch kind {
+				case "human only":
+					h.policies = []accessPolicy{{Decision: "allow"}}
+				case "deny only":
+					h.policies = []accessPolicy{{Decision: "deny"}}
+				case "certificate only":
+					h.policies = []accessPolicy{{Decision: "non_identity", Include: []accessRule{{Certificate: &struct{}{}}}}}
+				case "other token":
+					h.policies = []accessPolicy{{Decision: "non_identity", Include: []accessRule{{ServiceToken: &struct {
+						TokenID string `json:"token_id"`
+					}{TokenID: "different-token"}}}}}
+					h.serviceTokens = []map[string]any{{"id": "readiness-token", "client_id": "probe-client"}}
+				case "excluded token":
+					var policy accessPolicy
+					if err := json.Unmarshal([]byte(`{"decision":"non_identity","include":[{"any_valid_service_token":{}}],"exclude":[{"any_valid_service_token":{}}]}`), &policy); err != nil {
+						t.Fatal(err)
+					}
+					h.policies = []accessPolicy{policy}
+
+				}
+				err := uploadArtifact(opts, h.run(t, m), h.client)
+				if err == nil || !strings.Contains(err.Error(), "E_PREVIEW_ACCESS") {
+					t.Fatalf("readiness preflight: %v", err)
+				}
+				if _, err := os.Stat(workspace); err != nil {
+					t.Fatalf("preflight consumed session: %v", err)
+				}
+				h.mu.Lock()
+				defer h.mu.Unlock()
+				if h.uploads != 0 {
+					t.Fatal("upload before readiness-policy check")
+				}
+				for _, r := range h.requests {
+					if !strings.HasPrefix(r, "GET ") {
+						t.Fatalf("mutated before policy check: %s", r)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestPreviewReadinessTokenPolicies(t *testing.T) {
+	for _, tc := range []struct {
+		name, policy string
+		wantError    bool
+	}{
+		{"matching token", `{"include":[{"service_token":{"token_id":"readiness-token"}}]}`, false},
+		{"different exclusion", `{"include":[{"any_valid_service_token":{}}],"exclude":[{"service_token":{"token_id":"another-token"}}]}`, false},
+		{"matching exclusion", `{"include":[{"any_valid_service_token":{}}],"exclude":[{"service_token":{"token_id":"readiness-token"}}]}`, true},
+		{"human requirement", `{"include":[{"service_token":{"token_id":"readiness-token"}}],"require":[{"certificate":{}}]}`, true},
+		{"network condition", `{"include":[{"any_valid_service_token":{}}],"require":[{"ip":{"ip":"203.0.113.0/24"}}]}`, false},
+		{"group exclusion", `{"include":[{"any_valid_service_token":{}}],"exclude":[{"group":{"id":"excluded-group"}}]}`, true},
+		{"alternative token path", `{"include":[{"service_token":{"token_id":"another-token"}}]}`, false},
+		{"inspection denied", `{"include":[{"service_token":{"token_id":"readiness-token"}}]}`, true},
+		{"expired token", `{"include":[{"service_token":{"token_id":"readiness-token"}}]}`, true},
+		{"disabled token", `{"include":[{"service_token":{"token_id":"readiness-token"}}]}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			opts, m, workspace, h := previewFixture(t)
+			var policy accessPolicy
+			if err := json.Unmarshal([]byte(tc.policy), &policy); err != nil {
+				t.Fatal(err)
+			}
+			policy.Decision = "non_identity"
+			h.policies = []accessPolicy{policy}
+			h.serviceTokens = []map[string]any{{"id": "readiness-token", "client_id": "probe-client"}}
+			h.group = accessPolicy{Include: []accessRule{{AnyValidServiceToken: &struct{}{}}}}
+			switch tc.name {
+			case "alternative token path":
+				h.failPath = "/accounts/test-account/access/service_tokens"
+				h.policies = append(h.policies, accessPolicy{Decision: "non_identity", Include: []accessRule{{AnyValidServiceToken: &struct{}{}}}})
+			case "inspection denied":
+				h.failPath = "/accounts/test-account/access/service_tokens"
+			case "expired token":
+				h.serviceTokens[0]["expires_at"] = "2000-01-01T00:00:00Z"
+			case "disabled token":
+				h.serviceTokens[0]["enabled"] = false
+			}
+			err := uploadArtifact(opts, h.run(t, m), h.client)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("token policy: %v", err)
+			}
+			if tc.wantError {
+				if _, err := os.Stat(workspace); err != nil {
+					t.Fatalf("policy failure consumed session: %v", err)
+				}
+				h.mu.Lock()
+				defer h.mu.Unlock()
+				for _, r := range h.requests {
+					if !strings.HasPrefix(r, "GET ") {
+						t.Fatalf("mutation before token policy check: %s", r)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestPreviewUnrelatedPrivateHostnamePolicy(t *testing.T) {
+	opts, m, _, h := previewFixture(t)
+	h.apps = append(h.apps, accessApp{ID: "human", Type: "self_hosted", Domain: "future.example.com/blog/search"})
+	h.policiesByApp = map[string][]accessPolicy{"/accounts/test-account/access/apps/human/policies": {{Decision: "allow"}}}
+	if err := uploadArtifact(opts, h.run(t, m), h.client); err != nil {
+		t.Fatalf("unrelated private hostname blocked current preview: %v", err)
 	}
 }

@@ -192,6 +192,15 @@ future preview names. Public path overrides, bypass policies and unverifiable
 policies fail closed. Service Auth must require verifiable token or certificate
 credentials, directly or through inspected groups; a network-only or Everyone
 rule cannot prove authentication. Human Allow policies retain Access sign-in.
+Worker-scoped coverage must also have a Service Auth path compatible with the
+readiness service token; human-only, deny-only, certificate-only and definitively
+mismatched/excluded-token coverage fail before URL changes or upload. Explicit
+token-ID policies use a read-only service-token metadata lookup to map the
+configured client ID to the policy token ID. A separate compatible policy can
+satisfy the requirement without that lookup. Group Include/Require/Exclude rules
+are inspected too. Client-secret validity, network/device conditions and actual
+hostname overrides remain post-upload request checks. A private policy on an
+unrelated future hostname does not require a readiness-token grant.
 The read-only inspector never provisions or changes Access resources.
 
 `CFGB_CF_ACCESS_CLIENT_ID` and `CFGB_CF_ACCESS_CLIENT_SECRET` provide a dedicated
@@ -216,7 +225,12 @@ Earlier branch deployments are retained; automatic closed-PR cleanup is not yet
 implemented. Verification uses HTTPS without following redirects or forwarding
 service credentials to a different origin. It checks generated published files
 (excluding Static Assets control files and special 404 pages), including HTML,
-images, feeds and Pagefind, against the supplied bytes.
+images, feeds and Pagefind, against the supplied bytes. The Worker entry path
+(including its slashless prefixed form) must return a locale-home 302; generated
+same-site aliases must return their recorded 301 destination. These redirects
+are verified without following them and still require anonymous denial. Static
+fallback entry/alias documents are not mistaken for byte-serving routes.
+Ready URLs include the artifact's escaped mount path and trailing slash.
 Production is public; preview visibility never changes canonical URLs or makes
 content committed to public Git private. Clean up previews for closed PRs;
 noindex and URL obscurity are not access control. Credentials and private drafts must not

@@ -340,14 +340,23 @@ It resolves the existing Worker identity, inspects paginated Access applications
 and effective policies using a separate read-only API token, and requires a
 previews-only Worker destination. It checks higher-precedence hostname/path
 coverage, public overrides and bypasses; Service Auth paths must prove token or
-certificate authentication, including inspected groups when present.
+certificate authentication, including inspected groups when present. Worker
+coverage additionally needs a token-compatible Service Auth path before mutations.
+It checks Include/Require/Exclude compatibility and resolves explicit token IDs
+using a conditional read-only service-token lookup. Human-only/deny-only and
+certificate-only coverage fail this readiness preflight. Unrelated private future
+hostname policies do not need service-token access; actual hostname overrides,
+network/device conditions and secret validity remain request checks.
 
 A real upload enables Preview URLs only after that gate and keeps production
 workers.dev off. The generated config has no production routes, uses
 `no_bundle: true`, and Wrangler receives the original branch, JSON output, an
 attempt tag and `--ignore-base-config`. Output is captured until HTTPS probes on
 every returned branch/deployment host show anonymous denial and authenticated
-published bytes, including media, feeds and Pagefind assets. Probes do not follow
+published bytes, including media, feeds and Pagefind assets. Locale entry 302s
+and generated alias 301s are checked against expected same-site destinations,
+including for static artifacts with fallback redirect HTML. They retain anonymous
+denial checks. Printed entry URLs include the artifact's escaped hosting prefix. Probes do not follow
 redirects or send credentials to hosts outside the verified Worker coverage.
 Failure cleanup locates the attempt's tag through the provider API and deletes
 only those deployments, even if Wrangler's output was incomplete. It preserves
@@ -358,6 +367,8 @@ production dry runs remain credential-free. Corpus acceptance validates both
 configurations using the real pinned Wrangler on normal and prefixed artifacts.
 Local HTTPS provider tests cover preflight ordering, policy/group inspection,
 anonymous leaks, authenticated response bytes, host/redirect handling and cleanup.
+Corpus acceptance also runs the readiness plan against real Wrangler Static
+Assets/Worker routing for both default and static artifacts.
 These tests do not claim a live Cloudflare Access deployment has been exercised.
 Automatic PR orchestration, closed-PR cleanup, transferred-toolchain recreation
 and full semantic validation remain planned.

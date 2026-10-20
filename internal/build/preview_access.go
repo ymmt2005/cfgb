@@ -60,9 +60,11 @@ type accessPolicy struct {
 	Decision string       `json:"decision"`
 	Include  []accessRule `json:"include"`
 	Require  []accessRule `json:"require"`
+	Exclude  []accessRule `json:"exclude"`
 }
 
 type accessRule struct {
+	Everyone     *struct{} `json:"everyone"`
 	ServiceToken *struct {
 		TokenID string `json:"token_id"`
 	} `json:"service_token"`
@@ -255,12 +257,13 @@ func (c *previewClient) preflight(cfg *config.File, account, name, branch string
 	if err != nil {
 		return nil, previewAccess(fmt.Errorf("inspect Access applications: %w", err))
 	}
+	readiness := readinessMatcher{client: c, account: accountPath, inspector: inspect, clientID: t.accessID}
 	covered := false
 	for _, app := range apps {
-		relevant := false
+		relevant, coversWorker := false, false
 		for _, destination := range app.Destinations {
 			if destination.Type == "preview_worker" && destination.WorkerID == worker.ID {
-				covered, relevant = true, true
+				covered, relevant, coversWorker = true, true, true
 				if len(destination.Overrides) != 0 {
 					return nil, previewAccess(fmt.Errorf("access application %s has public path overrides", app.ID))
 				}
@@ -291,6 +294,8 @@ func (c *previewClient) preflight(cfg *config.File, account, name, branch string
 		if len(policies) == 0 {
 			return nil, previewAccess(fmt.Errorf("access application %s has no verifiable policies", app.ID))
 		}
+		canAuthenticate := false
+		var readinessErr error
 		for _, policy := range policies {
 			switch policy.Decision {
 			case "allow", "deny":
@@ -302,9 +307,24 @@ func (c *previewClient) preflight(cfg *config.File, account, name, branch string
 				if !authenticated {
 					return nil, previewAccess(fmt.Errorf("service auth policy in %s does not require verifiable credentials", app.ID))
 				}
+				if coversWorker && !canAuthenticate {
+					match, matchErr := readiness.policy(policy, map[string]bool{})
+					if matchErr != nil {
+						readinessErr = errors.Join(readinessErr, matchErr)
+					} else {
+						canAuthenticate = match != tokenNo
+					}
+				}
+
 			default:
 				return nil, previewAccess(fmt.Errorf("access application %s has a bypass or unverifiable policy", app.ID))
 			}
+		}
+		if coversWorker && !canAuthenticate {
+			if readinessErr != nil {
+				return nil, previewAccess(fmt.Errorf("inspect readiness token policy in %s: %w", app.ID, readinessErr))
+			}
+			return nil, previewAccess(fmt.Errorf("access application %s has no Service Auth path compatible with the readiness token", app.ID))
 		}
 	}
 	if !covered {

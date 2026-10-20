@@ -132,7 +132,8 @@ See [the token recipe](docs/operator/cloudflare-tokens.md) for permissions.
 In addition to the deployment variables above, supply build-time secrets:
 
 - `CFGB_CF_ACCESS_API_TOKEN`: read Access applications and effective policies;
-  also read groups when Service Auth policies use them.
+  also read groups when Service Auth policies use them, and service-token metadata
+  when an explicit token-ID policy needs to be matched to the readiness client ID.
 - `CFGB_CF_ACCESS_CLIENT_ID` and `CFGB_CF_ACCESS_CLIENT_SECRET`: the Access service
   token used to verify authenticated responses, separate from either API token.
 
@@ -152,8 +153,10 @@ validation; it needs inspection credentials but makes no remote changes.
 
 After the Access gate passes, the command enables the Worker's Preview URLs,
 keeps production `workers.dev` off, and uploads the existing artifact. It reports
-branch/deployment URLs only after anonymous denial and authenticated artifact
-checks pass on every returned host. Failed checks attempt to delete only this
+branch/deployment entry URLs, including the escaped artifact mount path, only after anonymous denial and authenticated artifact
+checks pass on every returned host. Worker locale redirects and generated alias
+redirects are checked for their expected status and same-site destination without
+following them; served assets retain byte checks. Failed checks attempt to delete only this
 attempt's deployment. Production deploys continue to disable Preview/Version
 URLs; the next verified preview enables them again. Both commands consume the
 retained toolchain only once an actual upload begins. No Cloudflare credentials

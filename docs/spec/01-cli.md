@@ -229,6 +229,10 @@ verification uses `CFGB_CF_ACCESS_API_TOKEN`. Post-upload checks use
 `CFGB_CF_ACCESS_CLIENT_ID` and `CFGB_CF_ACCESS_CLIENT_SECRET`, accepted by a
 reviewed Service Auth policy. Both API tokens and this service token are required
 for preview dry runs, which inspect the existing Worker and Access applications.
+Worker-scoped coverage must admit a compatible Service Auth token path. Explicit
+token-ID policies may need Access: Service Tokens Read to resolve the client ID;
+a compatible alternative policy can avoid that lookup. Runtime-dependent
+conditions and the supplied secret are checked on actual preview requests.
 Preserve the original branch when creating a Preview; the temporary workspace
 must not change its identity. Use CFGB's pinned Wrangler dependency, never an
 unpinned npx download. None of these credentials becomes a visitor-runtime secret.
@@ -236,9 +240,11 @@ unpinned npx download. None of these credentials becomes a visitor-runtime secre
 Private previews use `wrangler preview --name <current-branch> --json` with the
 retained pinned toolchain, `no_bundle: true`, and `--ignore-base-config`. They do
 not attach a production custom domain or import a dashboard Preview base config.
-A unique attempt tag identifies only the deployment to remove on failure. No
+A unique attempt tag identifies only the deployment to remove on failure. Ready URLs include the artifact mount path, preserving URL escaping. No
 ready URL is printed until all returned branch/deployment hosts deny anonymous
-requests and serve the supplied published asset bytes with service credentials.
+requests and serve the supplied published asset bytes with service credentials,
+or return the expected Worker locale/generated alias redirect. Redirect checks
+compare status and same-site destination without following them.
 Verification errors exit 3 with `E_PREVIEW_ACCESS`; cleanup errors are reported
 alongside the original error. Earlier deployments are not deleted. Automatic PR
 comments and closed-PR cleanup are not implemented.
